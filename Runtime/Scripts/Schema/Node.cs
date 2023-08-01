@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+#nullable enable
 
 namespace GLTFast.Schema {
 
@@ -25,7 +26,7 @@ namespace GLTFast.Schema {
         /// <summary>
         /// The indices of this node's children.
         /// </summary>
-        public uint[] children;
+        public uint[]? children;
 
         /// <summary>
         /// The index of the mesh in this node.
@@ -35,23 +36,23 @@ namespace GLTFast.Schema {
         /// <summary>
         /// A floating-point 4x4 transformation matrix stored in column-major order.
         /// </summary>
-        public float[] matrix;
+        public float[]? matrix;
 
         /// <summary>
         /// The node's unit quaternion rotation in the order (x, y, z, w),
         /// where w is the scalar.
         /// </summary>
-        public float[] rotation;
+        public float[]? rotation;
 
         /// <summary>
         /// The node's non-uniform scale.
         /// </summary>
-        public float[] scale;
+        public float[]? scale;
 
         /// <summary>
         /// The node's translation.
         /// </summary>
-        public float[] translation;
+        public float[]? translation;
 
         /// <summary>
         /// The weights of the instantiated Morph Target.
@@ -69,7 +70,7 @@ namespace GLTFast.Schema {
         public int camera = -1;
 
         /// <inheritdoc cref="NodeExtensions"/>
-        public NodeExtensions extensions;
+        public NodeExtensions? extensions;
         
         internal void GltfSerialize(JsonWriter writer) {
             writer.AddObject();
@@ -123,15 +124,15 @@ namespace GLTFast.Schema {
         // Names are identical to glTF specified properties, that's why
         // inconsistent names are ignored.
         // ReSharper disable InconsistentNaming
-        
+
+        // Be sure to review GLTFast.JsonParser.ParseJson !!!
+        public MpegAudioSpatial? MPEG_audio_spatial;
+
         /// <inheritdoc cref="MeshGpuInstancing"/>
-        public MeshGpuInstancing EXT_mesh_gpu_instancing;
+        public MeshGpuInstancing? EXT_mesh_gpu_instancing;
         /// <inheritdoc cref="LightsPunctual"/>
-        public NodeLightsPunctual KHR_lights_punctual;
-        
-        // Whenever an extension is added, the JsonParser
-        // (specifically step four of JsonParser.ParseJson)
-        // needs to be updated!
+        public NodeLightsPunctual? KHR_lights_punctual;
+
 
         // ReSharper restore InconsistentNaming
         internal void GltfSerialize(JsonWriter writer) {
@@ -143,6 +144,11 @@ namespace GLTFast.Schema {
             if (KHR_lights_punctual != null) {
                 writer.AddProperty("KHR_lights_punctual");
                 KHR_lights_punctual.GltfSerialize(writer);
+            }
+            if (MPEG_audio_spatial != null)
+            {
+                writer.AddProperty("MPEG_audio_spatial");
+                MPEG_audio_spatial.GltfSerialize(writer);
             }
             writer.Close();
         }

@@ -23,6 +23,7 @@ using Camera = UnityEngine.Camera;
 using Material = UnityEngine.Material;
 using Mesh = UnityEngine.Mesh;
 
+
 // #if UNITY_EDITOR && UNITY_ANIMATION
 // using UnityEditor.Animations;
 // #endif
@@ -30,7 +31,7 @@ using Mesh = UnityEngine.Mesh;
 namespace GLTFast {
     
     using Logging;
-    
+
     /// <summary>
     /// Generates a GameObject hierarchy from a glTF scene 
     /// </summary>
@@ -59,6 +60,9 @@ namespace GLTFast {
             public Animation legacyAnimation { get; private set; }
 #endif
 
+            public List<SpatialAudioSource> audioSources { get; private set; }
+            public AudioListener audioListener { get; private set; }
+
             /// <summary>
             /// Adds a camera
             /// </summary>
@@ -75,6 +79,20 @@ namespace GLTFast {
                     lights = new List<Light>();
                 }
                 lights.Add(light);
+            }
+
+            internal void AddAudioSource(SpatialAudioSource aSource)
+            {
+                if (audioSources == null)
+                {
+                    audioSources = new List<SpatialAudioSource>();
+                }
+                audioSources.Add(aSource);
+            }
+
+            internal void SetAudioListener(AudioListener aListener)
+            {
+                audioListener = aListener;
             }
 
 #if UNITY_ANIMATION
@@ -317,7 +335,6 @@ namespace GLTFast {
                 var material = gltf.GetMaterial(materialIndices[index]) ?? gltf.GetDefaultMaterial();
                 materials[index] = material;
             }
-
             renderer.sharedMaterials = materials;
         }
 
@@ -460,14 +477,14 @@ namespace GLTFast {
         /// <param name="cameraName">Camera's name</param>
         /// <param name="localScale">Approximated local-to-world scale factor</param>
         /// <returns>The newly created Camera component</returns>
-        Camera CreateCamera(uint nodeIndex,string cameraName, out float localScale) {
+        Camera CreateCamera(uint nodeIndex, string cameraName, out float localScale) {
             var cameraParent = nodes[nodeIndex];
             var camGo = new GameObject(cameraName ?? $"{cameraParent.name}-Camera" ?? $"Camera-{nodeIndex}");
             camGo.layer = settings.layer;
             var camTrans = camGo.transform;
             var parentTransform = cameraParent.transform;
             camTrans.SetParent(parentTransform,false);
-            var tmp =Quaternion.Euler(0, 180, 0);
+            var tmp = Quaternion.Euler(0, 180, 0);
             camTrans.localRotation= tmp;
             var cam = camGo.AddComponent<Camera>();
 
@@ -521,6 +538,33 @@ namespace GLTFast {
             sceneInstance.AddLight(light);
         }
         
+        public void AddAudioSources(uint nodeIndex)
+        {
+            var go = nodes[nodeIndex];
+            var aNode = gltf.GetSourceNode((int)nodeIndex);
+            
+            var root = gltf.GetSourceRoot();
+            
+            foreach (var srcDef in aNode.extensions.MPEG_audio_spatial.sources)
+            {
+                var aSrc = go.AddComponent<SpatialAudioSource>() as SpatialAudioSource;
+                int bufferId = root.bufferViews[root.accessors[srcDef.accessors[0]].bufferView].buffer;
+                aSrc.Configure(srcDef, bufferId);
+                sceneInstance.AddAudioSource(aSrc);
+            } // end foreach srcDef
+        }
+
+        public void AddAudioListener(uint nodeIndex)
+        {
+            var audioSourceGameObject = nodes[nodeIndex];
+            var aLstn = audioSourceGameObject.AddComponent(typeof(AudioListener)) as AudioListener;
+            // doesn't check if multiple listeners are configured/enabled
+            aLstn.enabled = true;
+            aLstn.velocityUpdateMode = AudioVelocityUpdateMode.Auto;
+            
+            sceneInstance.SetAudioListener(aLstn);
+        }
+
         /// <inheritdoc />
         public virtual void EndScene(uint[] rootNodeIndices) {
             Profiler.BeginSample("EndScene");

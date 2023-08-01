@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+using UnityEngine;
+
 namespace GLTFast {
 
     /// <summary>
@@ -55,12 +57,21 @@ namespace GLTFast {
         /// <see href="https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_transform/README.md">KHR_texture_transform</see> glTF extension
         /// </summary>
         TextureTransform,
+
+        /// <summary>
+        /// <see href="https://mpegx.int-evry.fr/software/MPEG/Systems/SceneDescription">MPEG scene description extensions</see>
+        /// </summary>
+        BufferCircular,
+        AccessorTimed,
+        Media,
+        TextureVideo,
+        SpatialAudio
     }
-    
-    /// <summary>
-    /// Collection of glTF extension names
-    /// </summary>
-    public static class ExtensionName {
+
+/// <summary>
+/// Collection of glTF extension names
+/// </summary>
+public static class ExtensionName {
         /// <summary>
         /// <see href="https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_draco_mesh_compression/README.md">KHR_draco_mesh_compression</see> glTF extension 
         /// </summary>
@@ -103,11 +114,21 @@ namespace GLTFast {
         public const string LightsPunctual = "KHR_lights_punctual";
         
         /// <summary>
+        /// <see href="http://mpegx.int-evry.fr/software/MPEG/Systems/SceneDescription">MPEG scene description extensions</see>
+        /// </summary>
+        public const string BufferCircular = "MPEG_buffer_circular";
+        public const string AccessorTimed = "MPEG_accessor_timed";
+        public const string Media = "MPEG_media";
+        public const string TextureVideo = "MPEG_texture_video";
+        public const string SpatialAudio = "MPEG_audio_spatial";
+
+        /// <summary>
         /// Returns the official name of the glTF extension
         /// </summary>
         /// <param name="extension">Extension enum value</param>
         /// <returns>Name of the glTF extension</returns>
         public static string GetName(this Extension extension) {
+            Debug.Log(extension);
             switch (extension) {
                 case Extension.DracoMeshCompression:
                     return DracoMeshCompression;
@@ -127,6 +148,17 @@ namespace GLTFast {
                     return TextureBasisUniversal;
                 case Extension.TextureTransform:
                     return TextureTransform;
+                //// MPEG extensions
+                case Extension.BufferCircular:
+                    return BufferCircular;
+                case Extension.AccessorTimed:
+                    return AccessorTimed;
+                case Extension.Media:
+                    return Media;
+                case Extension.TextureVideo:
+                    return TextureVideo;
+                case Extension.SpatialAudio:
+                    return SpatialAudio;
                 default:
                     return null;
             }

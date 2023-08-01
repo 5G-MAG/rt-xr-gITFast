@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+#nullable enable
 
 namespace GLTFast.Schema {
 
@@ -22,10 +23,25 @@ namespace GLTFast.Schema {
     public class TextureExtension {
         
         /// <inheritdoc cref="Extension.TextureBasisUniversal"/>
-        public TextureBasisUniversal KHR_texture_basisu = null;
+        public TextureBasisUniversal? KHR_texture_basisu;
+
+        /// <inheritdoc cref="Extension.TextureVideo"/>
+        public MpegTextureVideo? MPEG_texture_video;
 
         internal void GltfSerialize(JsonWriter writer) {
             throw new System.NotImplementedException($"GltfSerialize missing on {GetType()}");
+        }
+
+        public void Sanitize()
+        {
+            if (KHR_texture_basisu?.source < 0)
+            {
+                KHR_texture_basisu = null;
+            }
+            if (MPEG_texture_video?.accessor < 0)
+            {
+                MPEG_texture_video = null;
+            }
         }
     }
 

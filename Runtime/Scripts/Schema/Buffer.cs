@@ -15,6 +15,7 @@
 
 namespace GLTFast.Schema {
 
+
     /// <summary>
     /// A buffer points to binary geometry, animation, or skins.
     /// </summary>
@@ -30,7 +31,10 @@ namespace GLTFast.Schema {
         /// The URI (or IRI) of the buffer.
         /// </summary>
         public string uri;
-        
+
+        /// <inheritdoc cref="BufferExtension"/>
+        public BufferExtension extensions;
+
         internal void GltfSerialize(JsonWriter writer) {
             writer.AddObject();
             if (!string.IsNullOrEmpty(uri)) {

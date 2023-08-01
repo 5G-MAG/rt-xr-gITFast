@@ -23,12 +23,20 @@ namespace GLTFast.Schema {
         
         /// <inheritdoc cref="LightsPunctual"/>
         public LightsPunctual KHR_lights_punctual;
-        
+
+        // MPEG_media extension
+        public MpegMediaExtension MPEG_media;
+
         internal void GltfSerialize(JsonWriter writer) {
             writer.AddObject();
             if(KHR_lights_punctual!=null) {
                 writer.AddProperty("KHR_lights_punctual");
                 KHR_lights_punctual.GltfSerialize(writer);
+            }
+            if (MPEG_media != null)
+            {
+                writer.AddProperty("MPEG_media");
+                MPEG_media.GltfSerialize(writer);
             }
             writer.Close();
         }

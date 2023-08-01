@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+#nullable enable
+
 using System;
 using UnityEngine;
 
@@ -113,6 +115,9 @@ namespace GLTFast.Schema
         /// </summary>
         public TextureWrapMode wrapV => ConvertWrapMode((WrapMode)wrapT);
 
+        /// <inheritdoc cref="TextureSamplerExtension"/>
+        public TextureSamplerExtension? extensions;
+
         static FilterMode ConvertFilterMode(MinFilterMode minFilterToConvert, MagFilterMode magFilterToConvert)
         {
             switch (minFilterToConvert)
@@ -197,7 +202,7 @@ namespace GLTFast.Schema
         /// <param name="image">Texture to apply the settings to</param>
         /// <param name="defaultMinFilter">Fallback minification filter</param>
         /// <param name="defaultMagFilter">Fallback magnification filter</param>
-        public void Apply(Texture2D image,
+        public void Apply(UnityEngine.Texture image,
                           MinFilterMode defaultMinFilter = MinFilterMode.Linear,
                           MagFilterMode defaultMagFilter = MagFilterMode.Linear) {
             if (image == null) return;
@@ -233,4 +238,13 @@ namespace GLTFast.Schema
             writer.Close();
         }
     }
+
+
+    [System.Serializable]
+    public class TextureSamplerExtension
+    {
+        /// <inheritdoc cref="MpegSamplerYCbCr"/>
+        public MpegSamplerYCbCr? MPEG_sampler_YCbCr;
+    }
+
 }

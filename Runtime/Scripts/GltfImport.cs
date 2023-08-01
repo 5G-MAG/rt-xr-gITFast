@@ -122,6 +122,12 @@ namespace GLTFast {
             ExtensionName.MaterialsTransmission,
             ExtensionName.MeshGPUInstancing,
             ExtensionName.LightsPunctual,
+            // MPEG
+            ExtensionName.BufferCircular,
+            ExtensionName.AccessorTimed,
+            ExtensionName.Media,
+            ExtensionName.TextureVideo,
+            ExtensionName.SpatialAudio
         };
 
         static IDeferAgent defaultDeferAgent;
@@ -700,7 +706,6 @@ namespace GLTFast {
 #else
             materialGenerator.SetLogger(logger);
             return materialGenerator.GetDefaultMaterial(defaultMaterialPointsSupport);
-            materialGenerator.SetLogger(null);
 #endif
         }
         
@@ -1074,7 +1079,7 @@ namespace GLTFast {
 
                 imageReadable = new bool[images.Length];
                 for (int i = 0; i < images.Length; i++) {
-                    imageReadable[i] = imageVariants[i]!=null && imageVariants[i].Count > 1;
+                    imageReadable[i] = true; // imageVariants[i]!=null && imageVariants[i].Count > 1;
                 }
 
                 Profiler.EndSample();
@@ -1659,7 +1664,15 @@ namespace GLTFast {
 
                     var imageIndex = txt.GetImageIndex();
                     var img = images[imageIndex];
-                    if(imageVariants[imageIndex]==null) {
+                    if (txt.extensions.MPEG_texture_video != null)
+                    {
+                        // make sure we have proper format, size and coordinates to blit video texture
+                        Texture2D dst = new Texture2D(txt.extensions.MPEG_texture_video.width, txt.extensions.MPEG_texture_video.height, DefaultFormat.LDR, TextureCreationFlags.None);
+                        Graphics.ConvertTexture(img, dst); // convert format and dimension
+                        images[imageIndex] = dst;
+                        img = dst;
+                    }
+                    if (imageVariants[imageIndex]==null) {
                         if(txt.sampler>=0) {
                             sampler.Apply(img, settings.defaultMinFilterMode, settings.defaultMagFilterMode);
                         }
@@ -2159,6 +2172,22 @@ namespace GLTFast {
                         instantiator.AddLightPunctual(nodeIndex,(uint)lightIndex);
                     }
                 }
+
+                MpegAudioSpatial ext = node.extensions?.MPEG_audio_spatial;
+                if (ext != null){
+                    if (ext.sources != null && (ext.sources.Length > 0))
+                    {
+                        instantiator.AddAudioSources(nodeIndex);
+                    }
+                    if (ext.listener != null && (ext.listener.id >= 0))
+                    {
+                        instantiator.AddAudioListener(nodeIndex);
+                    }
+                    if (ext.reverbs != null)
+                    {
+                        Debug.LogWarningFormat("spatial audio reverbs definition is expected on root");
+                    }
+                }
                 
                 Profiler.EndSample();
             }
@@ -2365,6 +2394,14 @@ namespace GLTFast {
             return job;
         }
 
+        [ContextMenu("Fix Debugger")]
+        public void FixDebugger(){
+            if (System.Diagnostics.Debugger.IsAttached)
+            {
+                Debug.Log("Debugger Is Attached!");
+            }
+        }
+        
         Texture2D CreateEmptyTexture(Image img, int index, bool forceSampleLinear) {
 #if UNITY_2022_1_OR_NEWER
             var textureCreationFlags = TextureCreationFlags.DontUploadUponCreate | TextureCreationFlags.DontInitializePixels;
@@ -2374,6 +2411,7 @@ namespace GLTFast {
             if (settings.generateMipMaps) {
                 textureCreationFlags |= TextureCreationFlags.MipChain;
             }
+            FixDebugger();
             var txt = new Texture2D(
                 4, 4,
                 forceSampleLinear 

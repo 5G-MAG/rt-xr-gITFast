@@ -99,6 +99,16 @@ namespace GLTFast {
 #endif
             Profiler.EndSample();
 
+            // Cleanup TextureExtensions on root:
+            if (root.textures != null)
+            {
+                for (var i = 0; i < root.textures.Length; i++)
+                {
+                    root.textures[i].extensions?.Sanitize();
+                }
+            }
+
+
             // Step three:
             // If we have to make an explicit check, parse the JSON again with a
             // different, minimal Root class, where class members are serialized to
@@ -184,11 +194,19 @@ namespace GLTFast {
                         if ((e.KHR_lights_punctual?.light ?? -1) < 0) {
                             e.KHR_lights_punctual = null;
                         }
-                        // Unset `extension` if none of them was valid
+                        if (e.MPEG_audio_spatial != null){
+                            if (e.MPEG_audio_spatial.sources == null && 
+                            e.MPEG_audio_spatial.listener == null &&
+                            e.MPEG_audio_spatial.reverbs == null){
+                                Debug.LogError("invalid MPEG_audio_spatial extension definition");
+                            }
+                        }
+                        /* Unset `extension` if none of them was valid
                         if (e.EXT_mesh_gpu_instancing == null && 
                             e.KHR_lights_punctual == null ) {
                             root.nodes[i].extensions = null;
                         }
+                        */
                     }
                 }
             }

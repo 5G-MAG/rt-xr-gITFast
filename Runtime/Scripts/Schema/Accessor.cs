@@ -220,6 +220,9 @@ namespace GLTFast.Schema {
         /// </summary>
         public AccessorSparse sparse;
 
+        /// <inheritdoc cref="AccessorExtension"/>
+        public AccessorExtension extensions;
+
         /// <summary>
         /// Provides size of components by type
         /// </summary>

@@ -140,7 +140,17 @@ namespace GLTFast {
             uint nodeIndex,
             uint lightIndex
         );
+
+
+        void AddAudioSources(
+            uint nodeIndex
+        );
         
+        void AddAudioListener(
+            uint nodeIndex
+        );
+
+
         /// <summary>
         /// Is called at last, after all scene content has been created.
         /// Immediately afterwards the scene will be rendered, so use it to
