@@ -15,7 +15,7 @@ namespace GLTFast.Schema {
     [System.Serializable]
     public class MpegBufferCircular
     {
-        public int source;
+        public int media = -1;
         public int count = 2;
         public int[] tracks;
 
