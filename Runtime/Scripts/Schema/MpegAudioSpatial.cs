@@ -21,18 +21,12 @@ namespace GLTFast.Schema
 {
 
     [System.Serializable]
-    public class MpegAudioSpatialSourceExtra
-    {
-        public int[] sample_rates = { 48000 };
-    }
-
-
-    [System.Serializable]
     public class MpegAudioSpatialSource
     {
         public int id = -1;
 
         public string type = "Object"; // required
+        public int targetSampleRate = -1; // required
         public int[]? accessors; // required
 
         public float pregain = 0;
@@ -46,19 +40,11 @@ namespace GLTFast.Schema
         public int[]? reverbFeed;
         public float[]? reverbFeedGain;
 
-        // public MpegAudioSpatialSourceExtra? extra;
-        public int? sampleRate;
-
         internal void GltfSerialize(JsonWriter writer)
         {
             throw new System.NotImplementedException($"GltfSerialize missing on {GetType()}");
         }
 
-        public int GetSampleRate()
-        {
-            // FIXME: to be removed once sampleRate properly defined
-            return sampleRate ?? 48000;
-        }
     }
 
 

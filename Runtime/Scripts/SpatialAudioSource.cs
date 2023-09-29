@@ -107,7 +107,11 @@ namespace GLTFast
         public void Configure(MpegAudioSpatialSource srcDef, int bufferId)
         {
             BufferId = bufferId;
-            SampleRate = srcDef.GetSampleRate();
+            if (srcDef.targetSampleRate <= 0)
+            {
+                throw new Exception("Invalid targetSampleRate on MpegAudioSpatialSource");
+            }
+            SampleRate = srcDef.targetSampleRate;
             if (srcDef.type != null && String.Equals(srcDef.type, "HOA", StringComparison.OrdinalIgnoreCase))
             {
                 throw new Exception("HOA audio source currently not implemented");
