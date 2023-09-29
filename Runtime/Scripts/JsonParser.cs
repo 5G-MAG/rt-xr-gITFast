@@ -198,7 +198,7 @@ namespace GLTFast {
                             if (e.MPEG_audio_spatial.sources == null && 
                             e.MPEG_audio_spatial.listener == null &&
                             e.MPEG_audio_spatial.reverbs == null){
-                                Debug.LogError("invalid MPEG_audio_spatial extension definition");
+                                e.MPEG_audio_spatial = null;
                             }
                         }
                         /* Unset `extension` if none of them was valid
