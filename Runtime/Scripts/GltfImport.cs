@@ -13,6 +13,20 @@
 // limitations under the License.
 //
 
+
+// All modification marked by "//// IDCC" are created by InterDigital and subject to the following header
+/*
+* Copyright (c) 2023 InterDigital
+* Licensed under the License terms of 5GMAG software (the "License").
+* You may not use this file except in compliance with the License.
+* You may obtain a copy of the License at https://www.5g-mag.com/license .
+* Unless required by applicable law or agreed to in writing, software distributed under the License is
+* distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and limitations under the License.
+*/
+
+
 #if !UNITY_WEBGL || UNITY_EDITOR
 #define GLTFAST_THREADS
 #endif
@@ -127,7 +141,11 @@ namespace GLTFast {
             ExtensionName.AccessorTimed,
             ExtensionName.Media,
             ExtensionName.TextureVideo,
-            ExtensionName.SpatialAudio
+            ExtensionName.SpatialAudio,
+            //// IDCC
+            // MPEG_scene_interactivity and MPEG_node_interactivity
+            ExtensionName.SceneInteractivity,
+            ExtensionName.NodeInteractivity
         };
 
         static IDeferAgent defaultDeferAgent;
@@ -928,6 +946,9 @@ namespace GLTFast {
                 return false;
             }
 
+            //// IDCC
+            VirtualSceneGraph.SetRoot(gltfRoot);
+
             var bufferCount = gltfRoot.buffers?.Length ?? 0;
             if(bufferCount>0) {
                 buffers = new byte[bufferCount][];
@@ -1694,6 +1715,8 @@ namespace GLTFast {
                             textures[textureIndex] = newImg;
                         }
                     }
+                    //// IDCC
+                    VirtualSceneGraph.AssignTextureIndexToTexture(textureIndex, textures[textureIndex]);
                 }
             }
 
@@ -1710,6 +1733,9 @@ namespace GLTFast {
                         pointsSupport
                     );
                     materials[i] = material;
+                    //// IDCC
+                    VirtualSceneGraph.AssignMaterialIndexToMaterial(i, materials[i]);
+
                     materialGenerator.SetLogger(null);
                     Profiler.EndSample();
                 }
@@ -1867,6 +1893,9 @@ namespace GLTFast {
                                 break;
                         }
                     }
+
+                    //// IDCC
+                    VirtualSceneGraph.AssignAnimationIndexToAnimationClip(i, animationClips[i]);
                 }
             }
 #endif
@@ -2075,6 +2104,10 @@ namespace GLTFast {
                     for( var i=meshPrimitiveIndex[node.mesh]; i<end; i++ ) {
                         var primitive = primitives[i];
                         var mesh = primitive.mesh;
+
+                        //// IDCC
+                        VirtualSceneGraph.AssignMeshToMeshIndex(i, mesh);
+
                         var meshName = string.IsNullOrEmpty(mesh.name) ? null : mesh.name;
                         // Fallback name for Node is first valid Mesh name
                         goName = goName ?? meshName;
@@ -2188,7 +2221,7 @@ namespace GLTFast {
                         Debug.LogWarningFormat("spatial audio reverbs definition is expected on root");
                     }
                 }
-                
+
                 Profiler.EndSample();
             }
             
@@ -2207,7 +2240,43 @@ namespace GLTFast {
                     await IterateNodes(nodeId,null,PopulateHierarchy);
                 }
             }
-            
+
+            //// IDCC
+            // Current scene extensions
+            if (scene.extensions?.MPEG_scene_interactivity != null)
+            {
+                MpegSceneInteractivity mpegSceneInteractivity = scene.extensions.MPEG_scene_interactivity;
+                if (mpegSceneInteractivity.triggers != null)
+                {
+                    // Create triggers
+                    for (int i = 0; i < mpegSceneInteractivity.triggers.Length; i++)
+                    {
+                        GLTFast.Schema.Trigger trig = scene.extensions.MPEG_scene_interactivity.triggers[i];
+                        instantiator.AddMPEGInteractivityTrigger(trig, i);
+                    }
+                }
+
+                if (mpegSceneInteractivity.actions != null)
+                {
+                    // Create actions
+                    for (int i = 0; i < mpegSceneInteractivity.actions.Length; i++)
+                    {
+                        GLTFast.Schema.Action act = scene.extensions.MPEG_scene_interactivity.actions[i];
+                        instantiator.AddMPEGInteractivityAction(act, i);
+                    }
+                }
+
+                if(mpegSceneInteractivity.behaviors != null)
+                {
+                    // Create behaviors
+                    for (int i = 0; i < mpegSceneInteractivity.behaviors.Length; i++)
+                    {
+                        GLTFast.Schema.Behavior bhv = scene.extensions.MPEG_scene_interactivity.behaviors[i];
+                        instantiator.AddMPEGInteractivityBehavior(bhv, i);
+                    }
+                }
+            }
+
             instantiator.EndScene(scene.nodes);
         }
 

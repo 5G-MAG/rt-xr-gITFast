@@ -13,6 +13,18 @@
 // limitations under the License.
 //
 
+// All modification marked by "//// IDCC" are created by InterDigital and subject to the following header
+/*
+* Copyright (c) 2023 InterDigital
+* Licensed under the License terms of 5GMAG software (the "License").
+* You may not use this file except in compliance with the License.
+* You may obtain a copy of the License at https://www.5g-mag.com/license .
+* Unless required by applicable law or agreed to in writing, software distributed under the License is
+* distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and limitations under the License.
+*/
+
 using UnityEngine;
 
 namespace GLTFast {
@@ -65,7 +77,11 @@ namespace GLTFast {
         AccessorTimed,
         Media,
         TextureVideo,
-        SpatialAudio
+        SpatialAudio,
+        
+        //// IDCC
+        MPEGSceneInteractivity,
+        MPEGNodeInteractivity
     }
 
 /// <summary>
@@ -121,6 +137,9 @@ public static class ExtensionName {
         public const string Media = "MPEG_media";
         public const string TextureVideo = "MPEG_texture_video";
         public const string SpatialAudio = "MPEG_audio_spatial";
+        //// IDCC
+        public const string SceneInteractivity = "MPEG_scene_interactivity";
+        public const string NodeInteractivity = "MPEG_node_interactivity";
 
         /// <summary>
         /// Returns the official name of the glTF extension
@@ -159,6 +178,11 @@ public static class ExtensionName {
                     return TextureVideo;
                 case Extension.SpatialAudio:
                     return SpatialAudio;
+                //// IDCC
+                case Extension.MPEGSceneInteractivity:
+                    return SceneInteractivity;
+                case Extension.MPEGNodeInteractivity:
+                    return NodeInteractivity;
                 default:
                     return null;
             }
