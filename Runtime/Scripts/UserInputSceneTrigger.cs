@@ -24,12 +24,8 @@ namespace GLTFast
     public class UserInputSceneTrigger : MonoBehaviour, IMpegInteractivityTrigger
     {
         // Require the last unity package to work
-#if USE_NEW_INPUT_SYSTEM
         public InputAction inputAction => m_InputAction;
         private InputAction m_InputAction;
-#else
-        // Not implemented
-#endif
         private GameObject[] m_Targets;
         private bool m_IsPerformed;
         private List<UserInputNodeTrigger> m_NodeTriggers = new List<UserInputNodeTrigger>();
@@ -64,14 +60,11 @@ namespace GLTFast
         public void Init(Trigger trigger)
         {
             string binding = GetBindingFromUserInputDescription(trigger.userInputDescription);
-#if USE_NEW_INPUT_SYSTEM
 
             m_InputAction = new InputAction(trigger.userInputDescription, binding: binding);
-
             m_InputAction.performed += OnInputPerformed;
             m_InputAction.canceled += OnInputCanceled;
             m_InputAction.Enable();
-#endif
             if(trigger.nodes != null)
             {
                 m_Targets = VirtualSceneGraph.GetGameObjectsFromIndexes(trigger.nodes);

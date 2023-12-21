@@ -95,11 +95,6 @@
             "name": "com.unity.shadergraph",
             "expression": "12",
             "define": "UNITY_SHADER_GRAPH_12_OR_NEWER"
-        },
-        {
-            "name": "com.unity.inputsystem",
-            "expression": "1.5",
-            "define": "USE_NEW_INPUT_SYSTEM"
         }
     ],
     "noEngineReferences": false

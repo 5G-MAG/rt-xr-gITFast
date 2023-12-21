@@ -22,6 +22,7 @@ namespace GLTFast
     {
         private bool m_HasInit = false;
         private List<GameObject> m_Target;
+        private List<System.Action<GameObject>> m_GameEngineActions;
 
         public bool Collides => m_Collides;
 
@@ -43,6 +44,7 @@ namespace GLTFast
                 {
                     m_Rb = gameObject.AddComponent<Rigidbody>();
                 }
+                m_GameEngineActions = new List<System.Action<GameObject>>();
             }
 
             // Set the default values for rigidbody
@@ -117,6 +119,10 @@ namespace GLTFast
             if (m_Target.Contains(other.gameObject))
             {
                 m_Collides = true;
+                
+                for(int i = 0; i < m_GameEngineActions.Count; i++) {
+                    m_GameEngineActions[i]?.Invoke(other.gameObject);
+                }
             }
         }
 
@@ -125,6 +131,11 @@ namespace GLTFast
             if (m_Target.Contains(other.gameObject))
             {
                 m_Collides = true;
+
+                
+                for(int i = 0; i < m_GameEngineActions.Count; i++) {
+                    m_GameEngineActions[i]?.Invoke(other.gameObject);
+                }
             }
         }
 
@@ -134,6 +145,10 @@ namespace GLTFast
             {
                 m_Collides = false;
             }
+        }
+
+        public void AddCollisionCallback(System.Action<GameObject> _act) {
+            m_GameEngineActions.Add(_act);
         }
     }
 }

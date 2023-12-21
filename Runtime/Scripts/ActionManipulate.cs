@@ -12,9 +12,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
-#if USE_NEW_INPUT_SYSTEM
 using UnityEngine.InputSystem;
-#endif
 
 namespace GLTFast
 {
@@ -28,10 +26,8 @@ namespace GLTFast
         private Vector3 m_Axises;
         private GameObject[] m_Targets;
         private Schema.Action.ManipulateActionType m_CurrentManipulateType;
-#if USE_NEW_INPUT_SYSTEM
         private InputAction m_InputAction;
         private object m_ReadInputValue;
-#endif
         private bool m_IsInputPerformed;
         private Vector3 m_Position;
         private UnityEngine.Camera Camera

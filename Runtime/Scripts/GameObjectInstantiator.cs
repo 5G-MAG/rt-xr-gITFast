@@ -43,6 +43,7 @@ using Mesh = UnityEngine.Mesh;
 namespace GLTFast {
     
     using Logging;
+    using UnityEngine.XR;
 
     /// <summary>
     /// Generates a GameObject hierarchy from a glTF scene 
@@ -469,7 +470,24 @@ namespace GLTFast {
 
             cam.orthographic = false;
 
-            cam.fieldOfView = verticalFieldOfView * Mathf.Rad2Deg;
+            // TODO: Move this code elsewhere
+            // Look if a XR device is in use
+            bool _isXrInUse = false;
+            List<XRDisplaySubsystem> xrDisplaySubsystems = new List<XRDisplaySubsystem>();
+            SubsystemManager.GetInstances(xrDisplaySubsystems);
+            foreach (var xrDisplay in xrDisplaySubsystems)
+            {
+                if (xrDisplay.running) {
+                    _isXrInUse = true;
+                    break;
+                }
+            }
+
+            // Field of view can't be changed while xr is in use
+            if(!_isXrInUse) {
+                cam.fieldOfView = verticalFieldOfView * Mathf.Rad2Deg;
+            }
+
             cam.nearClipPlane = nearClipPlane * localScale;
             cam.farClipPlane = farClipPlane * localScale;
 
