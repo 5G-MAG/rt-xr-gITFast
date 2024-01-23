@@ -52,6 +52,11 @@ namespace GLTFast
             }
         }
 
+        public void Unlock()
+        {
+            m_IsBlock = false;
+        }
+
         public void Invoke()
         {
             if (Delay > 0.0f)

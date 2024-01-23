@@ -560,7 +560,7 @@ namespace GLTFast {
             var cam = camGo.AddComponent<Camera>();
 
             // By default, imported cameras are not enabled by default
-            cam.enabled = false;
+            // cam.enabled = false;
 
             sceneInstance.AddCamera(cam);
 

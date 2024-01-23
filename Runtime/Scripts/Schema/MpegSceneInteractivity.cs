@@ -533,7 +533,7 @@ namespace GLTFast.Schema
         /// <summary>
         /// Transform matrix to apply to the nodes
         /// </summary>
-        public Matrix4x4 transform;
+        public float[] transform;
 
         /// <summary>
         /// Index of the animation in the animations array to be considered

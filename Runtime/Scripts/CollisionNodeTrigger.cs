@@ -86,10 +86,7 @@ namespace GLTFast
                 _meshCol.sharedMesh = _msh;
                 _meshCol.convex = true;
             }
-            if (node_info.isStatic)
-            {
-                m_Rb.isKinematic = true;
-            }
+            m_Rb.isKinematic = node_info.isStatic;
 
             if (node_info.usePhysics)
             {

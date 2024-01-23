@@ -142,6 +142,10 @@ namespace GLTFast
 
                 if (i + 1 != m_CurrentFrameResultStates.Length)
                 {
+                    if(i >= m_CombinationControlSymbols.Length) {
+                        break;
+                    }
+
                     // Compare pairs of trigger results given a combination control symbol
                     switch (m_CombinationControlSymbols[i])
                     {

@@ -53,14 +53,36 @@ namespace GLTFast
         {
             m_AllowsPartialOcclusion = trigger.allowsPartialOcclusion;
 
-            m_Target = new Renderer[trigger.nodes.Length];
-            m_TargetMaterials = new UnityEngine.Material[trigger.nodes.Length];
-
-            for (int i = 0; i < m_Target.Length; i++)
+            if(trigger.nodes == null)
             {
-                GameObject _go = VirtualSceneGraph.GetGameObjectFromIndex(trigger.nodes[i]);
-                m_Target[i] = _go.GetComponent<Renderer>();
-                m_TargetMaterials[i] = m_Target[i].sharedMaterial;
+                m_Target = new Renderer[1];
+                m_TargetMaterials = new UnityEngine.Material[1];
+
+                // TODO: Retrieve a gameobject from a mesh index
+                int _meshIndex = trigger.mesh;
+                int _nodesCount = VirtualSceneGraph.GetNodeCount();
+                for(int i = 0; i < _nodesCount; i++)
+                {
+                    Node _n = VirtualSceneGraph.GetNodeFromNodeIndex(i);
+                    if(_n.mesh == _meshIndex)
+                    {
+                        // found
+                        m_Target[0] = VirtualSceneGraph.GetGameObjectFromIndex(i).GetComponent<Renderer>();
+                        m_TargetMaterials[0] = m_Target[0].sharedMaterial;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                m_Target = new Renderer[trigger.nodes.Length];
+                m_TargetMaterials = new UnityEngine.Material[trigger.nodes.Length];
+                for (int i = 0; i < m_Target.Length; i++)
+                {
+                    GameObject _go = VirtualSceneGraph.GetGameObjectFromIndex(trigger.nodes[i]);
+                    m_Target[i] = _go.GetComponent<Renderer>();
+                    m_TargetMaterials[i] = m_Target[i].sharedMaterial;
+                }
             }
 
             m_CurrentRenderer = GetComponent<Renderer>();

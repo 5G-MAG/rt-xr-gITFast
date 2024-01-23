@@ -19,7 +19,8 @@ namespace GLTFast.Schema
     /// be provided at the level of the affected glTF nodes to 
     /// specialize the trigger activation
     /// </summary>    
-    public class MpegNodeInteractivity : MonoBehaviour
+    [System.Serializable]
+    public class MpegNodeInteractivity
     {
         [System.Serializable]
         public class Trigger
@@ -104,7 +105,7 @@ namespace GLTFast.Schema
 
             /// <summary>
             /// Provides additional information related to the user 
-            /// inputs (eg “max speed = 0.5”)
+            /// inputs (eg 'max speed = 0.5')
             /// </summary>
             public string[] userInputParameters;
 

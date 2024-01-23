@@ -24,7 +24,10 @@ namespace GLTFast
 
         public void Init(Trigger trigger)
         {
-            m_Camera = UnityEngine.Camera.main;// VirtualSceneGraph.GetCameraByIndex(trigger.cameraNode);
+            Node _n = VirtualSceneGraph.GetNodeFromNodeIndex(trigger.cameraNode);
+            int _camIndex = _n.camera;
+
+            m_Camera = VirtualSceneGraph.GetCameraByIndex(_camIndex);
             m_Targets = new VisibilityNodeTrigger[trigger.nodes.Length];
 
             for(int i = 0; i < trigger.nodes.Length; i++)
@@ -33,13 +36,10 @@ namespace GLTFast
                 VisibilityNodeTrigger _detector = _targetGo.AddComponent<VisibilityNodeTrigger>();
 
                 Node _node = VirtualSceneGraph.GetNodeFromGameObject(_targetGo);
-                if(_node.extensions.MPEG_node_interactivity != null)
+                if(_node.extensions.MPEG_node_interactivity != null
+                && _node.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_VISIBILITY)
                 {
-                    if(_node.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_VISIBILITY)
-                    {
-                        _detector.InitSceneAndNodeLevelExtension(
-                            _node.extensions.MPEG_node_interactivity.triggers[i]);
-                    }
+                    _detector.InitSceneAndNodeLevelExtension(_node.extensions.MPEG_node_interactivity.triggers[i]);
                 }
                 else
                 {

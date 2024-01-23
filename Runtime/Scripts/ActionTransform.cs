@@ -26,7 +26,14 @@ namespace GLTFast
 
         public void Init(Schema.Action action)
         {
-            m_TargetMatrix = action.transform;
+            // Fill the target matrix
+            m_TargetMatrix = new Matrix4x4(
+                new Vector4(action.transform[0], action.transform[4], action.transform[8], action.transform[12]),
+                new Vector4(action.transform[1], action.transform[5], action.transform[9], action.transform[13]),
+                new Vector4(action.transform[2], action.transform[6], action.transform[10], action.transform[14]),
+                new Vector4(action.transform[3], action.transform[7], action.transform[11], action.transform[15])
+            );
+
             m_Targets = new GameObject[action.nodes.Length];
 
             for(int i = 0; i < action.nodes.Length; i++)
