@@ -13,6 +13,18 @@
 // limitations under the License.
 //
 
+// All modification marked by "//// IDCC" are created by InterDigital and subject to the following header
+/*
+* Copyright (c) 2023 InterDigital
+* Licensed under the License terms of 5GMAG software (the "License").
+* You may not use this file except in compliance with the License.
+* You may obtain a copy of the License at https://www.5g-mag.com/license .
+* Unless required by applicable law or agreed to in writing, software distributed under the License is
+* distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and limitations under the License.
+*/
+
 using System;
 using System.Collections.Generic;
 using GLTFast.Schema;
@@ -31,6 +43,7 @@ using Mesh = UnityEngine.Mesh;
 namespace GLTFast {
     
     using Logging;
+    using UnityEngine.XR;
 
     /// <summary>
     /// Generates a GameObject hierarchy from a glTF scene 
@@ -59,6 +72,22 @@ namespace GLTFast {
             /// </summary>
             public Animation legacyAnimation { get; private set; }
 #endif
+
+            //// IDCC
+            public BehaviorController behaviorController
+            {
+                get
+                {
+                    if(m_BehaviorController == null)
+                    {
+                        // Create a behavior controller to handle all behaviors
+                        m_BehaviorController = new GameObject("BehaviorController").AddComponent<BehaviorController>();
+                        m_BehaviorController.Init();
+                    }
+                    return m_BehaviorController;
+                }
+            }
+            private BehaviorController m_BehaviorController;
 
             public List<SpatialAudioSource> audioSources { get; private set; }
             public AudioListener audioListener { get; private set; }
@@ -137,7 +166,12 @@ namespace GLTFast {
         /// Contains information about the latest instance of a glTF scene
         /// </summary>
         public SceneInstance sceneInstance { get; protected set; }
-        
+
+        /// <summary>
+        /// Maintain a count of animations
+        /// </summary>
+        private int m_AnimationCounter;
+
         /// <summary>
         /// Constructs a GameObjectInstantiator
         /// </summary>
@@ -179,6 +213,11 @@ namespace GLTFast {
                 sceneGameObject.layer = settings.layer;
             }
             sceneTransform = sceneGameObject.transform;
+
+            //// IDCC
+            VirtualSceneGraph.AssignSceneTransform(sceneTransform);
+            //// IDCC
+            ///
             Profiler.EndSample();
         }
 
@@ -234,6 +273,9 @@ namespace GLTFast {
                         if (index < 1) {
                             animation.clip = clip;
                         }
+                        //// IDCC
+                        VirtualSceneGraph.AssignAnimationIndexToAnimation(m_AnimationCounter++, clip.name, animation);
+                        //// IDCC
                     }
 
                     sceneInstance.SetLegacyAnimation(animation);
@@ -265,6 +307,10 @@ namespace GLTFast {
             go.transform.SetParent(
                 parentIndex.HasValue ? nodes[parentIndex.Value].transform : sceneTransform,
                 false);
+
+            //// IDCC
+            VirtualSceneGraph.AssignGameObjectToNode((int)nodeIndex, go, (int)nodeIndex);
+            //// IDCC
         }
 
         /// <inheritdoc />
@@ -392,7 +438,8 @@ namespace GLTFast {
                     o.zfar >=0 ? o.zfar : (float?) null,
                     o.xmag,
                     o.ymag,
-                    camera.name
+                    camera.name,
+                    cameraIndex
                 );
                 break;
             case Schema.Camera.Type.Perspective:
@@ -403,7 +450,8 @@ namespace GLTFast {
                     p.znear,
                     p.zfar,
                     p.aspectRatio>0 ? p.aspectRatio : (float?)null,
-                    camera.name
+                    camera.name,
+                    cameraIndex
                 );
                 break;
             }
@@ -415,16 +463,38 @@ namespace GLTFast {
             float nearClipPlane,
             float farClipPlane,
             float? aspectRatio,
-            string cameraName
+            string cameraName,
+            uint cameraIndex
         ) {
             var cam = CreateCamera(nodeIndex,cameraName,out var localScale);
 
             cam.orthographic = false;
 
-            cam.fieldOfView = verticalFieldOfView * Mathf.Rad2Deg;
+            // TODO: Move this code elsewhere
+            // Look if a XR device is in use
+            bool _isXrInUse = false;
+            List<XRDisplaySubsystem> xrDisplaySubsystems = new List<XRDisplaySubsystem>();
+            SubsystemManager.GetInstances(xrDisplaySubsystems);
+            foreach (var xrDisplay in xrDisplaySubsystems)
+            {
+                if (xrDisplay.running) {
+                    _isXrInUse = true;
+                    break;
+                }
+            }
+
+            // Field of view can't be changed while xr is in use
+            if(!_isXrInUse) {
+                cam.fieldOfView = verticalFieldOfView * Mathf.Rad2Deg;
+            }
+
             cam.nearClipPlane = nearClipPlane * localScale;
             cam.farClipPlane = farClipPlane * localScale;
 
+            //// IDCC
+            VirtualSceneGraph.AssignCameraIndexToCamera((int)cameraIndex, cam);
+            //// IDCC
+            
             // // If the aspect ratio is given and does not match the
             // // screen's aspect ratio, the viewport rect is reduced
             // // to match the glTFs aspect ratio (box fit)
@@ -439,7 +509,8 @@ namespace GLTFast {
             float? farClipPlane,
             float horizontal,
             float vertical,
-            string cameraName
+            string cameraName,
+            uint cameraIndex
         ) {
             var cam = CreateCamera(nodeIndex,cameraName,out var localScale);
             
@@ -489,7 +560,7 @@ namespace GLTFast {
             var cam = camGo.AddComponent<Camera>();
 
             // By default, imported cameras are not enabled by default
-            cam.enabled = false;
+            // cam.enabled = false;
 
             sceneInstance.AddCamera(cam);
 
@@ -564,6 +635,72 @@ namespace GLTFast {
             
             sceneInstance.SetAudioListener(aLstn);
         }
+
+        //// IDCC
+        public void AddMPEGInteractivityBehavior(Schema.Behavior bhv, int index)
+        {
+            GameObject go = new GameObject($"Behavior - {index}");
+
+            // Not useful to have an interface here, but following
+            // the same pattern than actions and triggers
+            IMpegInteractivityBehavior bhvIf = go.AddComponent<GLTFast.Behavior>();
+            bhvIf.InitializeBehavior(bhv);
+
+            sceneInstance.behaviorController.AddBehavior(bhvIf);
+            VirtualSceneGraph.AssignBehaviorIndexToBehavior(bhvIf, index);
+        }
+
+        public void AddMPEGInteractivityTrigger(GLTFast.Schema.Trigger trigger, int index)
+        {
+            GameObject go = new GameObject($"{trigger.type} - {index}");
+            IMpegInteractivityTrigger triggerIf = null;
+
+            switch (trigger.type)
+            {
+                case TriggerType.TRIGGER_COLLISION: triggerIf = go.AddComponent<CollisionSceneTrigger>(); break;
+                case TriggerType.TRIGGER_PROXIMITY: triggerIf = go.AddComponent<ProximitySceneTrigger>(); break;
+                case TriggerType.TRIGGER_USER_INPUT: triggerIf = go.AddComponent<UserInputSceneTrigger>(); break;
+                case TriggerType.TRIGGER_VISIBILITY: triggerIf = go.AddComponent<VisibilitySceneTrigger>(); break;
+            }
+
+            if (triggerIf == null)
+            {
+                throw new NotImplementedException($"Couldn't create trigger, type not recognized: {trigger.type}");
+            }
+
+            triggerIf.Init(trigger);
+
+            VirtualSceneGraph.AssignTriggerToIndex(triggerIf, index);
+        }
+
+        public void AddMPEGInteractivityAction(GLTFast.Schema.Action action, int index)
+        {
+            GameObject go = new GameObject($"{action.type} - {index}");
+            IMpegInteractivityAction actionIf = null;
+
+            switch (action.type)
+            {
+                case ActionType.ACTION_ACTIVATE: actionIf = go.AddComponent<ActionActivate>(); break;
+                case ActionType.ACTION_TRANSFORM: actionIf = go.AddComponent<ActionTransform>(); break;
+                case ActionType.ACTION_BLOCK: actionIf = go.AddComponent<ActionBlock>(); break;
+                case ActionType.ACTION_ANIMATION: actionIf = go.AddComponent<ActionAnimation>(); break;
+                case ActionType.ACTION_MEDIA: actionIf = go.AddComponent<ActionMedia>(); break;
+                case ActionType.ACTION_MANIPULATE: actionIf = go.AddComponent<ActionManipulate>(); break;
+                case ActionType.ACTION_SET_MATERIAL: actionIf = go.AddComponent<ActionSetMaterial>(); break;
+                case ActionType.ACTION_SET_HAPTIC: actionIf = go.AddComponent<ActionSetHaptic>(); break;
+                case ActionType.ACTION_SET_AVATAR: actionIf = go.AddComponent<ActionSetAvatar>(); break;
+            }
+
+            if (actionIf == null)
+            {
+                throw new NotImplementedException($"Couldn't create action, type not recognized: {action.type} : {index}");
+            }
+
+            actionIf.Init(action);
+
+            VirtualSceneGraph.AssignActionToIndex(actionIf, index);
+        }
+
 
         /// <inheritdoc />
         public virtual void EndScene(uint[] rootNodeIndices) {

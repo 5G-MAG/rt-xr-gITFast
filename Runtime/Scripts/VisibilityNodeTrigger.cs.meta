@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: a896e646a456f434e8391f84445902f3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - depthShader: {fileID: 4800000, guid: a2d06d6181844df47afcb8c29fd73a05, type: 3}
+  - visibilityShader: {fileID: 4800000, guid: da676c633dedf7149a157e05dfa3420c, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

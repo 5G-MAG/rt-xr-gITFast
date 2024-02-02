@@ -27,6 +27,9 @@ namespace GLTFast.Schema {
         // MPEG_media extension
         public MpegMediaExtension MPEG_media;
 
+        // MPEG_scene_interactivity extension
+        public MpegSceneInteractivity MPEG_scene_interactivity;
+
         internal void GltfSerialize(JsonWriter writer) {
             writer.AddObject();
             if(KHR_lights_punctual!=null) {
@@ -37,6 +40,11 @@ namespace GLTFast.Schema {
             {
                 writer.AddProperty("MPEG_media");
                 MPEG_media.GltfSerialize(writer);
+            }
+            if(MPEG_scene_interactivity != null)
+            {
+                writer.AddProperty("MPEG_scene_interactivity");
+                MPEG_scene_interactivity.GltfSerialize(writer);
             }
             writer.Close();
         }

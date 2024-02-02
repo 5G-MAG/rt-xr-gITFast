@@ -17,6 +17,7 @@ namespace GLTFast.Schema {
     {
         public int media = -1;
         public int count = 2;
+        public int source;
         public int[] tracks;
 
         internal void GltfSerialize(JsonWriter writer) {

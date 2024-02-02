@@ -150,6 +150,21 @@ namespace GLTFast {
             uint nodeIndex
         );
 
+        void AddMPEGInteractivityBehavior(
+            GLTFast.Schema.Behavior bhv,
+            int index
+        );
+
+        void AddMPEGInteractivityTrigger(
+            GLTFast.Schema.Trigger trigger,
+            int index
+        );
+
+        void AddMPEGInteractivityAction(
+            GLTFast.Schema.Action action,
+            int index
+        );
+
 
         /// <summary>
         /// Is called at last, after all scene content has been created.

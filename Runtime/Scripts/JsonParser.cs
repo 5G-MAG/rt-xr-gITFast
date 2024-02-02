@@ -201,6 +201,13 @@ namespace GLTFast {
                                 e.MPEG_audio_spatial = null;
                             }
                         }
+                        if(e.MPEG_node_interactivity != null)
+                        {
+                            if(e.MPEG_node_interactivity.triggers == null)
+                            {
+                                e.MPEG_node_interactivity = null;
+                            }
+                        }
                         /* Unset `extension` if none of them was valid
                         if (e.EXT_mesh_gpu_instancing == null && 
                             e.KHR_lights_punctual == null ) {
