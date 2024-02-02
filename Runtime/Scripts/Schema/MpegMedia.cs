@@ -34,8 +34,8 @@ namespace GLTFast.Schema
         public float startTime;
         public float startTimeOffset;
         public float endTimeOffset;
-        public bool autoPlay;
-        public uint autoPlayGroup; // bool ?
+        public bool autoplay;
+        public uint autoplayGroup;
         public bool loop;
         public bool controls;
         public MediaAlternative[] alternatives;
