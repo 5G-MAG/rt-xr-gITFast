@@ -30,6 +30,11 @@ namespace GLTFast
         private bool m_IsPerformed;
         private List<UserInputNodeTrigger> m_NodeTriggers = new List<UserInputNodeTrigger>();
 
+
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
         private void OnInputCanceled(InputAction.CallbackContext context)
         {
             m_IsPerformed = false;

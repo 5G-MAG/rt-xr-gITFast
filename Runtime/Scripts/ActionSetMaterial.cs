@@ -26,6 +26,11 @@ namespace GLTFast
         private Material m_TargetMaterial;
         private float m_Delay;
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             m_Objects = VirtualSceneGraph.GetGameObjectsFromIndexes(action.nodes);

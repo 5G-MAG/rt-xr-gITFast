@@ -22,6 +22,12 @@ namespace GLTFast
     {
         public float Delay => m_Delay;
         private float m_Delay;
+        
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             m_Delay = action.delay;

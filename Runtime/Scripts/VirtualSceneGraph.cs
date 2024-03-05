@@ -11,7 +11,6 @@
 
 using GLTFast.Schema;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -52,6 +51,13 @@ namespace GLTFast
 
         private static CustomDictionary<int, IMpegInteractivityAction> m_ActionIndexAction
             = new CustomDictionary<int, IMpegInteractivityAction>();
+
+        private static CustomDictionary<int, IMpegTrackable> m_TrackableIndexTrackable
+            = new CustomDictionary<int, IMpegTrackable>();
+        private static CustomDictionary<int, IMpegAnchor>    m_AnchorIndexAnchor 
+            = new CustomDictionary<int, IMpegAnchor>();
+        private static CustomDictionary<int, MpegAnchorObject> m_AnchorObjectIndexAnchorObject
+            = new CustomDictionary<int, MpegAnchorObject>();
 
         public static Root root;
 
@@ -220,6 +226,59 @@ namespace GLTFast
         {
             return m_ActionIndexAction.GetAllValues();
         }
+
+        internal static void AssignTrackableToIndex(IMpegTrackable track, int index)
+        {
+            m_TrackableIndexTrackable.Add(index, index, track);
+        }
+        public static IMpegTrackable GetTrackableFromIndex(int index)
+        {
+            return m_TrackableIndexTrackable.GetValueFromKey(index);
+        }
+        internal static void AssignAnchorToIndex(IMpegAnchor anch, int index)
+        {
+            m_AnchorIndexAnchor.Add(index, index, anch);
+        }
+        public static IMpegAnchor GetAnchorFromIndex(int index)
+        {
+            return m_AnchorIndexAnchor.GetValueFromKey(index);
+        }
+        internal static void AssignAnchorObjectToIndex(MpegAnchorObject anchorOb, int index)
+        {
+            m_AnchorObjectIndexAnchorObject.Add(index, index, anchorOb);
+        }
+        public static MpegAnchorObject GetAnchorObjectFromIndex(int index)
+        {
+            return m_AnchorObjectIndexAnchorObject.GetValueFromKey(index);
+        }
+        public static int GetAnchorObjectCount()
+        {
+            return m_AnchorObjectIndexAnchorObject.values.Count;
+        }
+        public static List<int> GetAnchorObjectKeys()
+        {
+            return m_AnchorObjectIndexAnchorObject.keys;
+        }
+        
+        public static void ResetAll()
+        {
+            root = null;
+            sceneTransform = null;
+            
+            m_ActionIndexAction.ClearAll();
+            m_TriggerIndexTrigger.ClearAll();
+            m_BehaviorIndexBehavior.ClearAll();
+            m_CameraIndexCamera.ClearAll();
+            m_AnimationIndexAnimation.ClearAll();
+            m_AnimationIndexAnimationClip.ClearAll();
+            m_TextureIndexTexture.ClearAll();
+            m_MaterialIndexMaterial.ClearAll();
+            m_MeshIndexMesh.ClearAll();
+            m_NodeGameObject.ClearAll();
+            m_TrackableIndexTrackable.ClearAll();
+            m_AnchorIndexAnchor.ClearAll();
+            m_AnchorObjectIndexAnchorObject.ClearAll();
+        }
     }
 
     public class CustomDictionary<T, U>
@@ -274,6 +333,13 @@ namespace GLTFast
         internal U[] GetAllValues()
         {
             return values.ToArray();
+        }
+
+        public void ClearAll()
+        {
+            indexes.Clear();
+            values.Clear();
+            keys.Clear();
         }
     }
 }

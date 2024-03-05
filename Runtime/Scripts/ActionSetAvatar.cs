@@ -18,6 +18,11 @@ namespace GLTFast
     {
         public float Delay => throw new NotImplementedException();
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             throw new NotImplementedException();

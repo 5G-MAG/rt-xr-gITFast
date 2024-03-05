@@ -22,6 +22,15 @@ namespace GLTFast
         private UnityEngine.Camera m_Camera;
         private VisibilityNodeTrigger[] m_Targets;
 
+        public void Dispose()
+        {
+            for(int i = 0; i < m_Targets.Length; i++)
+            {
+                m_Targets[i].Dispose();
+            }
+            Destroy(gameObject);
+        }
+
         public void Init(Trigger trigger)
         {
             Node _n = VirtualSceneGraph.GetNodeFromNodeIndex(trigger.cameraNode);

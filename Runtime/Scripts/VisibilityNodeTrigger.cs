@@ -333,5 +333,14 @@ namespace GLTFast
         {
             m_VisiblePixelsBuffer.Dispose();
         }
+
+        internal void Dispose()
+        {
+            if(m_ComputeCamera != null)
+            {
+                Destroy(m_ComputeCamera.gameObject);
+            }
+            Destroy(gameObject);
+        }
     }
 }
