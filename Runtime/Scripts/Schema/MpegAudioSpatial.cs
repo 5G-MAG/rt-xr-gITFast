@@ -32,7 +32,7 @@ namespace GLTFast.Schema
         public float pregain = 0;
         public float playbackSpeed = 1;
 
-        public string attenuation = "linear_distance";
+        public string attenuation = "linearDistance";
 
         public float referenceDistance = 1;
         public float[]? attenuationParameters;
