@@ -44,9 +44,9 @@ namespace GLTFast
             
             aSrc.dopplerLevel = 0; // doppler results in annoying audio artifacts if improperly configured, 0 disables it.
 
-            aSrc.spatialBlend = attenuationType == "no_attenuation" ? 0 : 1;
+            aSrc.spatialBlend = attenuationType == "noAttenuation" ? 0 : 1;
 
-            if (attenuationType == "linear_distance")
+            if (attenuationType == "linearDistance")
             {
                 aSrc.spatialBlend = 1;
                 aSrc.rolloffMode = AudioRolloffMode.Linear;
@@ -57,7 +57,7 @@ namespace GLTFast
                 }
                 // rooloffFactor is not supported in Unity's builtin RollOff modes
             }
-            else if (attenuationType == "exponential_distance")
+            else if (attenuationType == "exponentialDistance")
             {
                 aSrc.spatialBlend = 1;
                 aSrc.rolloffMode = AudioRolloffMode.Logarithmic;
@@ -71,6 +71,7 @@ namespace GLTFast
             else
             {
                 Debug.LogWarning("Unsupported audio attenuation mode " + attenuationType);
+                Debug.LogWarning("Using noAttenuation instead.");
             }
 
             if (clip_ != null)
@@ -116,7 +117,7 @@ namespace GLTFast
             {
                 throw new Exception("HOA audio source currently not implemented");
             }
-            attenuationType = srcDef.attenuation ?? "linear_distance";
+            attenuationType = srcDef.attenuation ?? "linearDistance";
             referenceDistance = srcDef.referenceDistance;
             attenuationParams = srcDef.attenuationParameters ?? new float[]{ 100 };
         }
