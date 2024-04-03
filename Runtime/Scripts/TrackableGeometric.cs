@@ -37,7 +37,7 @@ namespace GLTFast
         private Vector3 m_RequiredSpaceToCheck = Vector3.zero;
         private bool m_RequiredSpaceOk = false;
         private bool m_RequiredAnchoring=false;
-        private bool m_RequiredAlignedNotScale =false;
+        // private bool m_RequiredAlignedNotScale =false;
         private bool m_RequiredAlignedAndScale =false;
         private bool m_RequiredSpace = false;
         private Bounds m_PlaneBounds;
@@ -277,14 +277,14 @@ namespace GLTFast
 
         public void RequiredAlignedAndScale(Anchor.Aligned aligned)
         {
-            if(aligned == Anchor.Aligned.ALIGNED_NOTSCALED)
-            {
-                m_RequiredAlignedNotScale = true;
-            }
-            if(aligned == Anchor.Aligned.ALIGNED_SCALED)
-            {
-                m_RequiredAlignedAndScale = true;
-            }
+            // if(aligned == Anchor.Aligned.ALIGNED_NOTSCALED)
+            // {
+            //     m_RequiredAlignedNotScale = true;
+            // }
+            // if(aligned == Anchor.Aligned.ALIGNED_SCALED)
+            // {
+            //     m_RequiredAlignedAndScale = true;
+            // }
         }
 
         private void ComputePlaneAABB(ARPlane plane)

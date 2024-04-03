@@ -32,7 +32,7 @@ public class TestCloudAnchorManager : Singleton<TestCloudAnchorManager>
 
     [SerializeField] private ARAnchorManager arAnchorManager = null;
     private ARAnchor pendingHostAnchor = null;
-    private string anchorToResolve;
+    // private string anchorToResolve;
 
     private UnityEventResolver resolver = null;
     private HostCloudAnchorPromise _hostPromise;
@@ -52,7 +52,7 @@ public class TestCloudAnchorManager : Singleton<TestCloudAnchorManager>
     {
         resolver = new UnityEventResolver();   
         resolver.AddListener((t) => TestCloudAnchorPlacementManager.Instance.ReCreatePlacement(t));
-        anchorToResolve = "";
+        // anchorToResolve = "";
     }
     void Start()
     {
