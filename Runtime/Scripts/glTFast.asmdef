@@ -17,7 +17,8 @@
         "Google.XR.ARCoreExtensions",
         "Unity.XR.ARSubsystems",
         "Google.XR.ARCoreExtensions.GeospatialCreator",
-        "Unity.XR.CoreUtils"
+        "Unity.XR.CoreUtils",
+        "Anchoring"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

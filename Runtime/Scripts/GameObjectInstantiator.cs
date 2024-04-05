@@ -790,6 +790,7 @@ namespace GLTFast {
         }
 
         public void AddMPEGTrackables(GLTFast.Schema.Trackable trackable, int index) {
+#if UNITY_ANDROID
             GameObject go = new GameObject($"{trackable.type} - {index}");
             IMpegTrackable trackIf = null;
             Debug.Log("Tracking Mode:"+ trackable.type);
@@ -815,9 +816,11 @@ namespace GLTFast {
             trackIf.InitFromGltf(trackable);
             VirtualSceneGraph.AssignTrackableToIndex(trackIf, index);
             sceneInstance.AddTrackable(trackIf);
+#endif
         }
 
         public void AddMPEGAnchor(GLTFast.Schema.Anchor anchor, int index) {
+#if UNITY_ANDROID
             string str = "anchor";
             GameObject go = new GameObject($"{str} - {index}");
             IMpegAnchor anchIf = null;
@@ -832,6 +835,7 @@ namespace GLTFast {
             anchIf.Init(anchor);
             VirtualSceneGraph.AssignAnchorToIndex(anchIf, index);
             sceneInstance.AddAnchor(anchIf);
+#endif
         }
 
         /// <inheritdoc />
