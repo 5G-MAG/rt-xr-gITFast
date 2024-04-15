@@ -15,7 +15,9 @@ using System.Collections.Generic;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using System.Collections;
+#if UNITY_ANDROID
 using UnityEngine.XR.ARCore;
+#endif
 using Google.XR.ARCoreExtensions;
 using System.Reflection;
 
@@ -131,11 +133,13 @@ namespace GLTFast
                 yield break;
             }
             
+#if UNITY_ANDROID
             ARCorePermissionManager.RequestPermission("android.permission.READ_PHONE_STATE", OnReadPhoneStatePermissionGranted);
             ARCorePermissionManager.RequestPermission("android.permission.ACCESS_FINE_LOCATION", OnAccessFineLocationPermissionGranted);
             ARCorePermissionManager.RequestPermission("android.permission.ACCESS_COARSE_LOCATION", OnAccessCoarseLocationPermissionGranted);
             ARCorePermissionManager.RequestPermission("android.permission.INTERNET", OnAccessInternetPermissionGranted);
             Debug.Log("TrackableMarkerGeo::Initializing Done");
+#endif
         }
 
         private void OnReadPhoneStatePermissionGranted(string arg1, bool _status)

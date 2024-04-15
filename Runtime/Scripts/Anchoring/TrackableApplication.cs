@@ -17,12 +17,14 @@ using UnityEngine.Events;
 using Google.XR.ARCoreExtensions;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
+#if UNITY_ANDROID
 using UnityEngine.XR.ARCore;
+#endif
 using System.Collections.Generic;
 using System.Reflection;
 
 namespace GLTFast
-{    
+{
     /// <summary>
     /// The application-defined trackable object must have a right-handed coordinate space.
     /// </summary>
@@ -55,7 +57,10 @@ namespace GLTFast
         {
             m_AnchorEventResolver = new AnchorEventResolver();
             m_AnchorEventResolver.AddListener((t) => ARPlacementManager.Instance.ReCreatePlacement(t));
+
+#if UNITY_ANDROID
             ARCorePermissionManager.RequestPermission("android.permission.INTERNET", OnAccessInternetPermissionGranted);
+#endif
             
             GameObject arOrigin = ARUtilities.GetSessionOrigin();
 
