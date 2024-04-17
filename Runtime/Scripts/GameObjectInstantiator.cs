@@ -35,7 +35,6 @@ using Camera = UnityEngine.Camera;
 using Material = UnityEngine.Material;
 using Mesh = UnityEngine.Mesh;
 
-
 // #if UNITY_EDITOR && UNITY_ANIMATION
 // using UnityEditor.Animations;
 // #endif

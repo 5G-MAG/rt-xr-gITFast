@@ -12,17 +12,20 @@
 using GLTFast.Schema;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
+#endif
 using System.Reflection;
 
 namespace GLTFast
-{    
+{
     /// <summary>
     /// A trackable of type TRACKABLE_CONTROLLER is a trackable that corresponds to one of the active controllers. Three controller types are defined: grip, aim, and palm.
     /// </summary>
     public class TrackableController : MonoBehaviour, IMpegTrackable
     {
+#if UNITY_ANDROID
         private string m_Path;
         private TrackableId m_Id = TrackableId.invalidId;
         private ARAnchor m_Anchor = null;
@@ -133,5 +136,61 @@ namespace GLTFast
 
             Destroy(gameObject);
         }
+#else
+        public void AttachNodeToTrackable(GameObject go)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public bool Detect()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void DumpAttributs()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void Init()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void InitFromGltf(Trackable track)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RemoveAnchor()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredAnchoring(bool requiredAnchoring)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredSpace(Vector3 requiredSpace)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Transform Track()
+        {
+            throw new System.NotImplementedException();
+        }
+#endif
     }
 }

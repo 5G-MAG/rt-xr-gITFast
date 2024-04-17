@@ -12,17 +12,20 @@
 using GLTFast.Schema;
 using UnityEngine;
 using System.Collections.Generic;
+#if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
+#endif
 using System.Reflection;
 
 namespace GLTFast
-{    
+{
     /// <summary>
     /// The origin is the center of the mesh. The X, Y, and Z axes correspond to the axes of the world space.
     /// </summary>
     public class TrackableMarker3D : MonoBehaviour, IMpegTrackable
     {
+#if UNITY_ANDROID
         private int m_MarkerNode; 
         private ARAnchor m_Anchor = null;
         private TrackableId m_Id = TrackableId.invalidId;
@@ -157,5 +160,61 @@ namespace GLTFast
             
             Destroy(gameObject);
         }
+#else
+        public void AttachNodeToTrackable(GameObject go)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public bool Detect()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void DumpAttributs()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void Init()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void InitFromGltf(Trackable track)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RemoveAnchor()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredAnchoring(bool requiredAnchoring)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredSpace(Vector3 requiredSpace)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Transform Track()
+        {
+            throw new System.NotImplementedException();
+        }
+#endif   
     }
 }

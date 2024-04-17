@@ -12,23 +12,24 @@
 using GLTFast.Schema;
 using UnityEngine;
 using System.Collections.Generic;
-using UnityEngine.XR.ARFoundation;
-using UnityEngine.XR.ARSubsystems;
 using System.Collections;
 #if UNITY_ANDROID
+using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
 using UnityEngine.XR.ARCore;
-#endif
 using Google.XR.ARCoreExtensions;
+#endif
 using System.Reflection;
 
 namespace GLTFast
-{    
+{
     /// <summary>
     /// The y-axis matches the direction of gravity as detected by the device's motion sensing hardware, y points downward.
     ///The x- and z-axes match the longitude and latitude directions. -Z points to true north -X points west. 
     /// </summary>
     public class TrackableMarkerGeo : MonoBehaviour, IMpegTrackable
     {
+#if UNITY_ANDROID
         private Vector3 m_Coordinates;
         private ARAnchorManager m_AnchorManager = null;
         private TrackableId m_Id = TrackableId.invalidId;
@@ -446,5 +447,61 @@ namespace GLTFast
 
             Destroy(gameObject);
         }
+#else
+        public void AttachNodeToTrackable(GameObject go)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public bool Detect()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void DumpAttributs()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void Init()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void InitFromGltf(Trackable track)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RemoveAnchor()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredAnchoring(bool requiredAnchoring)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RequiredSpace(Vector3 requiredSpace)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Transform Track()
+        {
+            throw new System.NotImplementedException();
+        }
+#endif
     }
 }

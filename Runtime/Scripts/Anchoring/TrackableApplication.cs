@@ -14,10 +14,10 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
+#if UNITY_ANDROID
 using Google.XR.ARCoreExtensions;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
-#if UNITY_ANDROID
 using UnityEngine.XR.ARCore;
 #endif
 using System.Collections.Generic;
@@ -31,6 +31,7 @@ namespace GLTFast
     public class AnchorEventResolver: UnityEvent<Transform>{};
     public class TrackableApplication : MonoBehaviour, IMpegTrackable
     {
+#if UNITY_ANDROID
         private TrackableId m_Id = TrackableId.invalidId;
         private string m_AnchorToResolve = "";
         private ARCloudAnchor m_CloudAnchor = null;
@@ -336,11 +337,66 @@ namespace GLTFast
                     Debug.Log(item.Name+ " : " + item.GetValue(this));
             }
         }
-
         
         public void Dispose()
         {
             Destroy(gameObject);
         }
+#else
+        public void AttachNodeToTrackable(GameObject go)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Detect()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DumpAttributs()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Init()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void InitFromGltf(Trackable track)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RemoveAnchor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredAnchoring(bool requiredAnchoring)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredSpace(Vector3 requiredSpace)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Transform Track()
+        {
+            throw new NotImplementedException();
+        }
+#endif
     }
 }

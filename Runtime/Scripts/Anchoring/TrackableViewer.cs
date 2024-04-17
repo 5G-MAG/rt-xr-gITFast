@@ -13,17 +13,20 @@ using GLTFast.Schema;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
+#endif
 using System.Reflection;
 
 namespace GLTFast
-{    
+{
     /// <summary>
     /// A trackable of type TRACKABLE_VIEWER is a trackable that corresponds to the viewer’s pose. 
     /// </summary>
     public class TrackableViewer : MonoBehaviour, IMpegTrackable
     {
+#if UNITY_ANDROID
         private TrackableId m_Id = TrackableId.invalidId;
         private GameObject m_GoRef = null;
         private List<GameObject> m_GoToAttached;
@@ -192,5 +195,61 @@ namespace GLTFast
 
             Destroy(gameObject);
         }
+#else
+        public void AttachNodeToTrackable(GameObject go)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Detect()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DumpAttributs()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Init()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void InitFromGltf(Trackable track)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RemoveAnchor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredAnchoring(bool requiredAnchoring)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredSpace(Vector3 requiredSpace)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Transform Track()
+        {
+            throw new NotImplementedException();
+        }
+#endif
     }
 }

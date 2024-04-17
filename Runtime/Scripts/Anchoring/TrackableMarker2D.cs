@@ -15,18 +15,21 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using UnityEngine;
+#if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
+#endif
 using System.Reflection;
 
 namespace GLTFast
-{    
+{
     /// <summary>
     ///The width and length of the marker 2D span the xz-plane of the anchor instance's local coordinate system. 
     ///The origin of the local coordinate system is located at the center of the detected marker 2D surface.  
     /// </summary>
     public class TrackableMarker2D : MonoBehaviour, IMpegTrackable
     {
+#if UNITY_ANDROID
         private int m_MarkerNode; 
         private ARTrackedImageManager m_TrackedImageManager;
         private XRReferenceImageLibrary m_XrReferenceImageLibrary;
@@ -387,5 +390,61 @@ namespace GLTFast
 
             Destroy(gameObject);
         }
-    }   
+#else
+        public void AttachNodeToTrackable(GameObject go)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Detect()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DumpAttributs()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Init()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void InitFromGltf(Trackable track)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RemoveAnchor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredAnchoring(bool requiredAnchoring)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RequiredSpace(Vector3 requiredSpace)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Transform Track()
+        {
+            throw new NotImplementedException();
+        }
+#endif
+    }
 }
