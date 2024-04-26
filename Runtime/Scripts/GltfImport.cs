@@ -2302,8 +2302,9 @@ namespace GLTFast {
             }
 
             // Extension at root level extension
-            if (gltfRoot.extensions.MPEG_anchor.trackables != null
-                || gltfRoot.extensions.MPEG_anchor.anchors != null)
+            if (gltfRoot.extensions.MPEG_anchor != null &&
+                (gltfRoot.extensions.MPEG_anchor.trackables != null
+                || gltfRoot.extensions.MPEG_anchor.anchors != null))
             {
                 Debug.Log("Read gltfRoot.extensions");
                 MpegAnchor anc = gltfRoot.extensions.MPEG_anchor;

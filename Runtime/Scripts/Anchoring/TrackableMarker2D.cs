@@ -84,12 +84,14 @@ namespace GLTFast
 
             if(m_TrackedImageManager == null)
             {
+                Debug.Log("TrackableMarker2D::ARTrackedImageManager not found - adding component");
                 m_TrackedImageManager = obj.AddComponent<ARTrackedImageManager>();
             }
 
             m_TrackedImageManager.referenceLibrary = m_TrackedImageManager.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
             m_TrackedImageManager.requestedMaxNumberOfMovingImages = 1;
             m_TrackedImageManager.enabled = true;
+            // m_TrackedImageManager.trackedImagePrefab = GameObject.CreatePrimitive(UnityEngine.PrimitiveType.Cube);
             m_TrackedImageManager.trackedImagesChanged += OnTrackedImagesChanged;
             
             //retrieve the node to get image    

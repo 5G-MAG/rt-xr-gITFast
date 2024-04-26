@@ -52,7 +52,7 @@ namespace GLTFast
             m_GoToAttached = new List<GameObject>();
 
            //get viewer pose; viewer = camera
-            m_TrackedOb = FindObjectOfType<UnityEngine.Camera>();
+            m_TrackedOb = UnityEngine.Camera.main;
 
             if(m_TrackedOb == null)
             {
@@ -151,7 +151,7 @@ namespace GLTFast
                     return;
                 }
                     
-                m_TrackedOb = FindObjectOfType<UnityEngine.Camera>();
+                m_TrackedOb = UnityEngine.Camera.main;
                 
                 if(m_TrackedOb == null)
                 {
