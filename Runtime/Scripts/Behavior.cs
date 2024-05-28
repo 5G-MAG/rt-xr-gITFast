@@ -216,5 +216,10 @@ namespace GLTFast
             m_IsRunning = false;
             m_InterruptAction?.Invoke();
         }
+
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
     }
 }

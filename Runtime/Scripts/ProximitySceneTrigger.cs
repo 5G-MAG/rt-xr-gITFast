@@ -29,6 +29,11 @@ namespace GLTFast
         private float m_DistanceUpperLimit;
         private List<ProximityNodeTrigger> m_Targets;
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Trigger trigger)
         {
             m_Targets = new List<ProximityNodeTrigger>();

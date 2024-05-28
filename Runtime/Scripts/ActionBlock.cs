@@ -28,6 +28,11 @@ namespace GLTFast
         private Vector3[] m_BlockedScale;
         private GameObject[] m_LockedObjects;
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             m_LockedObjects = VirtualSceneGraph.GetGameObjectsFromIndexes(action.nodes);

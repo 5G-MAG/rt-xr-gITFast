@@ -134,6 +134,7 @@ namespace GLTFast.Schema {
         public NodeLightsPunctual? KHR_lights_punctual;
         /// <inheritdoc cref="MPEG_node_interactivity"/>
         public MpegNodeInteractivity? MPEG_node_interactivity;
+        public MpegAnchorObject? MPEG_anchor;
 
         // ReSharper restore InconsistentNaming
         internal void GltfSerialize(JsonWriter writer) {
@@ -150,6 +151,11 @@ namespace GLTFast.Schema {
             {
                 writer.AddProperty("MPEG_audio_spatial");
                 MPEG_audio_spatial.GltfSerialize(writer);
+            }
+            if(MPEG_anchor != null)
+            {
+                writer.AddProperty("MPEG_anchor");
+                MPEG_anchor.GltfSerialize(writer);
             }
             if(MPEG_node_interactivity != null)
             {

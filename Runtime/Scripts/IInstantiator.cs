@@ -165,6 +165,16 @@ namespace GLTFast {
             int index
         );
 
+        void AddMPEGTrackables(
+            GLTFast.Schema.Trackable trackable,
+            int index
+        );
+
+        void AddMPEGAnchor(
+            GLTFast.Schema.Anchor anchor,
+            int index
+        );
+
 
         /// <summary>
         /// Is called at last, after all scene content has been created.
@@ -175,5 +185,7 @@ namespace GLTFast {
         void EndScene(
             uint[] rootNodeIndices
         );
+
+        void Dispose();
     }
 }

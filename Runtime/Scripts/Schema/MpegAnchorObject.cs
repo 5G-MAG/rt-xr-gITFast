@@ -9,27 +9,23 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-using GLTFast.Schema;
+using System;
 
-namespace GLTFast
+namespace GLTFast.Schema
 {
-    /// <summary>
-    /// Any trigger should implement this interface to be 
-    /// compatible with the Mpeg interactivity extensions
-    /// </summary>
-    public interface IMpegInteractivityTrigger
+    [Serializable]
+    public class MpegAnchorObject
     {
         /// <summary>
-        /// Returns if the trigger meet the behavior conditions
+        /// Reference to an item in the anchors array of the MPEG_anchor extension
         /// </summary>
-        bool MeetConditions();
+        public int anchor = -1;
 
-        /// <summary>
-        /// Initialize trigger based on MpegSceneInteractivity 
-        /// extension parsed Trigger
-        /// </summary>
-        /// <param name="trigger"></param>
-        void Init(Trigger trigger);
-        void Dispose();
+        internal void GltfSerialize(JsonWriter writer)
+        {
+            writer.AddObject();
+            writer.AddProperty("anchor", anchor);
+            writer.Close();
+        }
     }
 }

@@ -9,6 +9,7 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -40,6 +41,16 @@ namespace GLTFast
                 }
                 m_Behaviors[i].ActivateActions();
             }
+        }
+
+        internal void Dispose()
+        {
+            for(int i = 0; i < m_Behaviors.Count; i++)
+            {
+                m_Behaviors[i].Dispose();
+            }
+            m_Behaviors.Clear();
+            Destroy(gameObject);
         }
     }
 }

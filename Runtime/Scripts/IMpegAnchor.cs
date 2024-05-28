@@ -10,26 +10,25 @@
 */
 
 using GLTFast.Schema;
+using UnityEngine;
 
 namespace GLTFast
 {
     /// <summary>
-    /// Any trigger should implement this interface to be 
+    /// Any behavior should implement this interface to be 
     /// compatible with the Mpeg interactivity extensions
     /// </summary>
-    public interface IMpegInteractivityTrigger
+    public interface IMpegAnchor
     {
         /// <summary>
-        /// Returns if the trigger meet the behavior conditions
+        /// Initialize MpegAnchor based on the MpegAnchor extension
+        /// And the parsed Behavior
         /// </summary>
-        bool MeetConditions();
-
-        /// <summary>
-        /// Initialize trigger based on MpegSceneInteractivity 
-        /// extension parsed Trigger
-        /// </summary>
-        /// <param name="trigger"></param>
-        void Init(Trigger trigger);
+        public void Init(Anchor anc);
+        public int GetTrackableIndex();
+        public void AttachNodeToAnchor(GameObject go);
+        public void SetUp();
+        public void DumpAttributs();
         void Dispose();
     }
 }

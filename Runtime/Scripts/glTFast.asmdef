@@ -11,7 +11,13 @@
         "Unity.Meshopt.Decompress",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.HighDefinition.Runtime",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.XR.ARFoundation",
+        "Unity.XR.ARCore",
+        "Google.XR.ARCoreExtensions",
+        "Unity.XR.ARSubsystems",
+        "Google.XR.ARCoreExtensions.GeospatialCreator",
+        "Unity.XR.CoreUtils"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -95,6 +101,11 @@
             "name": "com.unity.shadergraph",
             "expression": "12",
             "define": "UNITY_SHADER_GRAPH_12_OR_NEWER"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.5",
+            "define": "USE_NEW_INPUT_SYSTEM"
         }
     ],
     "noEngineReferences": false
