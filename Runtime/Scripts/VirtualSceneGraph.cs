@@ -325,7 +325,7 @@ namespace GLTFast
             int index = keys.IndexOf(item);
             if(index == -1)
             {
-                throw new ArgumentOutOfRangeException($"Failed getting value from key: {item}");
+                Debug.LogError($"Failed getting value from key: {item}");
             }
             return values[index];
         }

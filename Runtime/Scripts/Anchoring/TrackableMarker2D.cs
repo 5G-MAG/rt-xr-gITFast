@@ -15,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 #if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
@@ -30,7 +31,7 @@ namespace GLTFast
     public class TrackableMarker2D : MonoBehaviour, IMpegTrackable
     {
 #if UNITY_ANDROID
-        private int m_MarkerNode; 
+        private int m_MarkerNode;
         private ARTrackedImageManager m_TrackedImageManager;
         private XRReferenceImageLibrary m_XrReferenceImageLibrary;
         private ARTrackedImage imgTrack = null; //Only one marker
@@ -42,6 +43,7 @@ namespace GLTFast
         private bool m_IsAttached = false;
         private Vector3 m_RequiredSpaceToCheck = Vector3.zero;
         private bool m_RequiredAnchoring=false;
+        private GameObject m_ArSession;
         // private bool m_RequiredAlignedNotScale =false;
         // private bool m_RequiredAlignedAndScale =false;
         // private bool m_RequiredSpace = false;
@@ -65,6 +67,78 @@ namespace GLTFast
             }
         }
     
+        public bool EnsureConfiguration()
+        {
+            m_ArSession = ARUtilities.GetSessionOrigin();
+
+            if (m_ArSession == null)
+            {
+                throw new Exception("Can't Find Session Origin");
+            }
+
+            ARSessionOrigin _origin = m_ArSession.GetComponent<ARSessionOrigin>();
+
+            if (_origin.GetComponent<ARInputManager>() == null)
+            {
+                Debug.Log("ARInputManager == null. Creating one");
+                _origin.gameObject.AddComponent<ARInputManager>();
+            }
+
+
+            UnityEngine.Camera _cam = _origin.camera;
+
+            // TODO: Make sure the camera has the component
+            if (_cam.GetComponent<ARCameraBackground>() == null)
+            {
+                Debug.Log("ARCameraBackground == null. Creating one");
+                _cam.gameObject.AddComponent<ARCameraBackground>();
+            }
+            if (_cam.GetComponent<ARCameraManager>() == null)
+            {
+                Debug.Log("ARCameraManager == null. Creating one");
+                _cam.gameObject.AddComponent<ARCameraManager>();
+            }
+            if(_cam.GetComponent<TrackedPoseDriver>() == null)
+            {
+                Debug.Log("TrackedPoseDriver == null. Creating one");
+                _cam.gameObject.AddComponent<TrackedPoseDriver>();
+            }
+
+
+            // Use XR camera prior to any other cameras
+            if (_cam != null)
+            {
+                UnityEngine.Camera[] _cameras = FindObjectsOfType<UnityEngine.Camera>();
+                for (int i = 0; i < _cameras.Length; i++)
+                {
+                    if (_cameras[i] != _cam)
+                    {
+                        _cameras[i].enabled = false;
+                    }
+                }
+            }
+
+            _origin.camera = _cam;
+
+            Transform _destination = _origin.transform.GetChild(0);
+            _cam.transform.SetParent(_destination);
+            Debug.Log($"Set camera as a child of {_destination.name}");
+
+            m_TrackedImageManager = FindObjectOfType<ARTrackedImageManager>(true);
+
+            if (m_TrackedImageManager == null)
+            {
+                Debug.Log("ARTrackedImageManager == null. Creating one");
+                m_TrackedImageManager = m_ArSession.AddComponent<ARTrackedImageManager>();
+            }
+
+            // There is a ReferenceImageLibrary in the Resources folder
+            m_XrReferenceImageLibrary = Resources.Load<XRReferenceImageLibrary>("ReferenceImageLibrary");
+            m_TrackedImageManager.referenceLibrary = m_XrReferenceImageLibrary;
+
+            return true;
+        }
+
         public void Init()
         {
             int matIndex = -1;
@@ -73,11 +147,9 @@ namespace GLTFast
 
             Debug.Log("TrackableMarker2D::Init");
 
-            GameObject obj = ARUtilities.GetSessionOrigin();
-
-            if(obj == null)
+            if(!EnsureConfiguration())
             {
-                throw new Exception("Can't Find Session Origin");
+                throw new Exception("Can't start TrackableMarker2D. Something went wrong in the configuration");
             }
 
             m_TrackedImageManager = FindObjectOfType<ARTrackedImageManager>(true);
@@ -85,7 +157,7 @@ namespace GLTFast
             if(m_TrackedImageManager == null)
             {
                 Debug.Log("TrackableMarker2D::ARTrackedImageManager not found - adding component");
-                m_TrackedImageManager = obj.AddComponent<ARTrackedImageManager>();
+                m_TrackedImageManager = m_ArSession.AddComponent<ARTrackedImageManager>();
             }
 
             m_TrackedImageManager.referenceLibrary = m_TrackedImageManager.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
@@ -96,14 +168,16 @@ namespace GLTFast
             
             //retrieve the node to get image    
             Node node =  VirtualSceneGraph.root.nodes[m_MarkerNode];
+
             //Retrieve mesh
             Schema.Mesh meshSCH =  VirtualSceneGraph.root.meshes[node.mesh];
+
             //Get material
             Schema.MeshPrimitive [] primitives  = new MeshPrimitive[meshSCH.primitives.Length];
             for(int i = 0; i <meshSCH.primitives.Length;i++)
             {
-                primitives[i]= (MeshPrimitive) meshSCH.primitives[i].Clone();
-                matIndex = primitives[i].material;
+                MeshPrimitive _primitive = (MeshPrimitive)meshSCH.primitives[i].Clone();
+                matIndex = _primitive.material;
                 Schema.Material matSCH =  VirtualSceneGraph.root.materials[matIndex];
                 if(matSCH.pbrMetallicRoughness.baseColorTexture!= null)
                 {
@@ -115,7 +189,8 @@ namespace GLTFast
                     Debug.Log($"Add marker image for texture {tex} of size {size}");
                     AddMarkerImage(tex, size);
                 }
-            }     
+            }
+            
             m_GoToAttach = new List<GameObject>();
         }
 
@@ -152,7 +227,14 @@ namespace GLTFast
             // Make sure we can call it 
             yield return new WaitForSeconds(0.25f);
             Debug.Log("TrackableMarker2D::AddImageJob");
+#if UNITY_EDITOR
+            // Not supported
+            yield return null;
+            //RuntimeReferenceImageLibrary _runtimeReferenceImageLib
+            //    = m_TrackedImageManager.subsystem.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
 
+#else
+            Debug.Log("Not editor");
             var runtimeReferenceImageLibrary = m_TrackedImageManager.referenceLibrary as MutableRuntimeReferenceImageLibrary;
             
             // Check if supported by the descriptor
@@ -181,6 +263,7 @@ namespace GLTFast
             Debug.Log("TrackableMarker2D::AddImageJob done");
             
             yield return null;
+#endif
         }
 
         /// <summary>
@@ -189,52 +272,45 @@ namespace GLTFast
         void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
         {
             // Handle added event
-            if (eventArgs.added != null)
-            {
-                if(eventArgs.added.Count>0)
-                { 
-                    if(imgTrack == null)
-                    {
-                        imgTrack = eventArgs.added[0];
-                        m_Id =imgTrack.trackableId; 
-                    }
-                }   
-            }
+            if(eventArgs.added.Count>0)
+            { 
+                if(imgTrack == null)
+                {
+                    imgTrack = eventArgs.added[0];
+                    m_Id =imgTrack.trackableId;
+                    BuildAnchorInternal();
+                }
+            }   
                 
             // Handle updated event
-            if (eventArgs.updated != null)
-            {         
-                if(eventArgs.updated.Count>0)
-                {
-                    if(imgTrack != null)
-                    {
-                        imgTrack = eventArgs.updated[0];
-                        m_Id =imgTrack.trackableId;
-                        if(imgTrack.trackingState ==TrackingState.Tracking)
-                        {
-                            if(m_Anchor == null)
-                            {
-                                BuildAnchorInternal();
-                            }
-                        }
-                        else
-                        {
-                            m_Anchor.transform.SetPositionAndRotation(imgTrack.transform.position,imgTrack.transform.rotation);
-                        }
-                    }
-                }   
-            }
-            // Handle removed event
-             if (eventArgs.removed != null)
+            if(eventArgs.updated.Count>0)
             {
-                if(eventArgs.removed.Count>0)
+                if(imgTrack != null)
                 {
-                    if(imgTrack != null)
-                    {
-                        ClearInfo(imgTrack);
-                        imgTrack = null; 
-                        m_Id = TrackableId.invalidId;
-                    }
+                    imgTrack = eventArgs.updated[0];
+                    m_Id =imgTrack.trackableId;
+                    //if(imgTrack.trackingState ==TrackingState.Tracking)
+                    //{
+                    //    if(m_Anchor == null)
+                    //    {
+                    //        BuildAnchorInternal();
+                    //    }
+                    //}
+                    //else
+                    //{
+                        m_Anchor.transform.SetPositionAndRotation(imgTrack.transform.position,imgTrack.transform.rotation);
+                    //}
+                }
+            }   
+
+            // Handle removed event
+            if(eventArgs.removed.Count>0)
+            {
+                if(imgTrack != null)
+                {
+                    ClearInfo(imgTrack);
+                    imgTrack = null; 
+                    m_Id = TrackableId.invalidId;
                 }
             }
         }
@@ -270,6 +346,7 @@ namespace GLTFast
         
         private void BuildAnchorInternal()
         {
+            Debug.Log("TrackableMarker2D::BuildAnchorInternal");
             m_Anchor = new GameObject("Anchor");
             m_Anchor.transform.SetPositionAndRotation(imgTrack.transform.position, imgTrack.transform.rotation);
             
@@ -277,10 +354,12 @@ namespace GLTFast
             {
                 foreach (GameObject go  in m_GoToAttach)
                 {
+                    Debug.Log($"Attaching {go.name} to anchor");
                     go.transform.SetParent(m_Anchor.transform,false);
                     go.SetActive(true);
                 }
                 m_IsAttached = true;
+                Debug.Log("TrackableMarker2D::isAttached = true");
             }
         }
 
@@ -297,6 +376,7 @@ namespace GLTFast
         
         public void AttachNodeToTrackable(GameObject go)
         {
+            Debug.Log("TrackableMarker2D::AttachNodeToTrackable");
             m_GoToAttach.Add(go);
             if(m_Anchor != null && !m_IsAttached)
             {
@@ -316,7 +396,7 @@ namespace GLTFast
                         go.SetActive(false);
                     }
                 }
-            }  
+            }
         }
         
         public void readImage(int index)
@@ -448,5 +528,5 @@ namespace GLTFast
             throw new NotImplementedException();
         }
 #endif
-    }
+        }
 }

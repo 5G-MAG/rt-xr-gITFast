@@ -83,7 +83,7 @@ namespace GLTFast
             //check if classification is supported
             if(res == null)
             {
-                Debug.Log("TrackableGeometric::Classification is not supported: ");
+                Debug.LogError("TrackableGeometric::Classification is not supported: ");
                 m_SupportClassification = false;
             }
             else
@@ -220,7 +220,8 @@ namespace GLTFast
                 {
                     go.SetActive(true);
                     Debug.Log("TrackableGeometric::GO Active:" +go.activeSelf);
-                    go.transform.SetParent(m_Anchor.gameObject.transform,false);
+                    go.transform.position = m_Anchor.transform.position;
+                    go.transform.rotation = m_Anchor.transform.rotation;
                     if(m_ApplyScale)
                     {
                         go.transform.localScale = m_ScaleFactor;
@@ -254,7 +255,8 @@ namespace GLTFast
             if(m_Anchor != null && !m_Attached)
             {
                 Debug.Log("TrackableGeometric::AttachNodeToAnchor: "+go.name);
-                go.transform.SetParent(m_Anchor.gameObject.transform,false);
+                go.transform.position = m_Anchor.transform.position;
+                go.transform.rotation = m_Anchor.transform.rotation;
                 go.SetActive(true);
             }   
         }
@@ -407,7 +409,13 @@ namespace GLTFast
             else
             {
                 UpdatePlaneVisibility(false);
-            } 
+                foreach (GameObject go in m_GoToAttached)
+                {
+                    go.SetActive(true);
+                    go.transform.position = m_Anchor.transform.position;
+                    go.transform.rotation = m_Anchor.transform.rotation;
+                }
+            }
         }
 
         public void DumpAttributs()

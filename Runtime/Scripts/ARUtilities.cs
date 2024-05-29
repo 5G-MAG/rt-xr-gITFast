@@ -1,6 +1,6 @@
 using System;
-using Unity.XR.CoreUtils;
 using UnityEngine;
+using UnityEngine.XR.ARFoundation;
 
 #if !UNITY_2022_3_OR_NEWER
     using UnityEngine.XR.ARFoundation;
