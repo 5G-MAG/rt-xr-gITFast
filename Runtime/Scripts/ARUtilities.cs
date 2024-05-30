@@ -2,10 +2,6 @@ using System;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 
-#if !UNITY_2022_3_OR_NEWER
-    using UnityEngine.XR.ARFoundation;
-#endif
-
 /// <summary>
 /// Utility class to handle version references
 /// and a few handy methods 
