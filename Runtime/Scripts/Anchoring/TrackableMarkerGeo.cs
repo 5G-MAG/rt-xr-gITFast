@@ -13,6 +13,8 @@ using GLTFast.Schema;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
+using System;
+using UnityEngine.InputSystem.XR;
 #if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
@@ -52,6 +54,72 @@ namespace GLTFast
         // private bool m_RequiredAlignedNotScale =false;
         // private bool m_RequiredAlignedAndScale =false;
         // private bool m_RequiredSpace = false;
+        
+        public bool EnsureConfiguration()
+        {
+            m_ArOrigin = ARUtilities.GetSessionOrigin();
+
+            if (m_ArOrigin == null)
+            {
+                throw new Exception("Can't Find Session Origin");
+            }
+
+            ARSessionOrigin _origin = m_ArOrigin.GetComponent<ARSessionOrigin>();
+
+            if (_origin.GetComponent<ARInputManager>() == null)
+            {
+                Debug.Log("ARInputManager == null. Creating one");
+                _origin.gameObject.AddComponent<ARInputManager>();
+            }
+
+            UnityEngine.Camera _cam = _origin.camera;
+
+            // TODO: Make sure the camera has the component
+            if (_cam.GetComponent<ARCameraBackground>() == null)
+            {
+                Debug.Log("ARCameraBackground == null. Creating one");
+                _cam.gameObject.AddComponent<ARCameraBackground>();
+            }
+            if (_cam.GetComponent<ARCameraManager>() == null)
+            {
+                Debug.Log("ARCameraManager == null. Creating one");
+                _cam.gameObject.AddComponent<ARCameraManager>();
+            }
+            if (_cam.GetComponent<TrackedPoseDriver>() == null)
+            {
+                Debug.Log("TrackedPoseDriver == null. Creating one");
+                _cam.gameObject.AddComponent<TrackedPoseDriver>();
+            }
+
+            // Use XR camera prior to any other cameras
+            if (_cam != null)
+            {
+                UnityEngine.Camera[] _cameras = FindObjectsOfType<UnityEngine.Camera>();
+                for (int i = 0; i < _cameras.Length; i++)
+                {
+                    if (_cameras[i] != _cam)
+                    {
+                        _cameras[i].enabled = false;
+                    }
+                }
+            }
+
+            _origin.camera = _cam;
+
+            Transform _destination = _origin.transform.GetChild(0);
+            _cam.transform.SetParent(_destination);
+            Debug.Log($"Set camera as a child of {_destination.name}");
+
+            m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
+            if (m_AnchorManager == null)
+            {
+                Debug.Log("ARAnchorManager == null. Creating one");
+                m_AnchorManager = m_ArOrigin.AddComponent<ARAnchorManager>();
+            }
+            m_AnchorManager.enabled = true;
+
+            return true;
+        }
 
         public void InitFromGltf(Trackable  track)
         {
@@ -170,19 +238,13 @@ namespace GLTFast
         public void Init()
         {
             Debug.Log("TrackableMarkerGeo::Init ARGeospatialAnchor");
+
             m_GoToAttached = new List<GameObject>();
 
-            if(m_ArOrigin == null)
+            if (!EnsureConfiguration())
             {
-                m_ArOrigin = ARUtilities.GetSessionOrigin();
+                throw new Exception("Can't start TrackableMarkerGeo. Something went wrong in the configuration");
             }
-
-            m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
-            if(m_AnchorManager == null)
-            {
-                m_AnchorManager = m_ArOrigin.AddComponent<ARAnchorManager>(); 
-            }
-            m_AnchorManager.enabled = true;
         }
 
         public bool Detect()
