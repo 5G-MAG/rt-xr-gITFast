@@ -15,7 +15,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using UnityEngine;
-using UnityEngine.InputSystem.XR;
 #if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
@@ -42,8 +41,7 @@ namespace GLTFast
         private List<GameObject> m_GoToAttach;
         private bool m_IsAttached = false;
         private Vector3 m_RequiredSpaceToCheck = Vector3.zero;
-        private bool m_RequiredAnchoring=false;
-        private GameObject m_ArSession;
+        private bool m_RequiredAnchoring = false;
         // private bool m_RequiredAlignedNotScale =false;
         // private bool m_RequiredAlignedAndScale =false;
         // private bool m_RequiredSpace = false;
@@ -57,86 +55,14 @@ namespace GLTFast
             get { return m_DefaultTexture; }
             set { m_DefaultTexture = value; }
         }
-        
-        public void InitFromGltf(Trackable  track)
+
+        public void InitFromGltf(Trackable track)
         {
             m_MarkerNode = track.markerNode;
             if (Application.isEditor)
             {
                 DumpAttributs();
             }
-        }
-    
-        public bool EnsureConfiguration()
-        {
-            m_ArSession = ARUtilities.GetSessionOrigin();
-
-            if (m_ArSession == null)
-            {
-                throw new Exception("Can't Find Session Origin");
-            }
-
-            ARSessionOrigin _origin = m_ArSession.GetComponent<ARSessionOrigin>();
-
-            if (_origin.GetComponent<ARInputManager>() == null)
-            {
-                Debug.Log("ARInputManager == null. Creating one");
-                _origin.gameObject.AddComponent<ARInputManager>();
-            }
-
-
-            UnityEngine.Camera _cam = _origin.camera;
-
-            // TODO: Make sure the camera has the component
-            if (_cam.GetComponent<ARCameraBackground>() == null)
-            {
-                Debug.Log("ARCameraBackground == null. Creating one");
-                _cam.gameObject.AddComponent<ARCameraBackground>();
-            }
-            if (_cam.GetComponent<ARCameraManager>() == null)
-            {
-                Debug.Log("ARCameraManager == null. Creating one");
-                _cam.gameObject.AddComponent<ARCameraManager>();
-            }
-            if(_cam.GetComponent<TrackedPoseDriver>() == null)
-            {
-                Debug.Log("TrackedPoseDriver == null. Creating one");
-                _cam.gameObject.AddComponent<TrackedPoseDriver>();
-            }
-
-
-            // Use XR camera prior to any other cameras
-            if (_cam != null)
-            {
-                UnityEngine.Camera[] _cameras = FindObjectsOfType<UnityEngine.Camera>();
-                for (int i = 0; i < _cameras.Length; i++)
-                {
-                    if (_cameras[i] != _cam)
-                    {
-                        _cameras[i].enabled = false;
-                    }
-                }
-            }
-
-            _origin.camera = _cam;
-
-            Transform _destination = _origin.transform.GetChild(0);
-            _cam.transform.SetParent(_destination);
-            Debug.Log($"Set camera as a child of {_destination.name}");
-
-            m_TrackedImageManager = FindObjectOfType<ARTrackedImageManager>(true);
-
-            if (m_TrackedImageManager == null)
-            {
-                Debug.Log("ARTrackedImageManager == null. Creating one");
-                m_TrackedImageManager = m_ArSession.AddComponent<ARTrackedImageManager>();
-            }
-
-            // There is a ReferenceImageLibrary in the Resources folder
-            m_XrReferenceImageLibrary = Resources.Load<XRReferenceImageLibrary>("ReferenceImageLibrary");
-            m_TrackedImageManager.referenceLibrary = m_XrReferenceImageLibrary;
-
-            return true;
         }
 
         public void Init()
@@ -147,17 +73,19 @@ namespace GLTFast
 
             Debug.Log("TrackableMarker2D::Init");
 
-            if(!EnsureConfiguration())
+            GameObject obj = ARUtilities.GetSessionOrigin();
+
+            if (obj == null)
             {
-                throw new Exception("Can't start TrackableMarker2D. Something went wrong in the configuration");
+                throw new Exception("Can't Find Session Origin");
             }
 
             m_TrackedImageManager = FindObjectOfType<ARTrackedImageManager>(true);
 
-            if(m_TrackedImageManager == null)
+            if (m_TrackedImageManager == null)
             {
                 Debug.Log("TrackableMarker2D::ARTrackedImageManager not found - adding component");
-                m_TrackedImageManager = m_ArSession.AddComponent<ARTrackedImageManager>();
+                m_TrackedImageManager = obj.AddComponent<ARTrackedImageManager>();
             }
 
             m_TrackedImageManager.referenceLibrary = m_TrackedImageManager.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
@@ -165,32 +93,29 @@ namespace GLTFast
             m_TrackedImageManager.enabled = true;
             // m_TrackedImageManager.trackedImagePrefab = GameObject.CreatePrimitive(UnityEngine.PrimitiveType.Cube);
             m_TrackedImageManager.trackedImagesChanged += OnTrackedImagesChanged;
-            
+
             //retrieve the node to get image    
-            Node node =  VirtualSceneGraph.root.nodes[m_MarkerNode];
-
+            Node node = VirtualSceneGraph.root.nodes[m_MarkerNode];
             //Retrieve mesh
-            Schema.Mesh meshSCH =  VirtualSceneGraph.root.meshes[node.mesh];
-
+            Schema.Mesh meshSCH = VirtualSceneGraph.root.meshes[node.mesh];
             //Get material
-            Schema.MeshPrimitive [] primitives  = new MeshPrimitive[meshSCH.primitives.Length];
-            for(int i = 0; i <meshSCH.primitives.Length;i++)
+            Schema.MeshPrimitive[] primitives = new MeshPrimitive[meshSCH.primitives.Length];
+            for (int i = 0; i < meshSCH.primitives.Length; i++)
             {
-                MeshPrimitive _primitive = (MeshPrimitive)meshSCH.primitives[i].Clone();
-                matIndex = _primitive.material;
-                Schema.Material matSCH =  VirtualSceneGraph.root.materials[matIndex];
-                if(matSCH.pbrMetallicRoughness.baseColorTexture!= null)
+                primitives[i] = (MeshPrimitive)meshSCH.primitives[i].Clone();
+                matIndex = primitives[i].material;
+                Schema.Material matSCH = VirtualSceneGraph.root.materials[matIndex];
+                if (matSCH.pbrMetallicRoughness.baseColorTexture != null)
                 {
                     texIndex = matSCH.pbrMetallicRoughness.baseColorTexture.index;
-                    Schema.Texture texSch =  VirtualSceneGraph.root.textures[texIndex];
+                    Schema.Texture texSch = VirtualSceneGraph.root.textures[texIndex];
                     sourceIndex = texSch.source;
-                    UnityEngine.Texture2D tex =  VirtualSceneGraph.GetTextureFromIndex(sourceIndex);
+                    UnityEngine.Texture2D tex = VirtualSceneGraph.GetTextureFromIndex(sourceIndex);
                     Size size = new Size(tex.width, tex.height);
                     Debug.Log($"Add marker image for texture {tex} of size {size}");
                     AddMarkerImage(tex, size);
                 }
             }
-            
             m_GoToAttach = new List<GameObject>();
         }
 
@@ -202,7 +127,7 @@ namespace GLTFast
 
         public void RequiredAnchoring(bool requiredAnchoring)
         {
-            m_RequiredAnchoring = requiredAnchoring;         
+            m_RequiredAnchoring = requiredAnchoring;
         }
 
         public void RequiredAlignedAndScale(Anchor.Aligned aligned)
@@ -216,31 +141,25 @@ namespace GLTFast
             //     m_RequiredAlignedAndScale = true;
             // }
         }
-        
+
         public void AddMarkerImage(Texture2D _texture, Size _size)
         {
             Debug.Log($"TrackableMarker2D::AddMarkerImage...");
             StartCoroutine(AddImageJob(_texture, _size));
         }
 
-        private IEnumerator AddImageJob(Texture2D _texture, Size _size) {
+        private IEnumerator AddImageJob(Texture2D _texture, Size _size)
+        {
             // Make sure we can call it 
             yield return new WaitForSeconds(0.25f);
             Debug.Log("TrackableMarker2D::AddImageJob");
-#if UNITY_EDITOR
-            // Not supported
-            yield return null;
-            //RuntimeReferenceImageLibrary _runtimeReferenceImageLib
-            //    = m_TrackedImageManager.subsystem.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
 
-#else
-            Debug.Log("Not editor");
             var runtimeReferenceImageLibrary = m_TrackedImageManager.referenceLibrary as MutableRuntimeReferenceImageLibrary;
-            
+
             // Check if supported by the descriptor
             bool _isMutableRuntimeimageLibrarySupported = m_TrackedImageManager.descriptor.supportsMutableLibrary;
-            
-            if(!_isMutableRuntimeimageLibrarySupported)
+
+            if (!_isMutableRuntimeimageLibrarySupported)
             {
                 throw new Exception($"TrackableMarker2D::Descriptor doesn't support Mutable Library.");
             }
@@ -255,15 +174,14 @@ namespace GLTFast
             Debug.Log("TrackableMarker2D::Waiting until the job is complete");
             // Async
 
-            while(!_job.status.IsComplete())
+            while (!_job.status.IsComplete())
             {
                 yield return null;
             }
 
             Debug.Log("TrackableMarker2D::AddImageJob done");
-            
+
             yield return null;
-#endif
         }
 
         /// <summary>
@@ -272,45 +190,46 @@ namespace GLTFast
         void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
         {
             // Handle added event
-            if(eventArgs.added.Count>0)
-            { 
-                if(imgTrack == null)
+            if (eventArgs.added != null)
+            {
+                if (eventArgs.added.Count > 0)
                 {
-                    imgTrack = eventArgs.added[0];
-                    m_Id =imgTrack.trackableId;
+                    if (imgTrack == null)
+                    {
+                        imgTrack = eventArgs.added[0];
+                        m_Id = imgTrack.trackableId;
+                    }
+                }
+            }
+
+            // Handle updated event
+            if (eventArgs.updated != null)
+            {
+                if (m_Anchor == null)
+                {
                     BuildAnchorInternal();
                 }
-            }   
-                
-            // Handle updated event
-            if(eventArgs.updated.Count>0)
-            {
-                if(imgTrack != null)
+
+                List<ARTrackedImage> _updateImages = eventArgs.updated;
+                for (int i = 0; i < _updateImages.Count; i++)
                 {
-                    imgTrack = eventArgs.updated[0];
-                    m_Id =imgTrack.trackableId;
-                    //if(imgTrack.trackingState ==TrackingState.Tracking)
-                    //{
-                    //    if(m_Anchor == null)
-                    //    {
-                    //        BuildAnchorInternal();
-                    //    }
-                    //}
-                    //else
-                    //{
-                        m_Anchor.transform.SetPositionAndRotation(imgTrack.transform.position,imgTrack.transform.rotation);
-                    //}
+                    ARTrackedImage _image = _updateImages[i];
+                    m_Id = _image.trackableId;
+                    m_Anchor.transform.SetPositionAndRotation(_image.transform.position, _image.transform.rotation);
                 }
-            }   
+            }
 
             // Handle removed event
-            if(eventArgs.removed.Count>0)
+            if (eventArgs.removed != null)
             {
-                if(imgTrack != null)
+                if (eventArgs.removed.Count > 0)
                 {
-                    ClearInfo(imgTrack);
-                    imgTrack = null; 
-                    m_Id = TrackableId.invalidId;
+                    if (imgTrack != null)
+                    {
+                        ClearInfo(imgTrack);
+                        imgTrack = null;
+                        m_Id = TrackableId.invalidId;
+                    }
                 }
             }
         }
@@ -323,18 +242,18 @@ namespace GLTFast
             planeGo.SetActive(false);
         }
 
-        public bool  Detect()
+        public bool Detect()
         {
             return imgTrack != null;
         }
 
         public Transform Track()
         {
-            if(m_Anchor == null)
+            if (m_Anchor == null)
             {
                 return null;
             }
-            if(imgTrack.trackingState== TrackingState.Tracking)
+            if (imgTrack.trackingState == TrackingState.Tracking)
             {
                 return m_Anchor.transform;
             }
@@ -343,95 +262,92 @@ namespace GLTFast
                 return null;
             }
         }
-        
+
         private void BuildAnchorInternal()
         {
-            Debug.Log("TrackableMarker2D::BuildAnchorInternal");
             m_Anchor = new GameObject("Anchor");
             m_Anchor.transform.SetPositionAndRotation(imgTrack.transform.position, imgTrack.transform.rotation);
-            
-            if(!m_IsAttached)
+
+            foreach (GameObject go in m_GoToAttach)
             {
-                foreach (GameObject go  in m_GoToAttach)
-                {
-                    Debug.Log($"Attaching {go.name} to anchor");
-                    go.transform.SetParent(m_Anchor.transform,false);
-                    go.SetActive(true);
-                }
-                m_IsAttached = true;
-                Debug.Log("TrackableMarker2D::isAttached = true");
+                go.transform.SetParent(m_Anchor.transform, false);
+                go.SetActive(true);
             }
+            //m_IsAttached = true;
+            //if(!m_IsAttached)
+            //{
+            //}
         }
 
         public void RemoveAnchor()
         {
-            if(m_Anchor != null)
+            if (m_Anchor != null)
             {
                 Destroy(m_Anchor);
             }
-            
+
             m_Anchor = null;
             m_Id = TrackableId.invalidId;
         }
-        
+
         public void AttachNodeToTrackable(GameObject go)
         {
-            Debug.Log("TrackableMarker2D::AttachNodeToTrackable");
             m_GoToAttach.Add(go);
-            if(m_Anchor != null && !m_IsAttached)
+            if (m_Anchor != null && !m_IsAttached)
             {
-                go.transform.SetParent(m_Anchor.gameObject.transform,false);
+                go.transform.SetParent(m_Anchor.gameObject.transform, false);
                 go.SetActive(true);
             }
         }
 
         void Update()
         {
-            if(m_Anchor == null)
+            if (m_Anchor == null)
             {
-                if(m_RequiredAnchoring)
+                if (m_RequiredAnchoring)
                 {
-                    foreach(GameObject go in m_GoToAttach)
+                    foreach (GameObject go in m_GoToAttach)
                     {
                         go.SetActive(false);
                     }
                 }
             }
         }
-        
+
         public void readImage(int index)
         {
             int matIndex1 = -1;
             int texIndex1 = -1;
             int sourceIndex1 = -1;
 
-            Node node =  VirtualSceneGraph.root.nodes[m_MarkerNode];
+            Node node = VirtualSceneGraph.root.nodes[m_MarkerNode];
 
             //Retrieve mesh
-            Schema.Mesh meshSCH =  VirtualSceneGraph.root.meshes[node.mesh];
+            Schema.Mesh meshSCH = VirtualSceneGraph.root.meshes[node.mesh];
             //Get material
-            Schema.MeshPrimitive [] primitives  = new MeshPrimitive[meshSCH.primitives.Length];
-            for(int i = 0; i <meshSCH.primitives.Length;i++)
+            Schema.MeshPrimitive[] primitives = new MeshPrimitive[meshSCH.primitives.Length];
+            for (int i = 0; i < meshSCH.primitives.Length; i++)
             {
-                Debug.Log("Read Primitives :"+ i);
-                primitives[i]= (MeshPrimitive) meshSCH.primitives[i].Clone();
-                Debug.Log("Clone Primitives :"+ i);
+                Debug.Log("Read Primitives :" + i);
+                primitives[i] = (MeshPrimitive)meshSCH.primitives[i].Clone();
+                Debug.Log("Clone Primitives :" + i);
                 matIndex1 = primitives[i].material;
-                Debug.Log("Read Material :"+ matIndex1);
-                Schema.Material matSCH =  VirtualSceneGraph.root.materials[matIndex1];
-                if(matSCH.pbrMetallicRoughness.baseColorTexture!= null)
+                Debug.Log("Read Material :" + matIndex1);
+                Schema.Material matSCH = VirtualSceneGraph.root.materials[matIndex1];
+                if (matSCH.pbrMetallicRoughness.baseColorTexture != null)
                 {
                     texIndex1 = matSCH.pbrMetallicRoughness.baseColorTexture.index;
-                    Schema.Texture texSch =  VirtualSceneGraph.root.textures[texIndex1];
+                    Schema.Texture texSch = VirtualSceneGraph.root.textures[texIndex1];
                     sourceIndex1 = texSch.source;
-                    UnityEngine.Texture2D tex =  VirtualSceneGraph.GetTextureFromIndex(sourceIndex1); 
-                    byte[] bytes=tex.EncodeToPNG();
+                    UnityEngine.Texture2D tex = VirtualSceneGraph.GetTextureFromIndex(sourceIndex1);
+                    byte[] bytes = tex.EncodeToPNG();
                     var dirPath = Application.persistentDataPath + "/SaveImages/";
-                    Debug.Log("dirPath: "+ dirPath);
-                    if(!System.IO.Directory.Exists(dirPath)) {
+                    Debug.Log("dirPath: " + dirPath);
+                    if (!System.IO.Directory.Exists(dirPath))
+                    {
                         System.IO.Directory.CreateDirectory(dirPath);
                     }
-                    System.IO.File.WriteAllBytes(dirPath + "Image" + ".png", bytes);    
+                    System.IO.File.WriteAllBytes(dirPath + "Image" + ".png", bytes);
                 }
             }
         }
@@ -439,17 +355,17 @@ namespace GLTFast
         public void DumpAttributs()
         {
             Dictionary<string, string> attributs = new Dictionary<string, string>();
-            attributs.Add("markerNode","markerNode");
+            attributs.Add("markerNode", "markerNode");
             var res = this.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            Debug.Log(this.GetType().Name+": Editor Mode Dump all attributes of instance");
-            foreach(var item in res)
+            Debug.Log(this.GetType().Name + ": Editor Mode Dump all attributes of instance");
+            foreach (var item in res)
             {
-                if(attributs.ContainsKey(item.Name))
-                    Debug.Log(item.Name+ " : " + item.GetValue(this));
-            }  
+                if (attributs.ContainsKey(item.Name))
+                    Debug.Log(item.Name + " : " + item.GetValue(this));
+            }
         }
 
-        
+
         /// <summary>
         /// Stops this module from working, empty all references
         /// </summary>
@@ -457,13 +373,13 @@ namespace GLTFast
         {
             Debug.Log("TrackableMarker2D::Dispose");
 
-            if(m_TrackedImageManager != null)
+            if (m_TrackedImageManager != null)
             {
                 m_TrackedImageManager.trackedImagesChanged -= OnTrackedImagesChanged;
                 Destroy(m_TrackedImageManager);
             }
 
-            if(imgTrack != null)
+            if (imgTrack != null)
             {
                 Destroy(imgTrack);
             }
@@ -528,5 +444,5 @@ namespace GLTFast
             throw new NotImplementedException();
         }
 #endif
-        }
+    }
 }
