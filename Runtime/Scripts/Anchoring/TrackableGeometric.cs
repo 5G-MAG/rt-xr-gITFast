@@ -16,6 +16,7 @@ using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 #endif
+using Unity.XR.CoreUtils;
 using System.Linq;
 using System.Reflection;
 using UnityEngine.InputSystem.XR;
@@ -76,8 +77,8 @@ namespace GLTFast
             }
             m_ArPlaneManager.enabled = true;
 
-            ARSessionOrigin _origin = arSession.GetComponent<ARSessionOrigin>();
-            UnityEngine.Camera _cam = _origin.camera;
+            XROrigin _origin = arSession.GetComponent<XROrigin>();
+            UnityEngine.Camera _cam = _origin.GetComponent<UnityEngine.Camera>();
 
             if (_cam.GetComponent<ARCameraBackground>() == null)
             {
@@ -109,7 +110,7 @@ namespace GLTFast
                 }
             }
 
-            _origin.camera = _cam;
+            _origin.Camera = _cam;
 
             Transform _destination = _origin.transform.GetChild(0);
             _cam.transform.SetParent(_destination);

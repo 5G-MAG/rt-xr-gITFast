@@ -19,6 +19,7 @@ using UnityEngine.InputSystem.XR;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using UnityEngine.XR.ARCore;
+using Unity.XR.CoreUtils;
 using Google.XR.ARCoreExtensions;
 #endif
 using System.Reflection;
@@ -64,7 +65,7 @@ namespace GLTFast
                 throw new Exception("Can't Find Session Origin");
             }
 
-            ARSessionOrigin _origin = m_ArOrigin.GetComponent<ARSessionOrigin>();
+            XROrigin _origin = m_ArOrigin.GetComponent<XROrigin>();
 
             if (_origin.GetComponent<ARInputManager>() == null)
             {
@@ -72,7 +73,7 @@ namespace GLTFast
                 _origin.gameObject.AddComponent<ARInputManager>();
             }
 
-            UnityEngine.Camera _cam = _origin.camera;
+            UnityEngine.Camera _cam = _origin.GetComponent<UnityEngine.Camera>();
 
             // TODO: Make sure the camera has the component
             if (_cam.GetComponent<ARCameraBackground>() == null)
@@ -104,7 +105,7 @@ namespace GLTFast
                 }
             }
 
-            _origin.camera = _cam;
+            _origin.Camera = _cam;
 
             Transform _destination = _origin.transform.GetChild(0);
             _cam.transform.SetParent(_destination);
