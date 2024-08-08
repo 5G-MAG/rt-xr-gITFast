@@ -33,7 +33,6 @@ namespace GLTFast
 
         public void Init()
         {
-            Debug.Log("Init collision detector");
             if (!m_HasInit)
             {
                 m_Target = new List<GameObject>();

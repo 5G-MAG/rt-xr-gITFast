@@ -28,6 +28,7 @@ namespace GLTFast
         private float m_DistanceLowerLimit;
         private float m_DistanceUpperLimit;
         private List<ProximityNodeTrigger> m_Targets;
+        private MPEG_ProximityEvent m_ProximityEvent;
 
         public void Dispose()
         {
@@ -36,6 +37,7 @@ namespace GLTFast
 
         public void Init(Trigger trigger)
         {
+            m_ProximityEvent = new MPEG_ProximityEvent();
             m_Targets = new List<ProximityNodeTrigger>();
             if(trigger.referenceNode.HasValue)
             {
@@ -205,6 +207,10 @@ namespace GLTFast
                 //{
                 //    return false;
                 //}
+            }
+            if(result)
+            {
+                ProximityModule.GetInstance().OnProximityTriggerOccurs(this, m_ProximityEvent);
             }
             return result;
         }

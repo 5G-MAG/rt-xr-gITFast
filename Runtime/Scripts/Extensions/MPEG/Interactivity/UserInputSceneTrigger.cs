@@ -29,7 +29,7 @@ namespace GLTFast
         private GameObject[] m_Targets;
         private bool m_IsPerformed;
         private List<UserInputNodeTrigger> m_NodeTriggers = new List<UserInputNodeTrigger>();
-
+        private MPEG_UserInputEvent m_UserInputEvent;
 
         public void Dispose()
         {
@@ -59,11 +59,17 @@ namespace GLTFast
 
         public bool MeetConditions()
         {
+            if(m_IsPerformed)
+            {
+                UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
+            }
+
             return m_IsPerformed;
         }
 
         public void Init(Trigger trigger)
         {
+            m_UserInputEvent = new MPEG_UserInputEvent();
             string binding = GetBindingFromUserInputDescription(trigger.userInputDescription);
 
             m_InputAction = new InputAction(trigger.userInputDescription, binding: binding);

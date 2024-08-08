@@ -734,29 +734,37 @@ namespace GLTFast {
             VirtualSceneGraph.AssignBehaviorIndexToBehavior(bhvIf, index);
         }
 
-        public void AddMPEGInteractivityTrigger(GLTFast.Schema.Trigger trigger, int index)
+        public void AddMPEGInteractivityTrigger(GLTFast.Schema.Trigger trigger, int _index)
         {
-            GameObject go = new GameObject($"{trigger.type} - {index}");
-            IMpegInteractivityTrigger triggerIf = null;
+            GameObject go = new GameObject($"{trigger.type} - {_index}");
+            IMpegInteractivityTrigger _triggerIf = null;
 
             switch (trigger.type)
             {
-                case TriggerType.TRIGGER_COLLISION: triggerIf = go.AddComponent<CollisionSceneTrigger>(); break;
-                case TriggerType.TRIGGER_PROXIMITY: triggerIf = go.AddComponent<ProximitySceneTrigger>(); break;
-                case TriggerType.TRIGGER_USER_INPUT: triggerIf = go.AddComponent<UserInputSceneTrigger>(); break;
-                case TriggerType.TRIGGER_VISIBILITY: triggerIf = go.AddComponent<VisibilitySceneTrigger>(); break;
+                case TriggerType.TRIGGER_COLLISION: _triggerIf = go.AddComponent<CollisionSceneTrigger>();
+                    CollisionModule.GetInstance().AddTrigger(_index, _triggerIf);
+                    break;
+                case TriggerType.TRIGGER_PROXIMITY: _triggerIf = go.AddComponent<ProximitySceneTrigger>();
+                    ProximityModule.GetInstance().AddTrigger(_index, _triggerIf);
+                    break;
+                case TriggerType.TRIGGER_USER_INPUT: _triggerIf = go.AddComponent<UserInputSceneTrigger>();
+                    UserInputModule.GetInstance().AddTrigger(_index, _triggerIf);
+                    break;
+                case TriggerType.TRIGGER_VISIBILITY: _triggerIf = go.AddComponent<VisibilitySceneTrigger>();
+                    VisibilityModule.GetInstance().AddTrigger(_index, _triggerIf);
+                    break;
             }
 
-            if (triggerIf == null)
+            if (_triggerIf == null)
             {
                 throw new NotImplementedException($"Couldn't create trigger, type not recognized: {trigger.type}");
             }
 
-            triggerIf.Init(trigger);
+            _triggerIf.Init(trigger);
 
-            VirtualSceneGraph.AssignTriggerToIndex(triggerIf, index);
+            VirtualSceneGraph.AssignTriggerToIndex(_triggerIf, _index);
 
-            sceneInstance.AddInteractivityTrigger(triggerIf);
+            sceneInstance.AddInteractivityTrigger(_triggerIf);
         }
 
         public void AddMPEGInteractivityAction(GLTFast.Schema.Action action, int index)

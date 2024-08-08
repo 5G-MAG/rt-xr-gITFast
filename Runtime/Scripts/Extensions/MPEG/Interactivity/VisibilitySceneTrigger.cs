@@ -21,6 +21,8 @@ namespace GLTFast
     {
         private UnityEngine.Camera m_Camera;
         private VisibilityNodeTrigger[] m_Targets;
+        private MPEG_VisibilityEvent m_VisibilityEvent;
+
 
         public void Dispose()
         {
@@ -33,6 +35,7 @@ namespace GLTFast
 
         public void Init(Trigger trigger)
         {
+            m_VisibilityEvent = new MPEG_VisibilityEvent();
             Node _n = VirtualSceneGraph.GetNodeFromNodeIndex(trigger.cameraNode);
             int _camIndex = _n.camera;
 
@@ -69,6 +72,12 @@ namespace GLTFast
                     return false;
                 }
             }
+
+            if(result)
+            {
+                VisibilityModule.GetInstance().OnVisibilityTriggerOccurs(this, m_VisibilityEvent);
+            }
+
             return result;
         }
     }
