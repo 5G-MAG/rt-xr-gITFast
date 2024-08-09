@@ -42,6 +42,7 @@ using Mesh = UnityEngine.Mesh;
 namespace GLTFast {
     
     using Logging;
+    using System.Reflection;
     using UnityEngine.XR;
 
     /// <summary>
@@ -721,17 +722,18 @@ namespace GLTFast {
         }
 
         //// IDCC
-        public void AddMPEGInteractivityBehavior(Schema.Behavior bhv, int index)
+        public void AddMPEGInteractivityBehavior(Schema.Behavior bhv, int _index)
         {
-            GameObject go = new GameObject($"Behavior - {index}");
+            GameObject go = new GameObject($"Behavior - {_index}");
 
             // Not useful to have an interface here, but following
             // the same pattern than actions and triggers
-            IMpegInteractivityBehavior bhvIf = go.AddComponent<GLTFast.Behavior>();
-            bhvIf.InitializeBehavior(bhv);
+            IMpegInteractivityBehavior _bhvIf = go.AddComponent<GLTFast.Behavior>();
+            _bhvIf.InitializeBehavior(bhv);
 
-            sceneInstance.behaviorController.AddBehavior(bhvIf);
-            VirtualSceneGraph.AssignBehaviorIndexToBehavior(bhvIf, index);
+            sceneInstance.behaviorController.AddBehavior(_bhvIf);
+            VirtualSceneGraph.AssignBehaviorIndexToBehavior(_bhvIf, _index);
+            BehaviourModule.GetInstance().AddBehaviour(_index, _bhvIf);
         }
 
         public void AddMPEGInteractivityTrigger(GLTFast.Schema.Trigger trigger, int _index)
@@ -796,13 +798,13 @@ namespace GLTFast {
             sceneInstance.AddInteractivityAction(actionIf);
         }
 
-        public void AddMPEGTrackables(GLTFast.Schema.Trackable trackable, int index) {
+        public void AddMPEGTrackables(GLTFast.Schema.Trackable _trackable, int _index) {
 #if UNITY_ANDROID
-            GameObject go = new GameObject($"{trackable.type} - {index}");
+            GameObject go = new GameObject($"{_trackable.type} - {_index}");
             IMpegTrackable trackIf = null;
-            Debug.Log("Tracking Mode:"+ trackable.type);
+            Debug.Log("Tracking Mode:"+ _trackable.type);
 
-            switch(trackable.type)
+            switch(_trackable.type)
             {
                 case TrackableType.TRACKABLE_FLOOR:     trackIf = go.AddComponent<TrackableFloor>(); break;
                 case TrackableType.TRACKABLE_VIEWER:     trackIf = go.AddComponent<TrackableViewer>(); break;
@@ -814,34 +816,36 @@ namespace GLTFast {
                 case TrackableType.TRACKABLE_APPLICATION:    trackIf = go.AddComponent<TrackableApplication>(); break;
             }
 
+            TrackableModule.GetInstance().AddTrackable(_index, trackIf);
+
             if (trackIf == null)
             {
-                throw new NotImplementedException($"Couldn't create trackable, type not recognized: {trackable.type}");
+                throw new NotImplementedException($"Couldn't create trackable, type not recognized: {_trackable.type}");
             }
             Debug.Log("Build Trackable");
 
-            trackIf.InitFromGltf(trackable);
-            VirtualSceneGraph.AssignTrackableToIndex(trackIf, index);
+            trackIf.InitFromGltf(_trackable);
+            VirtualSceneGraph.AssignTrackableToIndex(trackIf, _index);
             sceneInstance.AddTrackable(trackIf);
 #endif
         }
 
-        public void AddMPEGAnchor(GLTFast.Schema.Anchor anchor, int index) {
+        public void AddMPEGAnchor(GLTFast.Schema.Anchor anchor, int _index) {
 #if UNITY_ANDROID
             string str = "anchor";
-            GameObject go = new GameObject($"{str} - {index}");
-            IMpegAnchor anchIf = null;
-            anchIf = go.AddComponent<AnchorInstance>();
+            GameObject go = new GameObject($"{str} - {_index}");
+            IMpegAnchor _anchIf = null;
+            _anchIf = go.AddComponent<AnchorInstance>();
 
-            if(anchIf == null)
+            if(_anchIf == null)
             {
                 throw new NotImplementedException($"Couldn't create anchor");
             }
             Debug.Log("Build Anchor");
 
-            anchIf.Init(anchor);
-            VirtualSceneGraph.AssignAnchorToIndex(anchIf, index);
-            sceneInstance.AddAnchor(anchIf);
+            _anchIf.Init(anchor);
+            VirtualSceneGraph.AssignAnchorToIndex(_anchIf, _index);
+            sceneInstance.AddAnchor(_anchIf);
 #endif
         }
 

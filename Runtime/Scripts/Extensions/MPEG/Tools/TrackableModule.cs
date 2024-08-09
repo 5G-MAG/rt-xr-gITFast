@@ -1,41 +1,50 @@
+using GLTFast.Schema;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace GLTFast
 {
-    public struct MPEG_ProximityEvent
+    public enum TrackableEventType
     {
+        ADDED,
+        UPDATED,
+        REMOVED
     }
 
-    public class ProximityModule : IMPEG_Module<MPEG_ProximityEvent>
+    public struct MPEG_TrackableEvent
     {
-        private static Dictionary<int, Action<MPEG_ProximityEvent>> m_Events;
-        private static Dictionary<IMpegInteractivityTrigger, int> m_Triggers;
+        public TrackableType trackableType;
+        public TrackableEventType trackableEventType;
+    }
 
-        private static ProximityModule m_Instance;
+    public class TrackableModule : IMPEG_Module<MPEG_TrackableEvent>
+    {
+        private static Dictionary<int, Action<MPEG_TrackableEvent>> m_Events;
+        private static Dictionary<IMpegTrackable, int> m_Trackables;
+        private static TrackableModule m_Instance;
 
-        public static ProximityModule GetInstance()
+        public static TrackableModule GetInstance()
         {
             if (m_Instance == null)
             {
-                m_Instance = new ProximityModule();
-                m_Events = new Dictionary<int, Action<MPEG_ProximityEvent>>();
-                m_Triggers = new Dictionary<IMpegInteractivityTrigger, int>();
+                m_Instance = new TrackableModule();
+                m_Events = new Dictionary<int, Action<MPEG_TrackableEvent>>();
+                m_Trackables = new Dictionary<IMpegTrackable, int>();
             }
             return m_Instance;
         }
 
-        internal void OnProximityTriggerOccurs(IMpegInteractivityTrigger _trigger, MPEG_ProximityEvent _event)
+        internal void OnAnchoringOccurs(IMpegTrackable _behaviour, MPEG_TrackableEvent _event)
         {
             int _index;
 
-            if (!m_Triggers.ContainsKey(_trigger))
+            if (!m_Trackables.ContainsKey(_behaviour))
             {
                 throw new Exception("Not referenced by this  module");
             }
 
-            _index = m_Triggers[_trigger];
+            _index = m_Trackables[_behaviour];
 
             if (!m_Events.ContainsKey(_index))
             {
@@ -45,12 +54,12 @@ namespace GLTFast
             m_Events[_index]?.Invoke(_event);
         }
 
-        internal void AddTrigger(int _index, IMpegInteractivityTrigger _trigger)
+        internal void AddTrackable(int _index, IMpegTrackable _behavior)
         {
-            m_Triggers.Add(_trigger, _index);
+            m_Trackables.Add(_behavior, _index);
         }
 
-        public void Register(Action<MPEG_ProximityEvent> _action, int _index)
+        public void Register(Action<MPEG_TrackableEvent> _action, int _index)
         {
             if (m_Events.ContainsKey(_index))
             {

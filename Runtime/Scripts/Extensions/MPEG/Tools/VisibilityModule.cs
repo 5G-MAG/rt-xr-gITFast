@@ -6,7 +6,6 @@ namespace GLTFast
 {
     public struct MPEG_VisibilityEvent
     {
-        public int index;
     }
 
     public class VisibilityModule : IMPEG_Module<MPEG_VisibilityEvent>
@@ -33,7 +32,7 @@ namespace GLTFast
 
             if (!m_Triggers.ContainsKey(_trigger))
             {
-                throw new Exception("Proximity occurs on a trigger that is not referenced by the collision module");
+                throw new Exception("Not referenced by this  module");
             }
 
             _index = m_Triggers[_trigger];
@@ -68,7 +67,7 @@ namespace GLTFast
         {
             if (!m_Events.ContainsKey(_index))
             {
-                Debug.LogError($"CollisionModule event doesn't contains any method for index {_index}.");
+                Debug.LogError($"This module doesn't contains any method for index {_index}.");
                 return;
             }
             m_Events.Remove(_index);

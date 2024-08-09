@@ -35,15 +35,20 @@ namespace GLTFast
         {
             Destroy(gameObject);
         }
-        private void OnInputCanceled(InputAction.CallbackContext context)
+        private void OnInputCanceled(InputAction.CallbackContext _context)
         {
             m_IsPerformed = false;
+            m_UserInputEvent.context = _context;
+            UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
         }
 
-        private void OnInputPerformed(InputAction.CallbackContext context)
+        private void OnInputPerformed(InputAction.CallbackContext _context)
         {
             m_IsPerformed = true;
-            if(m_NodeTriggers.Count > 0)
+            m_UserInputEvent.context = _context;
+            UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
+
+            if (m_NodeTriggers.Count > 0)
             {
                 for (int i = 0; i < m_NodeTriggers.Count; i++) 
                 {
@@ -59,17 +64,11 @@ namespace GLTFast
 
         public bool MeetConditions()
         {
-            if(m_IsPerformed)
-            {
-                UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
-            }
-
             return m_IsPerformed;
         }
 
         public void Init(Trigger trigger)
         {
-            m_UserInputEvent = new MPEG_UserInputEvent();
             string binding = GetBindingFromUserInputDescription(trigger.userInputDescription);
 
             m_InputAction = new InputAction(trigger.userInputDescription, binding: binding);
@@ -94,6 +93,7 @@ namespace GLTFast
                     }
                 }
             }
+            m_UserInputEvent = new MPEG_UserInputEvent();
         }
 
         public static string GetBindingFromUserInputDescription(string description)

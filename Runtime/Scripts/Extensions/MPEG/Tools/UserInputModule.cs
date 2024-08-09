@@ -1,13 +1,13 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace GLTFast
 {
     public struct MPEG_UserInputEvent
     {
-        public int index;
+        public InputAction.CallbackContext context;
     }
 
     public class UserInputModule : IMPEG_Module<MPEG_UserInputEvent>
@@ -34,7 +34,7 @@ namespace GLTFast
 
             if (!m_Triggers.ContainsKey(_trigger))
             {
-                throw new Exception("Proximity occurs on a trigger that is not referenced by the collision module");
+                throw new Exception("Not referenced by this  module");
             }
 
             _index = m_Triggers[_trigger];
@@ -69,7 +69,7 @@ namespace GLTFast
         {
             if (!m_Events.ContainsKey(_index))
             {
-                Debug.LogError($"CollisionModule event doesn't contains any method for index {_index}.");
+                Debug.LogError($"This module doesn't contains any method for index {_index}.");
                 return;
             }
             m_Events.Remove(_index);
