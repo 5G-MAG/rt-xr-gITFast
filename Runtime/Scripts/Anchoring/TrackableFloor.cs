@@ -72,6 +72,10 @@ namespace GLTFast
             {
                 m_ArPlaneManager = obj.AddComponent<ARPlaneManager>();
             }
+            // if (m_ArPlaneManager.planePrefab == null)
+            // {
+            //     m_ArPlaneManager.planePrefab = Resources.Load<GameObject>("ARPlaneDebugVisualizer");
+            // }
             m_ArPlaneManager.enabled = true;
         }
 

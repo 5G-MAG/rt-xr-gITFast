@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-#if UNITY_2022_3_OR_NEWER
+#if ARCORE_USE_ARF_5
     using Unity.XR.CoreUtils;
 #else
     using UnityEngine.XR.ARFoundation;
@@ -19,9 +19,10 @@ public static class ARUtilities
     /// <returns></returns>
     public static GameObject GetSessionOrigin()
     {
-// XROrigin is deprecated in version 2022.3 or above
+// XROrigin is deprecated in ARFoundation 5.x or above
+// ARFoundation 5.x is required when version 2022.3 or
         GameObject go = null;
-#if UNITY_2022_3_OR_NEWER
+#if ARCORE_USE_ARF_5
         XROrigin or = GameObject.FindObjectOfType<XROrigin>();
         if(or == null)
         {
@@ -29,7 +30,7 @@ public static class ARUtilities
         }
         go = or.gameObject;
 #else
-        XROrigin arSess = GameObject.FindObjectOfType<XROrigin>();
+        ARSessionOrigin arSess = GameObject.FindObjectOfType<ARSessionOrigin>();
         if(arSess == null)
         {
             throw new Exception("No AR Session origin found");

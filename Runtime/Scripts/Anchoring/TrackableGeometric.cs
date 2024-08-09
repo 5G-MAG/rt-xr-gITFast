@@ -61,24 +61,24 @@ namespace GLTFast
 
         public bool EnsureConfiguration()
         {
-            GameObject arSession = ARUtilities.GetSessionOrigin();
+            GameObject _origin = ARUtilities.GetSessionOrigin();
 
             m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
             if (m_AnchorManager == null)
             {
-                m_AnchorManager = arSession.AddComponent<ARAnchorManager>();
+                m_AnchorManager = _origin.AddComponent<ARAnchorManager>();
             }
             m_AnchorManager.enabled = true;
 
             m_ArPlaneManager = FindObjectOfType<ARPlaneManager>();
             if (m_ArPlaneManager == null)
             {
-                m_ArPlaneManager = arSession.AddComponent<ARPlaneManager>();
+                m_ArPlaneManager = _origin.AddComponent<ARPlaneManager>();
             }
             m_ArPlaneManager.enabled = true;
 
-            XROrigin _origin = arSession.GetComponent<XROrigin>();
-            UnityEngine.Camera _cam = _origin.GetComponent<UnityEngine.Camera>();
+            UnityEngine.Camera _cam = UnityEngine.Camera.main; // XROrigin's camera is the main one
+            bool same = _cam == _origin.GetComponent<UnityEngine.Camera>();
 
             if (_cam.GetComponent<ARCameraBackground>() == null)
             {
@@ -96,26 +96,9 @@ namespace GLTFast
                 _cam.gameObject.AddComponent<TrackedPoseDriver>();
             }
 
-
-            // Use XR camera prior to any other cameras
-            if (_cam != null)
-            {
-                UnityEngine.Camera[] _cameras = FindObjectsOfType<UnityEngine.Camera>();
-                for (int i = 0; i < _cameras.Length; i++)
-                {
-                    if (_cameras[i] != _cam)
-                    {
-                        _cameras[i].enabled = false;
-                    }
-                }
-            }
-
-            _origin.Camera = _cam;
-
             Transform _destination = _origin.transform.GetChild(0);
             _cam.transform.SetParent(_destination);
             Debug.Log($"Set camera as a child of {_destination.name}");
-
 
             return true;
         }
@@ -176,7 +159,8 @@ namespace GLTFast
                         foreach (GameObject go in m_GoToAttached)
                         {
                             go.transform.position = m_Anchor.transform.position;
-                            go.transform.rotation = m_Anchor.transform.rotation;
+                            // FIXME: the model is instantiated upside down (ARCore)
+                            // go.transform.rotation = m_Anchor.transform.rotation;
                         }
                     }
                 }
@@ -293,7 +277,7 @@ namespace GLTFast
                 }
                 m_Attached = true;
             }
-            //UpdatePlaneVisibility(false);  
+            UpdatePlaneVisibility(false);  
             return true;
         }
 
@@ -373,7 +357,7 @@ namespace GLTFast
         private bool CheckRequiredSpace(ARPlane plane)
         {
             ComputePlaneAABB(plane);
-            Debug.Log("TrackableGeometric::requiredSpacetoCheck" + m_RequiredSpaceToCheck);
+            Debug.Log("P::requiredSpacetoCheck" + m_RequiredSpaceToCheck);
             if ((m_PlaneBounds.size.x >= m_RequiredSpaceToCheck.x) && (m_PlaneBounds.size.y >= m_RequiredSpaceToCheck.y) && (m_PlaneBounds.size.z >= m_RequiredSpaceToCheck.z))
             {
                 m_RequiredSpaceOk = true;
