@@ -769,9 +769,9 @@ namespace GLTFast {
             sceneInstance.AddInteractivityTrigger(_triggerIf);
         }
 
-        public void AddMPEGInteractivityAction(GLTFast.Schema.Action action, int index)
+        public void AddMPEGInteractivityAction(GLTFast.Schema.Action action, int _index)
         {
-            GameObject go = new GameObject($"{action.type} - {index}");
+            GameObject go = new GameObject($"{action.type} - {_index}");
             IMpegInteractivityAction actionIf = null;
 
             switch (action.type)
@@ -789,12 +789,14 @@ namespace GLTFast {
 
             if (actionIf == null)
             {
-                throw new NotImplementedException($"Couldn't create action, type not recognized: {action.type} : {index}");
+                throw new NotImplementedException($"Couldn't create action, type not recognized: {action.type} : {_index}");
             }
+
+            ActionModule.GetInstance().AddTrigger(_index, actionIf);
 
             actionIf.Init(action);
 
-            VirtualSceneGraph.AssignActionToIndex(actionIf, index);
+            VirtualSceneGraph.AssignActionToIndex(actionIf, _index);
             sceneInstance.AddInteractivityAction(actionIf);
         }
 

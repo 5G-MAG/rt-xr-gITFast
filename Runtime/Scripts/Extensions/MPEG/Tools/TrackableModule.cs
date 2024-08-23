@@ -16,6 +16,8 @@ namespace GLTFast
     {
         public TrackableType trackableType;
         public TrackableEventType trackableEventType;
+        public Vector3 anchorPosition;
+        public Quaternion anchorRotation;
     }
 
     public class TrackableModule : IMPEG_Module<MPEG_TrackableEvent>

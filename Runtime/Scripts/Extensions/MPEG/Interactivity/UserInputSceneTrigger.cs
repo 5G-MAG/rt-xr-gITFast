@@ -30,6 +30,7 @@ namespace GLTFast
         private bool m_IsPerformed;
         private List<UserInputNodeTrigger> m_NodeTriggers = new List<UserInputNodeTrigger>();
         private MPEG_UserInputEvent m_UserInputEvent;
+        private InputAction.CallbackContext m_LastContext;
 
         public void Dispose()
         {
@@ -37,16 +38,18 @@ namespace GLTFast
         }
         private void OnInputCanceled(InputAction.CallbackContext _context)
         {
+            m_LastContext = _context;
             m_IsPerformed = false;
+            m_UserInputEvent.isPerformed = m_IsPerformed;
             m_UserInputEvent.context = _context;
-            UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
         }
 
         private void OnInputPerformed(InputAction.CallbackContext _context)
         {
+            m_LastContext = _context;
             m_IsPerformed = true;
+            m_UserInputEvent.isPerformed = m_IsPerformed;
             m_UserInputEvent.context = _context;
-            UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
 
             if (m_NodeTriggers.Count > 0)
             {
@@ -64,6 +67,7 @@ namespace GLTFast
 
         public bool MeetConditions()
         {
+            UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
             return m_IsPerformed;
         }
 
@@ -120,7 +124,6 @@ namespace GLTFast
                 case "touchscreen":
                     builder.Append("<Touchscreen>");
                     builder.Append("/");
-                    builder.Append("Press");
                     break;
             }
 

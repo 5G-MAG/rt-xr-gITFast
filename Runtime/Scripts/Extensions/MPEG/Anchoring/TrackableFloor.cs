@@ -10,14 +10,15 @@
 */
 
 using GLTFast.Schema;
+using UnityEngine;
+
+#if UNITY_ANDROID
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
-#if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
-#endif
 using System.Reflection;
+#endif
 
 namespace GLTFast
 {
@@ -46,6 +47,8 @@ namespace GLTFast
         private Bounds m_SceneBounds;
         private Vector3 m_ScaleFactor = Vector3.one;
         private bool m_ApplyScale = false;
+        private MPEG_TrackableEvent m_TrackableEvent;
+
 
         public void InitFromGltf(Trackable  track)
         {
@@ -71,12 +74,13 @@ namespace GLTFast
             if(m_ArPlaneManager == null)
             {
                 m_ArPlaneManager = obj.AddComponent<ARPlaneManager>();
+                m_ArPlaneManager.planePrefab = Resources.Load<GameObject>("Plane");
             }
             m_ArPlaneManager.enabled = true;
         }
 
-        public  void Init()
-        {  
+        public void Init()
+        {
             var res  = m_ArPlaneManager.descriptor;
             
             //check if classification is supported
@@ -89,10 +93,20 @@ namespace GLTFast
             {
                 m_SupportClassification = m_ArPlaneManager.descriptor.supportsClassification;
             }
-                
+            
+            m_TrackableEvent = new MPEG_TrackableEvent();
+            m_TrackableEvent.trackableType = Schema.TrackableType.TRACKABLE_FLOOR;
             //force horizontal detection
             m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
             m_ArPlaneManager.planesChanged += PlanesChanged;  
+        }
+
+        private void InvokeTrackableEvent(TrackableEventType _type, Vector3 _pos, Quaternion _rot)
+        {
+            m_TrackableEvent.trackableEventType = _type;
+            m_TrackableEvent.anchorPosition = _pos;
+            m_TrackableEvent.anchorRotation = _rot;
+            TrackableModule.GetInstance().OnAnchoringOccurs(this, m_TrackableEvent);
         }
 
         private void PlanesChanged(ARPlanesChangedEventArgs arg)
@@ -100,11 +114,13 @@ namespace GLTFast
             if(arg.added != null)
             {
                 if(arg.added.Count==0)
-                {
                     return;
-                }
+
                 //Floor detection
                 ARPlane tempPlane = arg.added[0];
+                Vector3 _anchorPosition = tempPlane.gameObject.transform.position;
+                Quaternion _anchorRotation = tempPlane.gameObject.transform.rotation;
+
                 if (m_SupportClassification && tempPlane.classification == PlaneClassification.Floor)
                 {
                     //Kept first detected
@@ -132,35 +148,41 @@ namespace GLTFast
                         }
                     }
                 }
+
+                InvokeTrackableEvent(TrackableEventType.ADDED, _anchorPosition, _anchorRotation);
             }
             else if(arg.removed!= null)
             {
                 if(arg.removed.Count == 0)
-                {
-                    return; 
-                }
+                    return;
 
                 ARPlane tempPlane = arg.removed[0];
+                Vector3 _anchorPosition = tempPlane.gameObject.transform.position;
+                Quaternion _anchorRotation = tempPlane.gameObject.transform.rotation;
+
                 if (tempPlane.trackableId == m_Id)
                 {
                     m_Plane = null;
                     m_Id = TrackableId.invalidId;
                     RemoveAnchor();
                 }
+                InvokeTrackableEvent(TrackableEventType.REMOVED, _anchorPosition, _anchorRotation);
             }
             else if(arg.updated != null )
             {
-                if(arg.updated.Count==0)
-                {
+                if(arg.updated.Count == 0)
                     return;  
-                }
 
                 ARPlane tempPlane = arg.updated[0];
+                Vector3 _anchorPosition = tempPlane.gameObject.transform.position;
+                Quaternion _anchorRotation = tempPlane.gameObject.transform.rotation;
+
                 if (tempPlane.trackableId == m_Id)
                 {
                     m_Plane = tempPlane;
                     m_Id = tempPlane.trackableId;
-                } 
+                }
+                InvokeTrackableEvent(TrackableEventType.UPDATED, _anchorPosition, _anchorRotation);
             }
         }
 
@@ -200,7 +222,7 @@ namespace GLTFast
                 var res = CheckRequiredSpace(m_Plane);
                 if(!res)
                 {
-                    return false;;
+                    return false;
                 }
             }
             Debug.Log("TrackableFloor::_requiredAlignedAndScale "+ m_RequiredAlignedAndScale);
@@ -232,7 +254,6 @@ namespace GLTFast
                 }
                 m_Attached = true;
             }
-            UpdatePlaneVisibility(false);  
             return true; 
         }
 
@@ -255,14 +276,6 @@ namespace GLTFast
                 go.transform.SetParent(m_Anchor.gameObject.transform,false);
                 go.SetActive(true);
             }         
-        }
-
-        private void UpdatePlaneVisibility(bool visible)
-        {
-            foreach (var plane in m_ArPlaneManager.trackables)
-            {
-                plane.gameObject.SetActive(visible);
-            }
         }
 
         public void RequiredSpace(UnityEngine.Vector3 requiredSpace)
@@ -409,11 +422,7 @@ namespace GLTFast
                     }
                     m_IsGoActivated = false;
                 }
-            }
-            else
-            {
-                UpdatePlaneVisibility(false);
-            }  
+            } 
         }
         public void DumpAttributs()
         {

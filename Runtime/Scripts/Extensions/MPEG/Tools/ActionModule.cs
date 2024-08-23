@@ -1,44 +1,46 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace GLTFast
-{
-    public struct MPEG_UserInputEvent
+namespace GLTFast {
+    public interface MPEG_ActionEvent { }
+
+    public struct MPEG_ActionManipulateEvent: MPEG_ActionEvent
     {
-        public InputAction.CallbackContext context;
-        public bool isPerformed;
+        public InputAction inputAction;
     }
 
-    public class UserInputModule : IMPEG_Module<MPEG_UserInputEvent>
+
+    public class ActionModule : IMPEG_Module<MPEG_ActionEvent>
     {
-        private static Dictionary<int, Action<MPEG_UserInputEvent>> m_Events;
-        private static Dictionary<IMpegInteractivityTrigger, int> m_Triggers;
+        private static Dictionary<int, Action<MPEG_ActionEvent>> m_Events;
+        private static Dictionary<IMpegInteractivityAction, int> m_Actions;
 
-        private static UserInputModule m_Instance;
+        private static ActionModule m_Instance;
 
-        public static UserInputModule GetInstance()
+        public static ActionModule GetInstance()
         {
             if (m_Instance == null)
             {
-                m_Instance = new UserInputModule();
-                m_Events = new Dictionary<int, Action<MPEG_UserInputEvent>>();
-                m_Triggers = new Dictionary<IMpegInteractivityTrigger, int>();
+                m_Instance = new ActionModule();
+                m_Events = new Dictionary<int, Action<MPEG_ActionEvent>>();
+                m_Actions = new Dictionary<IMpegInteractivityAction, int>();
             }
             return m_Instance;
         }
 
-        internal void OnUserInputTriggerOccurs(IMpegInteractivityTrigger _trigger, MPEG_UserInputEvent _event)
+        internal void OnActionOccurs(IMpegInteractivityAction _trigger, MPEG_ActionEvent _event)
         {
             int _index;
 
-            if (!m_Triggers.ContainsKey(_trigger))
+            if (!m_Actions.ContainsKey(_trigger))
             {
                 throw new Exception("Not referenced by this  module");
             }
 
-            _index = m_Triggers[_trigger];
+            _index = m_Actions[_trigger];
 
             if (!m_Events.ContainsKey(_index))
             {
@@ -48,12 +50,12 @@ namespace GLTFast
             m_Events[_index]?.Invoke(_event);
         }
 
-        internal void AddTrigger(int _index, IMpegInteractivityTrigger _trigger)
+        internal void AddTrigger(int _index, IMpegInteractivityAction _action)
         {
-            m_Triggers.Add(_trigger, _index);
+            m_Actions.Add(_action, _index);
         }
 
-        public void Register(Action<MPEG_UserInputEvent> _action, int _index)
+        public void Register(Action<MPEG_ActionEvent> _action, int _index)
         {
             if (m_Events.ContainsKey(_index))
             {
