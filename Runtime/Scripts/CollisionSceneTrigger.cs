@@ -23,6 +23,11 @@ namespace GLTFast
         private List<CollisionNodeTrigger> m_CollisionsDetectors;
         private bool m_Collides;
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Trigger trigger)
         {
             m_CollisionsDetectors = new List<CollisionNodeTrigger>();

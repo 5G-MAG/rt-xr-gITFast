@@ -32,5 +32,6 @@ namespace GLTFast
         /// </summary>
         /// <param name="action"></param>
         void Init(Action action);
+        void Dispose();
     }
 }

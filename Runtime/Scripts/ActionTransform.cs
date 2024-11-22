@@ -24,6 +24,11 @@ namespace GLTFast
         private GameObject[] m_Targets;
         public float Delay => throw new NotImplementedException();
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             // Fill the target matrix

@@ -35,7 +35,6 @@ using Camera = UnityEngine.Camera;
 using Material = UnityEngine.Material;
 using Mesh = UnityEngine.Mesh;
 
-
 // #if UNITY_EDITOR && UNITY_ANIMATION
 // using UnityEditor.Animations;
 // #endif
@@ -72,6 +71,14 @@ namespace GLTFast {
             /// </summary>
             public Animation legacyAnimation { get; private set; }
 #endif
+
+            // Keep track of the gameobjects with interactivity extension components
+            private List<IMpegInteractivityTrigger> m_InteractivityTriggers;
+            private List<IMpegInteractivityAction> m_InteractivityActions;
+
+            // Keep track of the gameobjects with anchoring extension components
+            private List<IMpegTrackable> m_Trackables;
+            private List<IMpegAnchor> m_Anchors;
 
             //// IDCC
             public BehaviorController behaviorController
@@ -129,6 +136,81 @@ namespace GLTFast {
                 legacyAnimation = animation;
             }
 #endif
+            internal void AddInteractivityTrigger(IMpegInteractivityTrigger go)
+            {
+                if(m_InteractivityTriggers == null)
+                    m_InteractivityTriggers = new List<IMpegInteractivityTrigger>();
+                    
+                m_InteractivityTriggers.Add(go);
+            }
+
+            internal void AddInteractivityAction(IMpegInteractivityAction go)
+            {
+                if(m_InteractivityActions == null)
+                    m_InteractivityActions = new List<IMpegInteractivityAction>();
+                    
+                m_InteractivityActions.Add(go);
+            }
+
+            internal void AddTrackable(IMpegTrackable go)
+            {
+                if(m_Trackables == null)
+                    m_Trackables = new List<IMpegTrackable>();
+                    
+                m_Trackables.Add(go);
+            }
+
+            internal void AddAnchor(IMpegAnchor go)
+            {
+                if(m_Anchors == null)
+                    m_Anchors = new List<IMpegAnchor>();
+                    
+                m_Anchors.Add(go);
+            }
+
+            internal void DestroyInstances()
+            {
+                if(m_Anchors != null)
+                {
+                    for(int i = 0; i < m_Anchors.Count; i++)
+                    {
+                        m_Anchors[i].Dispose();
+                    }
+                    m_Anchors.Clear();
+                    m_Anchors = null;
+                }
+
+                if(m_Trackables != null)
+                {
+                    for(int i = 0; i < m_Trackables.Count; i++)
+                    {
+                        m_Trackables[i].Dispose();
+                    }
+                    m_Trackables.Clear();
+                    m_Trackables = null;
+                }
+
+                if(m_InteractivityTriggers != null)
+                {
+                    for(int i = 0; i < m_InteractivityTriggers.Count; i++)
+                    {
+                        m_InteractivityTriggers[i].Dispose();
+                    }
+                    m_InteractivityTriggers.Clear();
+                    m_InteractivityTriggers = null;
+                }
+
+                if(m_InteractivityActions != null)
+                {
+                    for(int i = 0; i < m_InteractivityActions.Count; i++)
+                    {
+                        m_InteractivityActions[i].Dispose();
+                    }
+                    m_InteractivityActions.Clear();
+                    m_InteractivityActions = null;
+                }
+                behaviorController.Dispose();
+            }
         }
         
         /// <summary>
@@ -559,6 +641,8 @@ namespace GLTFast {
             camTrans.localRotation= tmp;
             var cam = camGo.AddComponent<Camera>();
 
+            VirtualSceneGraph.AssignCameraIndexToCamera((int)nodeIndex, cam);
+
             // By default, imported cameras are not enabled by default
             // cam.enabled = false;
 
@@ -671,6 +755,8 @@ namespace GLTFast {
             triggerIf.Init(trigger);
 
             VirtualSceneGraph.AssignTriggerToIndex(triggerIf, index);
+
+            sceneInstance.AddInteractivityTrigger(triggerIf);
         }
 
         public void AddMPEGInteractivityAction(GLTFast.Schema.Action action, int index)
@@ -699,8 +785,57 @@ namespace GLTFast {
             actionIf.Init(action);
 
             VirtualSceneGraph.AssignActionToIndex(actionIf, index);
+            sceneInstance.AddInteractivityAction(actionIf);
         }
 
+        public void AddMPEGTrackables(GLTFast.Schema.Trackable trackable, int index) {
+#if UNITY_ANDROID
+            GameObject go = new GameObject($"{trackable.type} - {index}");
+            IMpegTrackable trackIf = null;
+            Debug.Log("Tracking Mode:"+ trackable.type);
+
+            switch(trackable.type)
+            {
+                case TrackableType.TRACKABLE_FLOOR:     trackIf = go.AddComponent<TrackableFloor>(); break;
+                case TrackableType.TRACKABLE_VIEWER:     trackIf = go.AddComponent<TrackableViewer>(); break;
+                case TrackableType.TRACKABLE_CONTROLLER:    trackIf = go.AddComponent<TrackableController>(); break;
+                case TrackableType.TRACKABLE_PLANE:    trackIf = go.AddComponent<TrackableGeometric>(); break;
+                case TrackableType.TRACKABLE_MARKER_2D:    trackIf = go.AddComponent<TrackableMarker2D>(); break;
+                case TrackableType.TRACKABLE_MARKER_3D:    trackIf = go.AddComponent<TrackableMarker3D>(); break;
+                case TrackableType.TRACKABLE_MARKER_GEO:    trackIf = go.AddComponent<TrackableMarkerGeo>(); break;
+                case TrackableType.TRACKABLE_APPLICATION:    trackIf = go.AddComponent<TrackableApplication>(); break;
+            }
+
+            if (trackIf == null)
+            {
+                throw new NotImplementedException($"Couldn't create trackable, type not recognized: {trackable.type}");
+            }
+            Debug.Log("Build Trackable");
+
+            trackIf.InitFromGltf(trackable);
+            VirtualSceneGraph.AssignTrackableToIndex(trackIf, index);
+            sceneInstance.AddTrackable(trackIf);
+#endif
+        }
+
+        public void AddMPEGAnchor(GLTFast.Schema.Anchor anchor, int index) {
+#if UNITY_ANDROID
+            string str = "anchor";
+            GameObject go = new GameObject($"{str} - {index}");
+            IMpegAnchor anchIf = null;
+            anchIf = go.AddComponent<AnchorInstance>();
+
+            if(anchIf == null)
+            {
+                throw new NotImplementedException($"Couldn't create anchor");
+            }
+            Debug.Log("Build Anchor");
+
+            anchIf.Init(anchor);
+            VirtualSceneGraph.AssignAnchorToIndex(anchIf, index);
+            sceneInstance.AddAnchor(anchIf);
+#endif
+        }
 
         /// <inheritdoc />
         public virtual void EndScene(uint[] rootNodeIndices) {
@@ -711,6 +846,11 @@ namespace GLTFast {
                 }
             }
             Profiler.EndSample();
+        }
+
+        public void Dispose()
+        {
+            sceneInstance.DestroyInstances();
         }
     }
 }

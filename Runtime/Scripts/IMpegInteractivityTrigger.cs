@@ -30,5 +30,6 @@ namespace GLTFast
         /// </summary>
         /// <param name="trigger"></param>
         void Init(Trigger trigger);
+        void Dispose();
     }
 }

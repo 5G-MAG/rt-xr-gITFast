@@ -140,6 +140,7 @@ public static class ExtensionName {
         //// IDCC
         public const string SceneInteractivity = "MPEG_scene_interactivity";
         public const string NodeInteractivity = "MPEG_node_interactivity";
+        public const string Anchor = "MPEG_anchor";
 
         /// <summary>
         /// Returns the official name of the glTF extension

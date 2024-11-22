@@ -28,6 +28,11 @@ namespace GLTFast
         private Animation m_PauseFrame;
         private AnimationClip m_Clip;
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             m_Delay = action.delay;

@@ -43,6 +43,11 @@ namespace GLTFast
         }
         private UnityEngine.Camera m_Camera;
 
+        public void Dispose()
+        {
+            Destroy(gameObject);
+        }
+
         public void Init(Schema.Action action)
         {
             string binding = UserInputSceneTrigger.GetBindingFromUserInputDescription(action.userInputDescription);
