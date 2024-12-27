@@ -46,6 +46,8 @@ namespace GLTFast
         // private bool m_RequiredAlignedAndScale =false;
         // private bool m_RequiredSpace = false;
 
+        private MPEG_TrackableEvent m_TrackableEvent;
+
         /// <summary>
         /// If an image is detected but no source texture can be found,
         /// this texture is used instead.
@@ -70,6 +72,8 @@ namespace GLTFast
             int matIndex = -1;
             int texIndex = -1;
             int sourceIndex = -1;
+            m_TrackableEvent = new MPEG_TrackableEvent();
+            m_TrackableEvent.trackableType = Schema.TrackableType.TRACKABLE_MARKER_2D;
 
             Debug.Log("TrackableMarker2D::Init");
 
@@ -198,6 +202,8 @@ namespace GLTFast
                     {
                         imgTrack = eventArgs.added[0];
                         m_Id = imgTrack.trackableId;
+                        m_TrackableEvent.trackableEventType = TrackableEventType.ADDED;
+                        TrackableModule.GetInstance().OnAnchoringOccurs(this, m_TrackableEvent);
                     }
                 }
             }
@@ -216,6 +222,9 @@ namespace GLTFast
                     ARTrackedImage _image = _updateImages[i];
                     m_Id = _image.trackableId;
                     m_Anchor.transform.SetPositionAndRotation(_image.transform.position, _image.transform.rotation);
+
+                    m_TrackableEvent.trackableEventType = TrackableEventType.UPDATED;
+                    TrackableModule.GetInstance().OnAnchoringOccurs(this, m_TrackableEvent);
                 }
             }
 
@@ -229,6 +238,8 @@ namespace GLTFast
                         ClearInfo(imgTrack);
                         imgTrack = null;
                         m_Id = TrackableId.invalidId;
+                        m_TrackableEvent.trackableEventType = TrackableEventType.REMOVED;
+                        TrackableModule.GetInstance().OnAnchoringOccurs(this, m_TrackableEvent);
                     }
                 }
             }

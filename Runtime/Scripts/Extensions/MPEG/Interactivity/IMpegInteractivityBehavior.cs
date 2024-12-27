@@ -43,11 +43,6 @@ namespace GLTFast
         /// </summary>
         public void ActivateActions();
 
-        /// <summary>
-        /// Associate game engine action to interactivity framework action
-        /// </summary>
-        public void AddGameEngineAction(System.Action action);
-
         public void Dispose();
     }
 }

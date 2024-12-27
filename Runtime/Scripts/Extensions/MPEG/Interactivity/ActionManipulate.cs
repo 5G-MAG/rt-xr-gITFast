@@ -30,6 +30,8 @@ namespace GLTFast
         private object m_ReadInputValue;
         private bool m_IsInputPerformed;
         private Vector3 m_Position;
+        private MPEG_ActionManipulateEvent m_ManipulateEvent;
+
         private UnityEngine.Camera Camera
         {
             get
@@ -60,7 +62,9 @@ namespace GLTFast
             m_Targets = VirtualSceneGraph.GetGameObjectsFromIndexes(action.nodes);
             m_Delay = action.delay;
             m_CurrentManipulateType = action.manipulateActionType;
-            m_Camera = UnityEngine.Camera.main;
+            m_Camera = Camera.main;
+            m_ManipulateEvent = new MPEG_ActionManipulateEvent();
+            m_ManipulateEvent.inputAction = m_InputAction;
         }
 
         private void OnInputCanceled(InputAction.CallbackContext _cbk)
@@ -94,7 +98,7 @@ namespace GLTFast
                 return;
             }
 
-            switch(m_CurrentManipulateType)
+            switch (m_CurrentManipulateType)
             {
                 case Schema.Action.ManipulateActionType.ACTION_MANIPULATE_FREE: ManipulateFree(); break;
                 case Schema.Action.ManipulateActionType.ACTION_MANIPULATE_ROTATE: ManipulateRotate(); break;
@@ -102,6 +106,8 @@ namespace GLTFast
                 case Schema.Action.ManipulateActionType.ACTION_MANIPULATE_SLIDE: ManipulateSlide(); break;
                 case Schema.Action.ManipulateActionType.ACTION_MANIPULATE_TRANSLATE: ManipulateTranslate(); break;
             }
+
+            ActionModule.GetInstance().OnActionOccurs(this, m_ManipulateEvent);
         }
 
         private void ManipulateFree()

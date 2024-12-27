@@ -48,10 +48,12 @@ namespace GLTFast
         private TriggerActivationControl m_TriggerActivationControl;
         private IMpegInteractivityAction m_InterruptAction;
 
-        private List<System.Action> m_GameEngineActions;
+        private MPEG_BehaviourEvent m_BehaviourEvent;
 
         public void InitializeBehavior(Schema.Behavior bhv)
         {
+            m_BehaviourEvent = new MPEG_BehaviourEvent();
+
             // Cache trigger control
             m_TriggerActivationControl = bhv.triggersActivationControl;
 
@@ -90,7 +92,6 @@ namespace GLTFast
             }
 
             // Helper to get game object actions associated with mpeg actions
-            m_GameEngineActions = new List<System.Action>();
             m_IsRunning = true;
         }
 
@@ -107,7 +108,15 @@ namespace GLTFast
             TriggerActivationControl actControl = ProcessState(m_HasEverExited, m_HasEverEntered, m_LastFrameCombinationResult, combinationResult);
             UpdateStates(actControl);
             m_LastFrameCombinationResult = combinationResult;
-            return actControl == m_TriggerActivationControl;
+
+            bool _yes = actControl == m_TriggerActivationControl;
+
+            if (_yes)
+            {
+                BehaviourModule.GetInstance().OnBehaviourOccurs(this, m_BehaviourEvent);
+            }
+
+            return _yes;
         }
 
         private void RunTriggers()
@@ -199,16 +208,6 @@ namespace GLTFast
                     m_Action[i].Invoke();
                 }
             }
-
-            for(int i = 0; i < m_GameEngineActions.Count; i++)
-            {
-                m_GameEngineActions[i].Invoke();
-            }
-        }
-
-        public void AddGameEngineAction(System.Action action)
-        {
-            m_GameEngineActions.Add(action);
         }
 
         public void Interrupt()

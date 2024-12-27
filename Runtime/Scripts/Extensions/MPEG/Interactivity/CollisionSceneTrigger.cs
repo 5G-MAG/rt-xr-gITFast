@@ -22,6 +22,7 @@ namespace GLTFast
     {
         private List<CollisionNodeTrigger> m_CollisionsDetectors;
         private bool m_Collides;
+        private MPEG_CollisionEvent m_CollisionEvent;
 
         public void Dispose()
         {
@@ -30,6 +31,7 @@ namespace GLTFast
 
         public void Init(Trigger trigger)
         {
+            m_CollisionEvent = new MPEG_CollisionEvent();
             m_CollisionsDetectors = new List<CollisionNodeTrigger>();
             if(trigger.nodes == null)
             {
@@ -37,7 +39,7 @@ namespace GLTFast
             }
 
             // Build the collisions normally
-            if(trigger.primitives == null)
+            if (trigger.primitives == null)
             {
                 // Add collision detectors by pairs
                 for (int i = 0; i < trigger.nodes.Length; i++)
@@ -81,6 +83,11 @@ namespace GLTFast
 
         public bool MeetConditions()
         {
+            if(m_Collides)
+            {
+                CollisionModule.GetInstance().OnTriggerCollisionOccurs(this, m_CollisionEvent);
+            }
+
             return m_Collides;
         }
 

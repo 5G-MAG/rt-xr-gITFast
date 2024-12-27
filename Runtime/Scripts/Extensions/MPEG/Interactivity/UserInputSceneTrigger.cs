@@ -29,21 +29,29 @@ namespace GLTFast
         private GameObject[] m_Targets;
         private bool m_IsPerformed;
         private List<UserInputNodeTrigger> m_NodeTriggers = new List<UserInputNodeTrigger>();
-
+        private MPEG_UserInputEvent m_UserInputEvent;
+        private InputAction.CallbackContext m_LastContext;
 
         public void Dispose()
         {
             Destroy(gameObject);
         }
-        private void OnInputCanceled(InputAction.CallbackContext context)
+        private void OnInputCanceled(InputAction.CallbackContext _context)
         {
+            m_LastContext = _context;
             m_IsPerformed = false;
+            m_UserInputEvent.isPerformed = m_IsPerformed;
+            m_UserInputEvent.context = _context;
         }
 
-        private void OnInputPerformed(InputAction.CallbackContext context)
+        private void OnInputPerformed(InputAction.CallbackContext _context)
         {
+            m_LastContext = _context;
             m_IsPerformed = true;
-            if(m_NodeTriggers.Count > 0)
+            m_UserInputEvent.isPerformed = m_IsPerformed;
+            m_UserInputEvent.context = _context;
+
+            if (m_NodeTriggers.Count > 0)
             {
                 for (int i = 0; i < m_NodeTriggers.Count; i++) 
                 {
@@ -59,6 +67,7 @@ namespace GLTFast
 
         public bool MeetConditions()
         {
+            UserInputModule.GetInstance().OnUserInputTriggerOccurs(this, m_UserInputEvent);
             return m_IsPerformed;
         }
 
@@ -88,6 +97,7 @@ namespace GLTFast
                     }
                 }
             }
+            m_UserInputEvent = new MPEG_UserInputEvent();
         }
 
         public static string GetBindingFromUserInputDescription(string description)
@@ -114,7 +124,6 @@ namespace GLTFast
                 case "touchscreen":
                     builder.Append("<Touchscreen>");
                     builder.Append("/");
-                    builder.Append("Press");
                     break;
             }
 
