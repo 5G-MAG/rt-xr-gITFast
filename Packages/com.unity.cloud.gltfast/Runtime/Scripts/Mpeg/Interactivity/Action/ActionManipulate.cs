@@ -36,7 +36,7 @@ namespace GLTFast
             {
                 if (m_Camera == null)
                 {
-                    m_Camera = FindObjectOfType<UnityEngine.Camera>();
+                    m_Camera = FindFirstObjectByType<UnityEngine.Camera>(); 
                 }
                 return m_Camera;
             }

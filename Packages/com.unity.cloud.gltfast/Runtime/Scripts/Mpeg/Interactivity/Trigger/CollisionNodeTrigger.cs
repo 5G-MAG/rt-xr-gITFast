@@ -29,8 +29,11 @@ namespace GLTFast
         private bool m_Collides = false;
 
         private Rigidbody m_Rb;
+#if UNITY_6000_0_OR_NEWER
+        private PhysicsMaterial m_PhysicMat;
+#else
         private PhysicMaterial m_PhysicMat;
-
+#endif        
         public void Init()
         {
             Debug.Log("Init collision detector");
@@ -94,7 +97,11 @@ namespace GLTFast
                 m_Rb.mass = node_info.mass;
                 if (TryGetComponent<MeshCollider>(out MeshCollider _meshCol))
                 {
+#if UNITY_6000_0_OR_NEWER
+                    m_PhysicMat = new PhysicsMaterial();
+#else
                     m_PhysicMat = new PhysicMaterial();
+#endif
                     m_PhysicMat.bounciness = node_info.restitution;
                     m_PhysicMat.staticFriction = node_info.staticFriction;
                     m_PhysicMat.dynamicFriction = node_info.dynamicFriction;

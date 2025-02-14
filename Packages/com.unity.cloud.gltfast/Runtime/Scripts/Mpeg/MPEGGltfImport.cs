@@ -589,8 +589,10 @@ namespace GLTFast
                 case Schema.TrackableType.TRACKABLE_PLANE:    trackIf = go.AddComponent<TrackableGeometric>(); break;
                 case Schema.TrackableType.TRACKABLE_MARKER_2D:    trackIf = go.AddComponent<TrackableMarker2D>(); break;
                 case Schema.TrackableType.TRACKABLE_MARKER_3D:    trackIf = go.AddComponent<TrackableMarker3D>(); break;
+#if RT_XR_ENABLE_ARCORE_EXTENSIONS
                 case Schema.TrackableType.TRACKABLE_MARKER_GEO:    trackIf = go.AddComponent<TrackableMarkerGeo>(); break;
                 case Schema.TrackableType.TRACKABLE_APPLICATION:    trackIf = go.AddComponent<TrackableApplication>(); break;
+#endif
             }
             if (trackIf == null)
             {

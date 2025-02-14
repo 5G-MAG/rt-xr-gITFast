@@ -64,14 +64,14 @@ namespace GLTFast
 
             GameObject arSession = ARUtilities.GetSessionOrigin();
 
-            m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
+            m_AnchorManager = FindFirstObjectByType<ARAnchorManager>(FindObjectsInactive.Include); 
             if (m_AnchorManager == null)
             {
                 m_AnchorManager = arSession.AddComponent<ARAnchorManager>();
             }
             m_AnchorManager.enabled = true;
 
-            m_ArPlaneManager = FindObjectOfType<ARPlaneManager>();
+            m_ArPlaneManager = FindFirstObjectByType<ARPlaneManager>(FindObjectsInactive.Include); 
             if (m_ArPlaneManager == null)
             {
                 m_ArPlaneManager = arSession.AddComponent<ARPlaneManager>();
