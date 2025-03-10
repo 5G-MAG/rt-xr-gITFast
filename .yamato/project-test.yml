@@ -1,0 +1,440 @@
+{% metadata_file .yamato/package.metafile -%}
+
+codecov_assemblies: +glTFast*,-glTFast*Tests*,-glTFast.Documentation.*
+---
+{% for test_setup in test_setups -%}
+{% if test_setup.editor_versions -%}
+  {% assign editor_versions = test_setup.editor_versions -%}
+{% endif -%}
+
+{% if test_setup.platforms -%}
+  {% assign platform_ids = test_setup.platforms -%}
+{% else -%}
+  {% assign platform_ids = '' -%}
+  {% for p in platforms -%}
+    {% assign platform_ids = platform_ids | append: p[0] | append: ','  -%}
+  {% endfor -%}
+  {% assign platform_ids = platform_ids | split: ','  -%}
+{% endif -%}
+
+{% for editor in editor_versions -%}
+{% for platform_id in platform_ids -%}
+{% assign platform = platforms[platform_id] -%}
+
+{% if editor == "2020" and platform_id == "android" -%}
+{% comment -%}
+TODO: Remove hack condition once we moved on from Unity 2020
+Build Android on 2020 LTS failed consistently, so leaving it out
+{% endcomment -%}
+{% continue -%}
+{% endif -%}
+
+{% assign is_coverage_set = false -%}
+{% for coverage_set in test_setup.coverage_subset -%}
+  {% if coverage_set.platform == platform_id and coverage_set.editor == editor -%}
+    {% assign is_coverage_set = true -%}
+    {% break -%}
+  {% endif -%}
+{% endfor -%}
+
+{% capture job_artifacts -%}
+  artifacts:
+    logs:
+      paths:
+        - "test-results~/**/*"{% endcapture -%}
+
+{% if platform.test -%}
+{% assign agent = agents[platform.test] -%}
+{% case agent.os -%}
+  {% when "win" -%}
+    {% assign os = os_variables.win -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.win -%}
+  {% when "mac" -%}
+    {% assign os = os_variables.unix -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.mac -%}
+  {% when "linux" -%}
+    {% assign os = os_variables.unix -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.ubuntu -%}
+  {% else -%}
+    Platform {{ platform.test }} has unknown OS!
+{% endcase -%}
+
+test_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
+  name : Test {{ test_setup.project_setup }} with {{ editor }} on {{ platform_id }}
+  agent:
+    type: {% if test_setup.gpu_required %}{{ agent.gpu_type}}{% else %}{{ agent.type}}{% endif %}
+    image: {{ agent.image }}
+    flavor: {% if test_setup.agent_xlarge_required %}{{ agent.flavor_xlarge}}{% else %}{{ agent.flavor}}{% endif %}
+  commands:
+    # Install Unity Editor and required components
+    - unity-downloader-cli -u {{ editor }} -c Editor -c {{ platform.component }} -w --fast
+
+    # Install glTF-Validator for Unity package
+    - |
+      pushd Packages
+      git clone --depth 1 --single-branch --branch={{ gltf_validator.git_branch }} {{ gltf_validator.git_uri }}
+      popd
+      unity-config project add dependency {{ gltf_validator.id }}@file:./../../../Packages/{{ gltf_validator.git_name }}/Packages/{{ gltf_validator.id }} -p Projects/{{ test_setup.project }}
+
+{% capture results_path -%}{{ os.yamato_source_dir }}/test-results~/com.unity.cloud.gltfast/{{ platform_id }}/{{ editor }}/{{ test_setup.project_setup }}{% endcapture -%}
+
+{% if test_setup.setup -%}
+    # Apply project setup
+    - >
+      {{ editor_exe }}
+      -projectPath Projects/{{ test_setup.project }}
+      -executeMethod GLTFast.Editor.Tests.SetupProject.ApplySetup glTFastSetup:{{ test_setup.setup }}
+      -upmNoDefaultPackages
+      -enablePackageManagerTraces
+      -batchmode
+      -quit
+      -logFile {{ results_path }}/UnityProjectSetup.log
+{% endif -%}
+{% if test_setup.render_pipeline -%}
+    # Apply render pipeline asset
+    - >
+      {{ editor_exe }}
+      -projectPath Projects/{{ test_setup.project }}
+      -executeMethod GLTFast.Editor.Tests.SetupProject.SetRenderPipeline SRP:{{ test_setup.render_pipeline }}
+      -upmNoDefaultPackages
+      -batchmode
+      -quit
+      -logFile {{ results_path }}/UnityRenderPipelineSetup.log
+{% endif -%}
+
+    # Run Tests
+    # TODO: upm-ci rocks UPM and other cache directories. Maybe we can speed things up this way as well.
+    # TODO: DISABLE_SUB_PACKAGE_LOAD is required for 2020 only. Eventually remove all occurrences.
+    - >
+{% if agent.os == "win" -%}
+      set DISABLE_SUB_PACKAGE_LOAD=TRUE
+{% else -%}
+      export DISABLE_SUB_PACKAGE_LOAD=TRUE
+{% endif -%}
+
+      UnifiedTestRunner
+      --testproject=Projects/{{ test_setup.project }}
+      --editor-location=.Editor
+      --artifacts_path={{ results_path }}
+      --reruncount=2
+{% if test_setup.utr_timeout -%}
+      --timeout={{ test_setup.utr_timeout }}
+{% endif -%}
+      --verbose
+      --extra-editor-arg="-upmNoDefaultPackages"
+      --suite=editor
+      --suite=playmode
+      --category="{% if test_setup.test_categories %}{{ test_setup.test_categories }}{% else %}{{ test_categories }}{% endif %}"
+{% if is_coverage_set -%}
+      --enable-code-coverage
+      --coverage-results-path={{ results_path }}/CoverageResults
+      --coverage-options='generateAdditionalMetrics;assemblyFilters:{{ codecov_assemblies }};pathReplacePatterns:**/bokken,c:;sourcePaths:{{ os.yamato_source_dir }}/Packages/com.unity.cloud.gltfast'
+      --coverage-upload-options="reportsDir:{{ results_path }}/CoverageResults;name:{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }};flags:{{ test_setup.project_setup }};verbose"
+{% endif -%}
+{% if agent.os == "win" and editor == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+{{ job_artifacts }}
+{% endif -%}
+
+{% if platform.build -%}
+{% assign agent = agents[platform.build] -%}
+{% case agent.os -%}
+  {% when "win" -%}
+    {% assign os = os_variables.win -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.win -%}
+  {% when "mac" -%}
+    {% assign os = os_variables.unix -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.mac -%}
+  {% when "linux" -%}
+    {% assign os = os_variables.unix -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.ubuntu -%}
+  {% else -%}
+    Platform {{ platform.test }} has unknown OS!
+{% endcase -%}
+
+build_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
+  name : Build {{ test_setup.project_setup }} with {{ editor }} on {{ platform_id }}
+  agent:
+{% assign agent = agents[platform.build] -%}
+    type: {% if test_setup.gpu_required %}{{ agent.gpu_type}}{% else %}{{ agent.type}}{% endif %}
+    image: {{ agent.image }}
+    flavor: {% if test_setup.agent_xlarge_required %}{{ agent.flavor_xlarge}}{% else %}{{ agent.flavor}}{% endif %}
+  commands:
+    # Install Unity Editor and required components
+    - unity-downloader-cli -u {{ editor }} -c Editor -c {{ platform.component }} -w --fast
+
+{% capture results_path -%}{{ os.yamato_source_dir }}/test-results~/com.unity.cloud.gltfast/{{ platform_id }}/{{ editor }}/{{ test_setup.project_setup }}{% endcapture -%}
+
+{% if test_setup.setup -%}
+    # Apply project setup
+    - >
+      {{ editor_exe }}
+      -projectPath Projects/{{ test_setup.project }}
+      -executeMethod GLTFast.Editor.Tests.SetupProject.ApplySetup glTFastSetup:{{ test_setup.setup }}
+      -upmNoDefaultPackages
+      -enablePackageManagerTraces
+      -batchmode
+      -quit
+      -logFile {{ results_path }}/UnityProjectSetup.log
+{% endif -%}
+{% if test_setup.render_pipeline -%}
+    # Apply render pipeline asset
+    - >
+      {{ editor_exe }}
+      -projectPath Projects/{{ test_setup.project }}
+      -executeMethod GLTFast.Editor.Tests.SetupProject.SetRenderPipeline SRP:{{ test_setup.render_pipeline }}
+      -upmNoDefaultPackages
+      -batchmode
+      -quit
+      -logFile {{ results_path }}/UnityProjectSetup.log
+{% endif -%}
+
+    # Run Tests
+    # TODO: upm-ci rocks UPM and other cache directories. Maybe we can speed things up this way as well.
+    # TODO: DISABLE_SUB_PACKAGE_LOAD is required for 2020 only. Eventually remove all occurrences.
+    - >
+{% if agent.os == "win" -%}
+      set DISABLE_SUB_PACKAGE_LOAD=TRUE
+{% else -%}
+      export DISABLE_SUB_PACKAGE_LOAD=TRUE
+{% endif -%}
+
+      UnifiedTestRunner
+      --testproject=Projects/{{ test_setup.project }}
+      --editor-location=.Editor
+      --artifacts_path={{ results_path }}
+      --reruncount=2
+{% if test_setup.utr_timeout -%}
+      --timeout={{ test_setup.utr_timeout }}
+{% endif -%}
+      --verbose
+      --extra-editor-arg="-upmNoDefaultPackages"
+      --suite=playmode
+      --category="{% if test_setup.test_categories %}{{ test_setup.test_categories }}{% else %}{{ test_categories }}{% endif %}"
+      --scripting-backend=Il2Cpp
+      --platform={% if platform.platform -%}{{ platform.platform }}{% else -%}{{ platform_id }}{% endif %}
+      --build-only
+      --player-save-path={{ results_path }}/player
+{% if agent.os == "win" and editor == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+  artifacts:
+    logs:
+      paths:
+        - "test-results~/**/*"
+{% endif -%}
+
+{% if platform.run -%}
+{% assign agent = agents[platform.run] -%}
+{% case agent.os -%}
+  {% when "win" -%}
+    {% assign os = os_variables.win -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.win -%}
+  {% when "mac" -%}
+    {% assign os = os_variables.unix -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.mac -%}
+  {% when "linux" -%}
+    {% assign os = os_variables.unix -%}
+    {% assign editor_exe = os.yamato_source_dir | append: editor_location.ubuntu -%}
+  {% else -%}
+    Platform {{ platform.test }} has unknown OS!
+{% endcase -%}
+
+run_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}:
+  name : Run {{ test_setup.project_setup }} with {{ editor }} on {{ platform_id }}
+  agent:
+{% assign agent = agents[platform.run] -%}
+    type: {% if test_setup.gpu_required %}{{ agent.gpu_type}}{% else %}{{ agent.type}}{% endif %}
+    image: {{ agent.image }}
+    flavor: {% if test_setup.agent_xlarge_required %}{{ agent.flavor_xlarge}}{% else %}{{ agent.flavor}}{% endif %}
+  commands:
+    # Install Unity Editor and required components
+    - unity-downloader-cli -u {{ editor }} -c Editor -c {{ platform.component }} -w --fast
+
+{% capture results_path -%}{{ os.yamato_source_dir }}/test-results~/com.unity.cloud.gltfast/{{ platform_id }}/{{ editor }}/{{ test_setup.project_setup }}{% endcapture -%}
+
+{% if test_setup.setup -%}
+    # Apply project setup
+    - >
+      {{ editor_exe }}
+      -projectPath Projects/{{ test_setup.project }}
+      -executeMethod GLTFast.Editor.Tests.SetupProject.ApplySetup glTFastSetup:{{ test_setup.setup }}
+      -upmNoDefaultPackages
+      -enablePackageManagerTraces
+      -batchmode
+      -quit
+      -logFile {{ results_path }}/UnityProjectSetup.log
+{% endif -%}
+{% if test_setup.render_pipeline -%}
+    # Apply render pipeline asset
+    - >
+      {{ editor_exe }}
+      -projectPath Projects/{{ test_setup.project }}
+      -executeMethod GLTFast.Editor.Tests.SetupProject.SetRenderPipeline SRP:{{ test_setup.render_pipeline }}
+      -upmNoDefaultPackages
+      -batchmode
+      -quit
+      -logFile {{ results_path }}/UnityProjectSetup.log
+{% endif -%}
+
+{% if platform_id == "android" and platform.run == "shield" -%}
+{% assign androidUrlPrefix = "https://artifactory-slo.bf.unity3d.com/artifactory/mobile-generic/android/ADBKeys.zip!" -%}
+    - |
+      set ANDROID_DEVICE_CONNECTION={{ os.bokken_host_ip }};
+      wget {{ androidUrlPrefix }}/adbkey.pub -O %USERPROFILE%/.android/adbkey.pub
+      wget {{ androidUrlPrefix }}/adbkey -O %USERPROFILE%/.android/adbkey
+      gsudo NetSh Advfirewall set allprofiles state off
+      "%ANDROID_SDK_ROOT%\platform-tools\adb.exe" connect {{ os.bokken_host_ip }}
+{% endif -%}
+
+    # Run Tests
+    # TODO: upm-ci rocks UPM and other cache directories. Maybe we can speed things up this way as well.
+    # TODO: DISABLE_SUB_PACKAGE_LOAD is required for 2020 only. Eventually remove all occurrences.
+    - >
+{% if agent.os == "win" -%}
+      set DISABLE_SUB_PACKAGE_LOAD=TRUE
+{% else -%}
+      export DISABLE_SUB_PACKAGE_LOAD=TRUE
+{% endif -%}
+
+      UnifiedTestRunner
+      --testproject=Projects/{{ test_setup.project }}
+      --editor-location=.Editor
+      --artifacts_path={{ results_path }}
+      --reruncount=2
+{% if test_setup.utr_timeout -%}
+      --timeout={{ test_setup.utr_timeout }}
+{% endif -%}
+      --verbose
+      --extra-editor-arg="-upmNoDefaultPackages"
+      --suite=playmode
+      --category="{% if test_setup.test_categories %}{{ test_setup.test_categories }}{% else %}{{ test_categories }}{% endif %}"
+      --scripting-backend=Il2Cpp
+      --platform={% if platform.platform -%}{{ platform.platform }}{% else -%}{{ platform_id }}{% endif %}
+{% if platform.build -%}
+      --player-load-path={{ results_path }}/player
+{% endif -%}
+{% if platform_id == "android" and platform.run == "shield" -%}
+      --player-connection-ip={{ os.bokken_host_ip }}
+{% endif -%}
+{% if agent.os == "win" and editor == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+{% if platform.build -%}
+  dependencies:
+    - .yamato/project-test.yml#build_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}
+{% endif -%}
+{{ job_artifacts }}
+{% endif -%}
+
+
+{% endfor -%}
+{% endfor -%}
+
+tests_{{ test_setup.project_setup }}_all:
+  name: Test all {{ test_setup.project_setup }}
+  dependencies:
+{% for editor in editor_versions -%}
+{% for platform_id in platform_ids -%}
+{% if platforms[platform_id].test -%}
+    - .yamato/project-test.yml#test_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}
+{% endif -%}
+{% endfor -%} # platform_id
+{% endfor -%} # editor
+
+{% if test_setup.pr_test_subset -%}
+tests_{{ test_setup.project_setup }}_pr:
+  name: Test PR subset {{ test_setup.project_setup }}
+  dependencies:
+{% for pr_set in test_setup.pr_test_subset -%}
+    - .yamato/project-test.yml#test_{{ test_setup.project_setup }}_{{ pr_set.platform }}_{{ pr_set.editor }}
+{% endfor -%}
+{% endif -%}
+
+run_{{ test_setup.project_setup }}_all:
+  name: Build and run all {{ test_setup.project_setup }}
+  dependencies:
+{% for editor in editor_versions -%}
+{% for platform_id in platform_ids -%}
+{% if editor == "2020" and platform_id == "android" -%}
+{% comment -%}
+TODO: Remove hack condition once we moved on from Unity 2020
+Build Android on 2020 LTS failed consistently, so leaving it out
+{% endcomment -%}
+{% continue -%}
+{% endif -%}
+{% if platforms[platform_id].run -%}
+    - .yamato/project-test.yml#run_{{ test_setup.project_setup }}_{{ platform_id }}_{{ editor }}
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+
+{% if test_setup.pr_build_subset -%}
+run_{{ test_setup.project_setup }}_pr:
+  name: Build and run PR subset {{ test_setup.project_setup }}
+  dependencies:
+{% for pr_set in test_setup.pr_build_subset -%}
+{% if platforms[pr_set.platform].run -%}
+    - .yamato/project-test.yml#run_{{ test_setup.project_setup }}_{{ pr_set.platform }}_{{ pr_set.editor }}
+{% endif -%}
+{% endfor -%}
+{% endif -%}
+
+{% endfor -%} # for test_setup in test_setups
+
+tests_all:
+  name: Test all
+  dependencies:
+{% for test_setup in test_setups -%}
+    - .yamato/project-test.yml#tests_{{ test_setup.project_setup }}_all
+{% endfor -%}
+
+tests_pr:
+  name: Test PR subsets
+  dependencies:
+{% for test_setup in test_setups -%}
+{% if test_setup.pr_test_subset -%}
+    - .yamato/project-test.yml#tests_{{ test_setup.project_setup }}_pr
+{% endif -%}
+{% endfor -%}
+
+run_all:
+  name: Run all
+  dependencies:
+{% for test_setup in test_setups -%}
+    - .yamato/project-test.yml#run_{{ test_setup.project_setup }}_all
+{% endfor -%}
+
+run_pr:
+  name: Run PR subsets
+  dependencies:
+{% for test_setup in test_setups -%}
+{% if test_setup.pr_build_subset -%}
+    - .yamato/project-test.yml#run_{{ test_setup.project_setup }}_pr
+{% endif -%}
+{% endfor -%}
+
+coverage_all:
+  name: Coverage All
+  dependencies:
+{% for test_setup in test_setups -%}
+{% for coverage_set in test_setup.coverage_subset -%}
+    - .yamato/project-test.yml#test_{{ test_setup.project_setup }}_{{ coverage_set.platform }}_{{ coverage_set.editor }}
+{% endfor -%}
+{% endfor -%}

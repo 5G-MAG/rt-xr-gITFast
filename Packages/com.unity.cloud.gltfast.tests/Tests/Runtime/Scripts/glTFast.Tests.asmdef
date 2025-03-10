@@ -1,0 +1,115 @@
+{
+    "name": "glTFast.Tests",
+    "rootNamespace": "GLTFast.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Entities",
+        "Unity.Mathematics",
+        "Unity.PerformanceTesting",
+        "Unity.Transforms",
+        "UnityEditor.Formats.Gltf.Validation",
+        "glTFast",
+        "glTFast.dots",
+        "glTFast.Export",
+        "glTFast.Newtonsoft",
+        "Unity.Meshopt.Decompress",
+        "Unity.RenderPipelines.HighDefinition.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.formats.gltf.validator",
+            "expression": "0.2.0-preview.1",
+            "define": "GLTF_VALIDATOR"
+        },
+        {
+            "name": "com.unity.meshopt.decompress",
+            "expression": "",
+            "define": "MESHOPT"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "",
+            "define": "NEWTONSOFT_JSON"
+        },
+        {
+            "name": "com.unity.modules.animation",
+            "expression": "",
+            "define": "UNITY_ANIMATION"
+        },
+        {
+            "name": "com.unity.modules.physics",
+            "expression": "",
+            "define": "UNITY_PHYSICS"
+        },
+        {
+            "name": "com.unity.render-pipelines.high-definition",
+            "expression": "",
+            "define": "USING_HDRP"
+        },
+        {
+            "name": "com.unity.cloud.draco",
+            "expression": "5",
+            "define": "DRACO_UNITY"
+        },
+        {
+            "name": "com.unity.cloud.ktx",
+            "expression": "3",
+            "define": "KTX_UNITY"
+        },
+        {
+            "name": "com.unity.test-framework.performance",
+            "expression": "3",
+            "define": "UNITY_PERFORMANCE_TESTS"
+        },
+        {
+            "name": "com.unity.modules.imageconversion",
+            "expression": "",
+            "define": "UNITY_IMAGECONVERSION"
+        },
+        {
+            "name": "com.unity.shadergraph",
+            "expression": "",
+            "define": "UNITY_SHADER_GRAPH"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "",
+            "define": "USING_URP"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "12",
+            "define": "USING_URP_12_OR_NEWER"
+        },
+        {
+            "name": "com.unity.rendering.hybrid",
+            "expression": "0.49.0",
+            "define": "UNITY_DOTS_HYBRID"
+        },
+        {
+            "name": "com.unity.entities.graphics",
+            "expression": "1.0.10",
+            "define": "UNITY_ENTITIES_GRAPHICS"
+        },
+        {
+            "name": "com.unity.collections",
+            "expression": "1.5.0",
+            "define": "UNITY_COLLECTIONS"
+        }
+    ],
+    "noEngineReferences": false
+}

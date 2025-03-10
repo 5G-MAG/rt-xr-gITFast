@@ -1,0 +1,120 @@
+{% metadata_file .yamato/package.metafile -%}
+---
+{% for editor in player_test_editors -%}
+{% for platform in player_test_platforms -%}
+{% if platform.build -%}
+{% assign agent = agents[platform.build] -%}
+{% if agent.os == "win" -%}{% assign os = os_variables.win -%}{% else -%}{% assign os = os_variables.unix -%}{% endif -%}
+
+build_{{ platform.name }}_{{ editor.version }}:
+  name : Build {{ editor.version }} {{ platform.name }} Player
+  agent:
+    type: {{ agent.type }}
+    image: {{ agent.image }}
+    flavor: {{ agent.flavor}}
+  commands:
+    - unity-downloader-cli --fast --wait --unity-version "{{ editor.version }}" --components editor{% if platform.platform %} --components {{ platform.platform }}{% endif %}
+    - upm-pvp create-test-project Projects/TestProject --packages "upm-ci~/packages/*.tgz" --unity .Editor
+
+    # Install glTF-Validator for Unity package
+    - |
+      pushd Packages
+      git clone --depth 1 --single-branch --branch={{ gltf_validator.git_branch }} {{ gltf_validator.git_uri }}
+      popd
+      unity-config project add dependency {{ gltf_validator.id }}@file:./../../../Packages/{{ gltf_validator.git_name }}/Packages/{{ gltf_validator.id }} -p Projects/{{ test_setup.project }}
+
+    - >
+      UnifiedTestRunner
+      --platform={{ platform.platform }} {% if platform.upm_ci_params %}{{ platform.upm_ci_params }}{% endif %}
+      --suite=playmode
+      --editor-location=.Editor
+      --testproject=Projects/TestProject
+      --artifacts-path=test-results
+      --reruncount=2
+      --player-save-path=player/{{ platform.id }}
+      --build-only
+{% if agent.os == "win" and editor.version == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+  artifacts:
+    logs:
+      paths:
+        - "test-results/**"
+    player:
+      paths:
+        - "player/{{ platform.id }}/**"
+  dependencies:
+    - .yamato/pack.yml#pack
+{% endif -%}
+
+{% assign agent = agents[platform.run] -%}
+{% if agent.os == "win" -%}{% assign os = os_variables.win -%}{% else -%}{% assign os = os_variables.unix -%}{% endif -%}
+run_{{ platform.name }}_{{ editor.version }}:
+  name : Run {{ editor.version }} {{ platform.name }} Player Tests
+  agent:
+    type: {{ agent.type }}
+    image: {{ agent.image }}
+    flavor: {{ agent.flavor}}
+  commands:
+    - unity-downloader-cli --fast --wait --unity-version "{{ editor.version }}" --components editor{% if platform.platform %} --components {{ platform.platform }}{% endif %}
+    - upm-pvp create-test-project Projects/TestProject --packages "upm-ci~/packages/*.tgz" --unity .Editor
+
+    # Install glTF-Validator for Unity package
+    - |
+      pushd Packages
+      git clone --depth 1 --single-branch --branch={{ gltf_validator.git_branch }} {{ gltf_validator.git_uri }}
+      popd
+      unity-config project add dependency {{ gltf_validator.id }}@file:./../../../Packages/{{ gltf_validator.git_name }}/Packages/{{ gltf_validator.id }} -p Projects/{{ test_setup.project }}
+
+    - >
+      UnifiedTestRunner
+      --platform={{ platform.id }}
+      --suite=playmode
+      --editor-location=.Editor
+      --testproject=Projects/TestProject
+      --artifacts-path=test-results
+      --reruncount=2
+      {% if platform.build -%}--player-load-path=player/{{ platform.id }}{% endif -%}
+
+{% if agent.os == "win" and editor.version == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+  artifacts:
+    logs:
+      paths:
+        - "test-results/**"
+  dependencies:
+    - .yamato/pack.yml#pack
+{% if platform.build -%}
+    - .yamato/package-player-test.yml#build_{{ platform.name }}_{{ editor.version }}
+{% endif -%}
+{% endfor -%}
+{% endfor -%}
+
+player_test_all:
+  name: _Player Tests All
+  dependencies:
+{% for editor in player_test_editors -%}
+{% for platform in player_test_platforms -%}
+    - .yamato/package-player-test.yml#run_{{ platform.name }}_{{ editor.version }}
+{% endfor -%}
+{% endfor -%}
+
+player_test_pr:
+  name: _Player Test subset for PRs
+  dependencies:
+{% for platform in player_test_platforms -%}
+{% assign editor_index = forloop.index0 | modulo: player_test_editors.size -%}
+{% assign editor = player_test_editors[editor_index] -%}
+    - .yamato/package-player-test.yml#run_{{ platform.name }}_{{ editor.version }}
+{% endfor -%}

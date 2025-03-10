@@ -1,0 +1,25 @@
+{
+    "name": "glTFast.Documentation.Examples",
+    "rootNamespace": "GLTFast.Documentation.Examples",
+    "references": [
+        "Unity.Mathematics",
+        "glTFast",
+        "glTFast.Export",
+        "glTFast.Newtonsoft"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3",
+            "define": "NEWTONSOFT_JSON"
+        }
+    ],
+    "noEngineReferences": false
+}

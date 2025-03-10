@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "com.unity.cloud.gltfast": "file:./../../../Packages/com.unity.cloud.gltfast",
+    "com.unity.cloud.gltfast.tests": "file:./../../../Packages/com.unity.cloud.gltfast.tests",
+    "com.unity.ide.rider": "3.0.34"
+  },
+  "testables": [
+    "com.unity.cloud.gltfast"
+  ]
+}

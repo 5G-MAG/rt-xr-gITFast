@@ -1,0 +1,57 @@
+{% metadata_file .yamato/package.metafile -%}
+---
+
+{% for editor in editor_versions -%}
+{% assign agent = agents["win"] -%}
+{% if agent.os == "win" -%}{% assign os = os_variables.win -%}{% else -%}{% assign os = os_variables.unix -%}{% endif -%}
+vetting_win_{{ editor }}:
+  name : Vetting Test {{ editor }} on win
+  agent:
+    type: {{ agent.type }}
+    image: {{ agent.image }}
+    flavor: {{ agent.flavor}}
+  commands:
+    - unity-downloader-cli --fast --wait -u {{ editor }} -c editor
+
+    # Run the vetting test via legacy upm-ci to ensure the API validation is run.
+    # TODO: Remove this (along with UPMPVP_ACK_UPMPVP_DOES_NO_API_VALIDATION: 1) once upm-pvp/UnifiedTestRunner support API validation.
+    - npm install "upm-ci-utils@stable" -g --registry {{ registry.npm }}
+    - upm-ci project test
+      -u .Editor
+      --project-path Projects/glTFast-Test-minimalistic
+      --type vetting-tests
+      --platform editmode
+      --extra-create-project-arg=-upmNoDefaultPackages
+{% if editor == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+  artifacts:
+    logs:
+      paths:
+        - test-results/**
+        - upm-ci~/test-results/**
+        - upm-ci~/upm-ci.log
+  dependencies:
+    - .yamato/legacy-pack.yml#legacy_pack
+{% endfor -%}
+
+
+vetting_all:
+  name: Vetting All
+  dependencies:
+{% for editor in editor_versions -%}
+    - .yamato/vetting.yml#vetting_win_{{editor}}
+{% endfor -%}
+
+vetting_pr:
+  name: Vetting Tests for PRs
+  dependencies:
+{% for editor in editor_versions limit: 1 -%}
+    # First(oldest) editor for API Validation
+    - .yamato/vetting.yml#vetting_win_{{editor}}
+{% endfor -%}
