@@ -164,6 +164,12 @@ namespace GLTFast.Schema
                     e.KHR_lights_punctual = null;
                 }
 
+                if ((e.MPEG_audio_spatial?.sources?.Length ?? 0) == 0 && 
+                    (e.MPEG_audio_spatial?.listener?.id ?? -1) < 0)
+                {
+                    e.MPEG_audio_spatial = null;
+                }
+
                 if (e.MPEG_node_interactivity?.triggers.Length == 0)
                 {
                     e.MPEG_node_interactivity = null;
@@ -203,6 +209,8 @@ namespace GLTFast.Schema
         public MpegNodeInteractivity? MPEG_node_interactivity;
         public MpegAnchorObject? MPEG_anchor;
         
+        public MpegAudioSpatial? MPEG_audio_spatial;
+
         // Whenever an extension is added, the JsonParser
         // (specifically step four of JsonParser.ParseJson)
         // needs to be updated!

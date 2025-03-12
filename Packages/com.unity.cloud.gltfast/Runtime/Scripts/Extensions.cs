@@ -69,9 +69,7 @@ namespace GLTFast
         /// <a href="https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_specular">KHR_materials_specular</a> glTF extension
         /// </summary>
         MaterialsSpecular,
-        /// <summary>
-        /// <see href="https://mpegx.int-evry.fr/software/MPEG/Systems/SceneDescription">MPEG scene description extensions</see>
-        /// </summary>
+
         BufferCircular,
         AccessorTimed,
         Media,

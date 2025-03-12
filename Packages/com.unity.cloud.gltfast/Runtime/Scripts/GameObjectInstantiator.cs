@@ -172,7 +172,7 @@ namespace GLTFast
                             animation.clip = clip;
                         }
                     }
-
+                    
                     SceneInstance.SetLegacyAnimation(animation);
                 }
                 else {
@@ -608,6 +608,6 @@ namespace GLTFast
         /// <summary>Invoked after a mesh was added to a node GameObject</summary>
         public event MeshAddedDelegate MeshAdded;
         /// <summary>Invoked after a scene has been instantiated.</summary>
-        public event Action EndSceneCompleted;
+        public event System.Action EndSceneCompleted;
     }
 }

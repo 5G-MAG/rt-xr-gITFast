@@ -9,18 +9,21 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-using GLTFast.Schema;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace GLTFast
 {
+    using Schema;
+    using Animation = UnityEngine.Animation;
+
     /// <summary>
     /// Helper class that maps glTF entities to Unity ones
     /// </summary>
     public static class VirtualSceneGraph
     {
+        /// FIXME: The use of static members makes it impossible to instantiate multiple glTF assets simultaneously
         private static CustomDictionary<int, GameObject> m_NodeGameObject
             = new CustomDictionary<int, GameObject>();
 

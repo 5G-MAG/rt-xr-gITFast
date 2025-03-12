@@ -25,6 +25,12 @@ namespace GLTFast.Schema
         {
             throw new System.NotImplementedException($"GltfSerialize missing on {GetType()}");
         }
+
+        public bool JsonUtilityCleanup()
+        {
+            return (media == null) || (media.Length == 0);
+        }
+
     }
 
     [System.Serializable]

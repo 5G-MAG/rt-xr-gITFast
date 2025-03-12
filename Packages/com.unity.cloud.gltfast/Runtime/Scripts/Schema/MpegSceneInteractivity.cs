@@ -325,6 +325,13 @@ namespace GLTFast.Schema
         public Action[] actions;
         public GLTFast.Schema.Behavior[] behaviors;
 
+        public bool JsonUtilityCleanup()
+        {
+            return ((triggers == null) || (triggers.Length == 0)) &&
+                    ((actions == null) || (actions.Length == 0)) &&
+                    ((behaviors == null) || (behaviors.Length == 0));
+        }
+
         internal void GltfSerialize(JsonWriter writer)
         {
             writer.AddObject();

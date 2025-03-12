@@ -66,6 +66,8 @@ namespace GLTFast
     using Materials;
     using Schema;
 
+    using Action = System.Action;
+
     /// <summary>
     /// Loads a glTF's content, converts it to Unity resources and is able to
     /// feed it to an <see cref="IInstantiator"/> for instantiation.
@@ -176,18 +178,16 @@ namespace GLTFast
             ExtensionName.MeshGPUInstancing,
             ExtensionName.LightsPunctual,
             ExtensionName.MaterialsClearcoat,
-            // MPEG
-            ExtensionName.BufferCircular,
-            ExtensionName.AccessorTimed,
-            ExtensionName.Media,
-            ExtensionName.TextureVideo,
-            ExtensionName.SpatialAudio,
+            //// MPEG
+            // ExtensionName.BufferCircular,
+            // ExtensionName.AccessorTimed,
+            // ExtensionName.Media,
+            // ExtensionName.TextureVideo,
+            // ExtensionName.SpatialAudio,
             //// IDCC
-            // MPEG_scene_interactivity and MPEG_node_interactivity
-            ExtensionName.SceneInteractivity,
-            ExtensionName.NodeInteractivity,
-            // MPEG_anchor
-            ExtensionName.Anchor
+            // ExtensionName.SceneInteractivity,
+            // ExtensionName.NodeInteractivity,
+            // ExtensionName.Anchor
         };
 
         static IDeferAgent s_DefaultDeferAgent;
@@ -808,7 +808,6 @@ namespace GLTFast
             m_Meshes = null;
             DisposeArray(m_Resources);
             m_Resources = null;
-            instantiator.Dispose();
         }
 
         /// <summary>
@@ -1283,8 +1282,6 @@ namespace GLTFast
                 return false;
             }
 
-            //// IDCC
-            VirtualSceneGraph.SetRoot(gltfRoot);
             
             if (Root.Buffers != null)
             {
@@ -2321,9 +2318,6 @@ namespace GLTFast
                     }
                 }
 
-                //// IDCC
-                VirtualSceneGraph.AssignAnimationIndexToAnimationClip(i, m_AnimationClips[i]);
-
             }
         }
 
@@ -2413,11 +2407,7 @@ namespace GLTFast
                     this,
                     pointsSupport
                 );
-                m_Materials[i] = material;
-
-                //// IDCC
-                VirtualSceneGraph.AssignMaterialIndexToMaterial(i, materials[i]);
-                
+                m_Materials[i] = material;                
                 m_MaterialGenerator.SetLogger(null);
                 Profiler.EndSample();
             }
@@ -2446,10 +2436,11 @@ namespace GLTFast
                 var imageIndex = txt.GetImageIndex();
                 if (imageIndex < 0 || imageIndex >= Root.Images.Count) continue;
                 var img = m_Images[imageIndex];
-                if (txt.extensions.MPEG_texture_video != null)
+                //// MPEG
+                if (txt.Extensions.MPEG_texture_video != null)
                 {
                     // make sure we have proper format, size and coordinates to blit video texture
-                    Texture2D dst = new Texture2D(txt.extensions.MPEG_texture_video.width, txt.extensions.MPEG_texture_video.height, DefaultFormat.LDR, TextureCreationFlags.None);
+                    Texture2D dst = new Texture2D(txt.Extensions.MPEG_texture_video.width, txt.Extensions.MPEG_texture_video.height, DefaultFormat.LDR, TextureCreationFlags.None);
                     Graphics.ConvertTexture(img, dst); // convert format and dimension
                     m_Images[imageIndex] = dst;
                     img = dst;
@@ -2482,8 +2473,6 @@ namespace GLTFast
                         m_Textures[textureIndex] = newImg;
                     }
                 }
-                //// IDCC
-                VirtualSceneGraph.AssignTextureIndexToTexture(textureIndex, textures[textureIndex]);
             }
         }
 
@@ -2703,8 +2692,6 @@ namespace GLTFast
                     extension.Value.Inject(instantiator);
                 }
             }
-            // FIXME - Addons
-            this.instantiator = instantiator;
             
             async Task IterateNodes(uint nodeIndex, uint? parentIndex, Action<uint, uint?> callback)
             {
@@ -2850,9 +2837,6 @@ namespace GLTFast
                             );
                         }
 
-                        //// IDCC
-                        VirtualSceneGraph.AssignMeshToMeshIndex(meshNumeration, mesh);
-
                         meshNumeration++;
                     }
                 }
@@ -2874,40 +2858,6 @@ namespace GLTFast
                     }
                 }
 
-
-                MpegAudioSpatial ext = node.extensions?.MPEG_audio_spatial;
-                if (ext != null){
-                    if (ext.sources != null && (ext.sources.Length > 0))
-                    {
-                        instantiator.AddAudioSources(nodeIndex);
-                    }
-                    if (ext.listener != null && (ext.listener.id >= 0))
-                    {
-                        instantiator.AddAudioListener(nodeIndex);
-                    }
-                    if (ext.reverbs != null)
-                    {
-                        Debug.LogWarningFormat("spatial audio reverbs definition is expected on root");
-                    }
-                }
-
-                if (node.extensions?.MPEG_anchor != null)
-                {
-                    MpegAnchorObject mpegAnchor = node.extensions.MPEG_anchor;
-
-                    // Initialized at -1 to prevent instantiation of the MPEG_anchor by the parser
-                    if(mpegAnchor.anchor != -1)
-                    {
-                        Debug.Log("Read node.extensions");
-                        //now retrieve index in VirtualSceneGraph
-                        VirtualSceneGraph.AssignAnchorObjectToIndex(mpegAnchor,(int)nodeIndex);
-                    }
-                }
-                    
-                if(node.extensions?.MPEG_node_interactivity != null) 
-                {
-                    Debug.Log("Read node.extension == MPEG_node_interactivity");
-                }
                 Profiler.EndSample();
             }
 
@@ -2930,134 +2880,6 @@ namespace GLTFast
                 }
             }
 
-            //// IDCC
-            // Current scene extensions
-            if (scene.extensions.MPEG_scene_interactivity != null)
-            {
-                MpegSceneInteractivity mpegSceneInteractivity = scene.extensions.MPEG_scene_interactivity;
-                if (mpegSceneInteractivity.triggers != null)
-                {
-                    // Create triggers
-                    for (int i = 0; i < mpegSceneInteractivity.triggers.Length; i++)
-                    {
-                        GLTFast.Schema.Trigger trig = scene.extensions.MPEG_scene_interactivity.triggers[i];
-                        instantiator.AddMPEGInteractivityTrigger(trig, i);
-                    }
-                }
-
-                if (mpegSceneInteractivity.actions != null)
-                {
-                    // Create actions
-                    for (int i = 0; i < mpegSceneInteractivity.actions.Length; i++)
-                    {
-                        GLTFast.Schema.Action act = scene.extensions.MPEG_scene_interactivity.actions[i];
-                        instantiator.AddMPEGInteractivityAction(act, i);
-                    }
-                }
-
-                if(mpegSceneInteractivity.behaviors != null)
-                {
-                    // Create behaviors
-                    for (int i = 0; i < mpegSceneInteractivity.behaviors.Length; i++)
-                    {
-                        GLTFast.Schema.Behavior bhv = scene.extensions.MPEG_scene_interactivity.behaviors[i];
-                        instantiator.AddMPEGInteractivityBehavior(bhv, i);
-                    }
-                }
-            }
-
-            // Extension at root level extension
-            if (gltfRoot.extensions.MPEG_anchor != null &&
-                (gltfRoot.extensions.MPEG_anchor.trackables != null
-                || gltfRoot.extensions.MPEG_anchor.anchors != null))
-            {
-                Debug.Log("Read gltfRoot.extensions");
-                MpegAnchor anc = gltfRoot.extensions.MPEG_anchor;
-
-                if(anc.trackables != null)
-                {
-                    // Create trackables
-                    for(int i = 0; i < anc.trackables.Length; i++)
-                    {
-                        Trackable trackable = gltfRoot.extensions.MPEG_anchor.trackables[i];
-                        instantiator.AddMPEGTrackables(trackable, i);
-                    }
-                }
-
-                if(anc.anchors != null)
-                {
-                    // Create anchors
-                    for (int i = 0; i < anc.anchors.Length; i++)
-                    {
-                        GLTFast.Schema.Anchor anch = gltfRoot.extensions.MPEG_anchor.anchors[i];
-                        instantiator.AddMPEGAnchor(anch, i);
-                    }
-                }
-            }
-
-            // Extension at scene level
-            // -1 trick to know if the class has been instantiated by the parser
-            // Can't be null
-            if (scene.extensions.MPEG_anchor != null)
-            {
-                MpegAnchorObject mpegAnchor = scene.extensions.MPEG_anchor;
-                if(mpegAnchor.anchor != -1)
-                {
-                    Debug.Log("Read scene.extensions");
-
-                    // Now retrieve index in VirtualSceneGraph
-                    IMpegAnchor anchor = VirtualSceneGraph.GetAnchorFromIndex(mpegAnchor.anchor);
-                
-                    // Get Anchor to retrieve trackable
-                    var index = anchor.GetTrackableIndex();
-                    Debug.Log("index of anchor: "+index);
-                
-                    var track = VirtualSceneGraph.GetTrackableFromIndex(index);
-                
-                    if(track == null)
-                        Debug.LogError("Error No trackable");
-                    else
-                        Debug.Log("Type Trackable: "+track.GetType());
-
-                    track.Init();
-                
-                    //Now attach all root nodes to anchor.
-                    uint[]nodes = scene.nodes;
-                    for(int i = 0; i < nodes.Length;i++)
-                    {
-                        var node = VirtualSceneGraph.GetGameObjectFromIndex((int)nodes[i]);
-                        anchor.AttachNodeToAnchor(node);
-                    }
-                    anchor.SetUp();     
-                }         
-            }
-
-            // Anchor detection
-            if(VirtualSceneGraph.GetAnchorObjectCount() > 0)
-            {
-                Debug.Log("Read node.extensions");
-                foreach(int key in VirtualSceneGraph.GetAnchorObjectKeys())
-                {
-                    MpegAnchorObject anc = VirtualSceneGraph.GetAnchorObjectFromIndex(key);
-                    IMpegAnchor anchor = VirtualSceneGraph.GetAnchorFromIndex(anc.anchor);
-
-                    // Get Anchor to retrieve trackable
-                    var index = anchor.GetTrackableIndex();
-                    Debug.Log("Index of Anchor in array: "+index);
-                    var track = VirtualSceneGraph.GetTrackableFromIndex(index);
-                    
-                    if(track == null)
-                        Debug.LogError("No trackable");
-                    else
-                        Debug.Log(" Trackable Type: "+track.GetType());
-
-                    track.Init();
-                    var nodeGO = VirtualSceneGraph.GetGameObjectFromIndex(key);
-                    anchor.AttachNodeToAnchor(nodeGO);
-                    anchor.SetUp();
-                }
-            }
-            
             instantiator.EndScene(scene.nodes);
         }
 

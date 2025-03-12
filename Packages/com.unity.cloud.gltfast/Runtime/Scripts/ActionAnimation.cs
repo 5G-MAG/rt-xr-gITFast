@@ -10,11 +10,14 @@
 */
 
 using System.Collections;
-using GLTFast.Schema;
 using UnityEngine;
 
 namespace GLTFast
 {
+    using Schema;
+    // Legacy animation: https://docs.unity3d.com/Manual/class-Animation.html
+    using Animation = UnityEngine.Animation;
+
     /// <summary>
     /// Handle the Animation state of an object
     /// </summary>

@@ -56,6 +56,12 @@ namespace GLTFast.Schema
         public GLTFast.Schema.Trackable[] trackables;
         public GLTFast.Schema.Anchor[] anchors;
 
+        public bool JsonUtilityCleanup()
+        {
+            return ((trackables == null) || (trackables.Length == 0)) &&
+                    ((anchors == null) || (anchors.Length == 0));
+        }
+
         internal void GltfSerialize(JsonWriter writer)
         {
             writer.AddObject();
@@ -126,6 +132,7 @@ namespace GLTFast.Schema
         /// Describes the user body part and gesture related to the input
         /// </summary>
         public string userInputDescription;
+
 
         internal void GltfSerialize(JsonWriter writer)
         {

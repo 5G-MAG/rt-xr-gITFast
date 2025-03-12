@@ -132,6 +132,7 @@ namespace GLTFast
             uint lightIndex
         );
 
+/*
         void AddAudioSources(
             uint nodeIndex
         );
@@ -165,6 +166,9 @@ namespace GLTFast
             int index
         );
 
+        void Dispose();
+*/
+
         /// <summary>
         /// Is called at last, after all scene content has been created.
         /// Immediately afterwards the scene will be rendered, so use it to
@@ -174,7 +178,6 @@ namespace GLTFast
         void EndScene(
             uint[] rootNodeIndices
         );
-
-        void Dispose();
+        
     }
 }
