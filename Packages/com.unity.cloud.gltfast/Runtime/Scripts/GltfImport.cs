@@ -304,6 +304,8 @@ namespace GLTFast
         public UnityEngine.Material defaultMaterial;
 #endif
 
+        public Uri BaseUri { get; private set; }
+
         /// <summary>
         /// True, when loading has finished and glTF can be instantiated
         /// </summary>
@@ -1252,6 +1254,8 @@ namespace GLTFast
 
         async Task<bool> ParseJsonAndLoadBuffers(string json, Uri baseUri)
         {
+            BaseUri = baseUri;
+
             var predictedTime = json.Length / (float)k_JsonParseSpeed;
 #if GLTFAST_THREADS && !MEASURE_TIMINGS
             if (DeferAgent.ShouldDefer(predictedTime))
@@ -2437,7 +2441,7 @@ namespace GLTFast
                 if (imageIndex < 0 || imageIndex >= Root.Images.Count) continue;
                 var img = m_Images[imageIndex];
                 //// MPEG
-                if (txt.Extensions.MPEG_texture_video != null)
+                if (txt.Extensions?.MPEG_texture_video != null)
                 {
                     // make sure we have proper format, size and coordinates to blit video texture
                     Texture2D dst = new Texture2D(txt.Extensions.MPEG_texture_video.width, txt.Extensions.MPEG_texture_video.height, DefaultFormat.LDR, TextureCreationFlags.None);
