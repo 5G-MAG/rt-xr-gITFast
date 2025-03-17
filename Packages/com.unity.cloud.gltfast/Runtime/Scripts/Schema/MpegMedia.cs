@@ -28,7 +28,7 @@ namespace GLTFast.Schema
 
         public bool JsonUtilityCleanup()
         {
-            return (media == null) || (media.Length == 0);
+            return (media != null) || (media.Length > 0);
         }
 
     }

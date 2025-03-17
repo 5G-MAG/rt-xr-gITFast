@@ -20,10 +20,20 @@ using maf;
 
 namespace GLTFast {
 
-    public static class MediaImport
+    public class MediaImport
     {
-        
-        public static void ApplyBaseUri(Schema.Media m, Uri baseUri)
+
+        private static List<MediaPlayer> mediaPlayers = new();
+        public static List<MediaPlayer> MediaPlayers { get { return mediaPlayers; } }
+
+        public static MediaPlayer? GetMediaPlayer(int idx){
+            if (idx < 0 || idx+1 > mediaPlayers.Count){
+                return null;
+            }
+            return mediaPlayers[idx];
+        }
+
+        static void ApplyBaseUri(Schema.Media m, Uri baseUri)
         {
             foreach (Schema.MediaAlternative ma in m.alternatives)
             {
@@ -39,20 +49,30 @@ namespace GLTFast {
             }
         }
 
-        public static Schema.Media GetMedia(GltfImport gltfImport, int index, Uri baseUri = null)
+        public static void CreateMediaPlayers(Schema.Root root, Uri baseUri = null)
         {
-            Schema.Media m = gltfImport.GetSourceRoot().Extensions.MPEG_media.media[index];
-            if (baseUri != null)
+            List<MediaPipelineConfig> configs = MediaImport.GetMediaPipelineConfigs(root); // one config per media
+            Schema.Media[] medias = root.Extensions.MPEG_media.media;
+            for (var c = 0; c < configs.Count; c++)
             {
-                ApplyBaseUri(m, baseUri);
+                Schema.Media m = medias[c];
+                if (baseUri != null)
+                {
+                    ApplyBaseUri(m, baseUri);
+                }
+                MediaPlayer mp = MediaPlayer.Create(m, configs[c]);
+                if (mp == null)
+                {
+                    Debug.LogError("Failed to create media player");
+                }
+                mediaPlayers.Add(mp);
             }
-            return m;
         }
 
-        public static List<MediaPipelineConfig> GetMediaPipelineConfigs(GltfImport gltfImport)
+        public static List<MediaPipelineConfig> GetMediaPipelineConfigs(Schema.Root root)
         {
-            Dictionary<int, maf.AttributeType> attribTypeMap = GetAccessorAttributeTypeMap(gltfImport);
-            var ext = gltfImport.GetSourceRoot().Extensions.MPEG_media;
+            Dictionary<int, maf.AttributeType> attribTypeMap = GetAccessorAttributeTypeMap(root);
+            var ext = root.Extensions.MPEG_media;
             if (ext == null || ext.media == null)
             {
                 return new List<MediaPipelineConfig>();
@@ -61,16 +81,15 @@ namespace GLTFast {
             var res = new List<MediaPipelineConfig>(ext.media.Length);
             for (int i = 0; i < ext.media.Length; i++)
             {
-                res.Add(GetMediaPipelineConfig(gltfImport, i, attribTypeMap));
+                res.Add(GetMediaPipelineConfig(root, i, attribTypeMap));
             }
             return res;
         }
 
-        public static Dictionary<int, maf.AttributeType> GetAccessorAttributeTypeMap(GltfImport gltfImport)
+        public static Dictionary<int, maf.AttributeType> GetAccessorAttributeTypeMap(Schema.Root root)
         {
             // returns a dictionnary mapping accessor index to maf Attribute type
             var map = new Dictionary<int, maf.AttributeType>();
-            Schema.Root root = gltfImport.GetSourceRoot();
             // primitive attributes
             Schema.Mesh[] meshes = root.meshes;
             for (int m = 0; m < meshes.Length; m++)
@@ -178,7 +197,7 @@ namespace GLTFast {
             return map;
         }
 
-        public static MediaPipelineConfig GetMediaPipelineConfig(GltfImport gltfImport, int mediaIndex, Dictionary<int, maf.AttributeType> accessorAttribTypeMap)
+        public static MediaPipelineConfig GetMediaPipelineConfig(Schema.Root root, int mediaIndex, Dictionary<int, maf.AttributeType> accessorAttribTypeMap)
         {
             /// <summary>
             /// collect gltf definitions that are referencing the given media idx
@@ -186,7 +205,7 @@ namespace GLTFast {
             var m = new MediaPipelineConfig();
 
             // lookup media buffers
-            Schema.Buffer[] buffers = gltfImport.GetSourceRoot().buffers;
+            Schema.Buffer[] buffers = root.buffers;
             for (int i = 0; i < buffers.Length; i++)
             {
                 Schema.Buffer buff = buffers[i];
@@ -209,7 +228,7 @@ namespace GLTFast {
             }
 
             // lookup bufferviews referencing circular buffers
-            Schema.BufferView[] bufferViews = gltfImport.GetSourceRoot().bufferViews;
+            Schema.BufferView[] bufferViews = root.bufferViews;
             for (int j = 0; j < bufferViews.Length; j++)
             {
                 Schema.BufferView bv = bufferViews[j];
@@ -224,7 +243,7 @@ namespace GLTFast {
             }
 
             // lookup accessors referencing circular buffers
-            Schema.Accessor[] accessors = gltfImport.GetSourceRoot().accessors;
+            Schema.Accessor[] accessors = root.accessors;
             for (int k = 0; k < accessors.Length; k++)
             {
                 Schema.Accessor acc = accessors[k];
@@ -253,14 +272,9 @@ namespace GLTFast {
             return m;
         }
 
-        public static int GetBufferSourceMediaIndex(GltfImport gltfImport, int bufferId)
+        public static Dictionary<int, Schema.Texture> GetSourceVideoTextures(Schema.Root root)
         {
-            return gltfImport.GetSourceRoot().buffers[bufferId].extensions.MPEG_buffer_circular.media;
-        }
-
-        public static Dictionary<int, Schema.Texture> GetSourceVideoTextures(GltfImport gltfImport)
-        {
-            Schema.Texture[] sourceTextures = gltfImport.GetSourceRoot().textures;
+            Schema.Texture[] sourceTextures = root.textures;
             var videoTextures = new Dictionary<int, Schema.Texture>();
             for (int t = 0; t < sourceTextures.Length; t++)
             {

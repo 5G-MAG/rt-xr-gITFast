@@ -58,8 +58,8 @@ namespace GLTFast.Schema
 
         public bool JsonUtilityCleanup()
         {
-            return ((trackables == null) || (trackables.Length == 0)) &&
-                    ((anchors == null) || (anchors.Length == 0));
+            return ((trackables != null) && (trackables.Length > 0)) ||
+                    ((anchors != null) && (anchors.Length > 0));
         }
 
         internal void GltfSerialize(JsonWriter writer)

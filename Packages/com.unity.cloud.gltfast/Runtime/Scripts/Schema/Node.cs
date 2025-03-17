@@ -184,7 +184,10 @@ namespace GLTFast.Schema
 
                 // Unset `extension` if none of them was valid
                 if (e.EXT_mesh_gpu_instancing == null &&
-                    e.KHR_lights_punctual == null)
+                    e.KHR_lights_punctual == null &&
+                    e.MPEG_audio_spatial == null && 
+                    e.MPEG_node_interactivity == null &&
+                    e.MPEG_anchor == null)
                 {
                     UnsetExtensions();
                 }

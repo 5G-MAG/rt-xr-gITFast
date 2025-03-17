@@ -9,23 +9,24 @@ namespace GLTFast
 
     public class MpegGltfImport
     {
+        GltfImport m_GltfImport;
 
         public MpegGltfImport (){
             ImportAddonRegistry.RegisterImportAddon(new MpegAddon());
         }
         
-        public async Task<bool> LoadAndInstantiate(string filePath, Transform parent)
+        public async Task<bool> LoadGltfAsync(string filePath)
         {
             Uri path = new Uri(filePath, UriKind.RelativeOrAbsolute);
                 
-            if (!path.IsAbsoluteUri)
+            if (!path.IsAbsoluteUri){
                 path = new Uri(System.IO.Directory.GetCurrentDirectory()+"/"+path);
+            }
 
             try
             {
-                var gltfImport = new GltfImport();
-                await gltfImport.Load(path);
-                await gltfImport.InstantiateMainSceneAsync(parent);
+                m_GltfImport = new GltfImport();
+                await m_GltfImport.Load(path);
                 return true;
             }
             catch (Exception e)
@@ -35,14 +36,62 @@ namespace GLTFast
             }
         }
 
-        public void Dispose() { }
+        public bool IsImplicitXrPassthrough()
+        {
+            var gltfRoot = m_GltfImport.GetSourceRoot();
+            if (gltfRoot.Extensions.MPEG_anchor != null &&
+                gltfRoot.Extensions.MPEG_anchor.trackables != null)
+            {
+                if(gltfRoot.Extensions.MPEG_anchor.trackables != null)
+                {
+                    Schema.Trackable[] trackables = gltfRoot.Extensions.MPEG_anchor.trackables;
+                    for(int i = 0; i < trackables.Length; i++)
+                    {
+                        Schema.Trackable trackable = gltfRoot.Extensions.MPEG_anchor.trackables[i];
+                        switch (trackable.type ){
+                            case Schema.TrackableType.TRACKABLE_FLOOR:
+                            // case Schema.TrackableType.TRACKABLE_VIEWER:
+                            // case Schema.TrackableType.TRACKABLE_CONTROLLER:
+                            case Schema.TrackableType.TRACKABLE_PLANE:
+                            case Schema.TrackableType.TRACKABLE_MARKER_2D:
+                            case Schema.TrackableType.TRACKABLE_MARKER_3D:
+                            // case Schema.TrackableType.TRACKABLE_MARKER_GEO:
+                            // case Schema.TrackableType.TRACKABLE_APPLICATION:
+                                return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        public async Task<bool> InstantiateMainSceneAsync(Transform parent)
+        {
+            try
+            {
+                await m_GltfImport.InstantiateMainSceneAsync(parent);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                return false;
+            }
+        }
+
+        public void Dispose() {
+            m_GltfImport.Dispose();
+        }
 
         public class MpegAddon : ImportAddon<MpegAddonInstance> { }
         public class MpegAddonInstance : ImportAddonInstance
         {
             GltfImport m_GltfImport;
+            MpegInstantiatorAddon m_goInstantiatorAddon;
 
-            public override void Dispose() { }
+            public override void Dispose() {
+                m_goInstantiatorAddon.Dispose();
+            }
 
             public override void Inject(GltfImportBase gltfImport)
             {
@@ -57,7 +106,7 @@ namespace GLTFast
                     return;
                 }
                 // A single addon for all MPEG extensions, could be split into multiple instantiator addons ?
-                var _ = new MpegInstantiatorAddon(m_GltfImport, goInstantiator);
+                m_goInstantiatorAddon = new MpegInstantiatorAddon(m_GltfImport, goInstantiator);
             }
 
             public override bool SupportsGltfExtension(string extensionName)
@@ -101,25 +150,33 @@ namespace GLTFast
 
         void OnEndSceneCompleted()
         {
-            var scene = m_GltfImport.GetSourceScene(m_GltfImport.DefaultSceneIndex ?? 0);
-            if (scene != null){
-                ProcessMpegSceneInteractivityExtension(scene);
-                ProcessMpegAnchorExtension(scene);
+            try
+            {
+                UpdateVirtualSceneGraph();
+                var scene = m_GltfImport.GetSourceScene(m_GltfImport.DefaultSceneIndex ?? 0);
+                if (scene != null){
+                    ProcessMpegSceneInteractivityExtension(scene);
+                    ProcessMpegAnchorExtension(scene);
 #if MAF_MEDIA_PIPELINES
-                ProcessMpegMediaExtensions(scene);
+                    ProcessMpegMediaExtensions(scene);
 #endif
+                }
             }
-
-            UpdateVirtualSceneGraph();
-
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }            
             m_Instantiator.NodeCreated -= OnNodeCreated;
             m_Instantiator.MeshAdded -= OnMeshAdded;
+
         }
 
         void OnNodeCreated(
             uint nodeIndex, 
             GameObject gameObject
         ){
+            VirtualSceneGraph.AssignGameObjectToNode((int)nodeIndex, gameObject, (int)nodeIndex);
+
             var gltfRoot = m_GltfImport.GetSourceRoot();
 
             if (VirtualSceneGraph.root != gltfRoot){
@@ -127,7 +184,7 @@ namespace GLTFast
                 VirtualSceneGraph.SetRoot(gltfRoot);
             }
 
-            var node = m_GltfImport.GetSourceNode((int)nodeIndex); // as GLTFast.Newtonsoft.Schema.Node;
+            Schema.NodeBase node = m_GltfImport.GetSourceNode((int)nodeIndex); // as GLTFast.Newtonsoft.Schema.Node;
 
             if (node.Extensions?.MPEG_audio_spatial != null){
                 
@@ -135,7 +192,7 @@ namespace GLTFast
 
                 if (ext.sources != null && (ext.sources.Length > 0))
                 {
-                    CreateNodeAudioSources(gameObject, node);
+                    CreateSpatialAudioSources(gameObject, node);
                 }
                 if (ext.listener != null && (ext.listener.id >= 0))
                 {
@@ -243,7 +300,7 @@ namespace GLTFast
             //// IDCC
             VirtualSceneGraph.AssignMeshToMeshIndex(meshResult.meshIndex, meshResult.mesh);
         }
-
+ 
 
         void ProcessMpegAnchorExtension(Schema.Scene scene){
 
@@ -254,24 +311,22 @@ namespace GLTFast
                 (gltfRoot.Extensions.MPEG_anchor.trackables != null
                 || gltfRoot.Extensions.MPEG_anchor.anchors != null))
             {
-                Debug.Log("Read gltfRoot.Extensions");
-                Schema.MpegAnchor anc = gltfRoot.Extensions.MPEG_anchor;
-                if(anc.trackables != null)
+                
+                Schema.MpegAnchor MPEG_anchor = gltfRoot.Extensions.MPEG_anchor;
+                if(MPEG_anchor.trackables != null)
                 {
                     // Create trackables
-                    for(int i = 0; i < anc.trackables.Length; i++)
+                    for(int i = 0; i < MPEG_anchor.trackables.Length; i++)
                     {
-                        Schema.Trackable trackable = gltfRoot.Extensions.MPEG_anchor.trackables[i];
-                        AddMPEGTrackables(trackable, i);
+                        AddMPEGTrackables(MPEG_anchor.trackables[i], i);
                     }
                 }
-                if(anc.anchors != null)
+                if(MPEG_anchor.anchors != null)
                 {
                     // Create anchors
-                    for (int i = 0; i < anc.anchors.Length; i++)
+                    for (int i = 0; i < MPEG_anchor.anchors.Length; i++)
                     {
-                        Schema.Anchor anch = gltfRoot.Extensions.MPEG_anchor.anchors[i];
-                        AddMPEGAnchor(anch, i);
+                        AddMPEGAnchor(MPEG_anchor.anchors[i], i);
                     }
                 }
             }
@@ -280,7 +335,7 @@ namespace GLTFast
             // Extension at scene level
             // -1 trick to know if the class has been instantiated by the parser
             // Can't be null
-            if (scene.extensions.MPEG_anchor != null)
+            if (scene.extensions?.MPEG_anchor != null)
             {
                 Schema.MpegAnchorObject mpegAnchor = scene.extensions.MPEG_anchor;
                 if(mpegAnchor.anchor != -1)
@@ -295,12 +350,12 @@ namespace GLTFast
                 
                     var track = VirtualSceneGraph.GetTrackableFromIndex(index);
                 
-                    if(track == null)
+                    if(track == null){
                         Debug.LogError("Error No trackable");
-                    else
+                    } else {
                         Debug.Log("Type Trackable: "+track.GetType());
-                    track.Init();
-                
+                        track.Init();
+                    }                
                     //Now attach all root nodes to anchor.
                     uint[]nodes = scene.nodes;
                     for(int i = 0; i < nodes.Length;i++)
@@ -324,12 +379,12 @@ namespace GLTFast
                     var index = anchor.GetTrackableIndex();
                     Debug.Log("Index of Anchor in array: "+index);
                     var track = VirtualSceneGraph.GetTrackableFromIndex(index);
-                    
-                    if(track == null)
+                    if(track == null){
                         Debug.LogError("No trackable");
-                    else
+                    } else {
                         Debug.Log(" Trackable Type: "+track.GetType());
-                    track.Init();
+                        track.Init();
+                    }
                     var nodeGO = VirtualSceneGraph.GetGameObjectFromIndex(key);
                     anchor.AttachNodeToAnchor(nodeGO);
                     anchor.SetUp();
@@ -339,43 +394,74 @@ namespace GLTFast
 
 #if MAF_MEDIA_PIPELINES
 
-        List<MediaPlayer> CreateMediaPlayers(Uri baseUri)
+        private static int GetBufferSourceMediaIndex(Schema.Root root, int bufferId)
         {
-            List<MediaPipelineConfig> configs = MediaImport.GetMediaPipelineConfigs(m_GltfImport); // one config per media
-            var players = new List<MediaPlayer>(configs.Count);
-            for (var c = 0; c < configs.Count; c++)
-            {
-                var mp = MediaPlayer.Create(MediaImport.GetMedia(m_GltfImport, c, baseUri), configs[c]);
-                if (mp == null)
-                {
-                    throw new Exception("failed to create media player");
-                }
-                players.Add(mp);
-            }
-            return players;
+            return root.buffers[bufferId].extensions.MPEG_buffer_circular.media;
         }
 
-        void CreateVideoTextures(List<MediaPlayer> mediaPlayers)
+        public (int MediaIdx, VideoTexture Texture) CreateVideoTexture(int i)
         {
-            // var videoTextures = new List<VideoTexture>();
-            Schema.Texture[] sourceTextures = m_GltfImport.GetSourceRoot().textures;
+            Schema.Root root = m_GltfImport.GetSourceRoot();
+            var tex = (Schema.Texture)m_GltfImport.GetSourceTexture(i);
+            Texture2D tex2D = m_GltfImport.GetTexture(i);
+            if (tex == null)
+                throw new Exception("invalid texture index");
+                
+            var texExt = tex.extensions.MPEG_texture_video;
+            Schema.Accessor acc = root.accessors[texExt.accessor];
+            Schema.MpegAccessorTimed extAccessor = acc.extensions.MPEG_accessor_timed;
+            if (!extAccessor.immutable)
+            {
+                Debug.LogWarning("VideoTexture: unsupported MPEG_accessor_timed.immutable != 1");
+            }
+            if (extAccessor.bufferView >= 0)
+            {
+                Debug.LogWarning("VideoTexture: unsupported MPEG_accessor_timed.bufferView != null");
+            }
+
+            Schema.BufferView bv = root.bufferViews[acc.bufferView];
+            Schema.Buffer buff = root.buffers[bv.buffer];
+            /* 
+            * Current implementation is limited to one texture per buffer frame,
+            * with the buffer frame as whole being used by the texture.
+            */
+            if ((bv.byteOffset + acc.byteOffset) > 0)
+            {
+                throw new NotImplementedException("VideoTexture: byteOffset != 0");
+            }
+            if (bv.byteStride > 0)
+            {
+                throw new NotImplementedException("VideoTexture: byteStride != 0");
+            }
+            if (bv.byteLength != buff.byteLength)
+            {
+                throw new NotImplementedException("VideoTexture: bufferView.byteLength != buffer.byteLength");
+            }
+            // We should get the format from the gltf document, and pass it to MAF
+            int mediaIdx = GetBufferSourceMediaIndex(root, bv.buffer);
+            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format);
+            return (mediaIdx, vt);
+        }
+
+
+
+        void CreateVideoTextures(List<MediaPlayer> mediaPlayers, Schema.Root root)
+        {
+            Schema.Texture[] sourceTextures = root.textures;
             if (sourceTextures != null)
             {
                 for (int t = 0; t < sourceTextures.Length; t++)
                 {
                     if (sourceTextures[t].Extensions?.MPEG_texture_video != null)
                     {
-                        var vt = CreateVideoTexture(t);
-                        int mediaIdx = MediaImport.GetBufferSourceMediaIndex(m_GltfImport,vt.bufferId);
-                        mediaPlayers[mediaIdx].AddVideoTexture(vt);
-                        // videoTextures.Add(vt);
+                        var result = CreateVideoTexture(t);
+                        mediaPlayers[result.MediaIdx].AddVideoTexture(result.Texture);
                     }
                 }
             }
-            // return videoTextures;
         }
 
-        void CreateAudioSources(List<MediaPlayer> mediaPlayers)
+        void CreateAudioSources(List<MediaPlayer> mediaPlayers, Schema.Root root)
         {
             if (m_Instantiator.SceneInstance.audioSources is null)
             {
@@ -383,27 +469,27 @@ namespace GLTFast
             }
             foreach (SpatialAudioSource aSrc in m_Instantiator.SceneInstance.audioSources)
             {
-                int mediaIdx = MediaImport.GetBufferSourceMediaIndex(m_GltfImport,aSrc.BufferId);
+                int mediaIdx = GetBufferSourceMediaIndex(root, aSrc.BufferId);
                 mediaPlayers[mediaIdx].AddAudioSource(aSrc);
             }
         }
 
         public void ProcessMpegMediaExtensions(Schema.Scene scene)
         {
-            // FIXME
-            var m_MediaPlayers = CreateMediaPlayers(m_GltfImport.BaseUri);
-            CreateVideoTextures(m_MediaPlayers);
-            CreateAudioSources(m_MediaPlayers);
+            Schema.Root root = m_GltfImport.GetSourceRoot();
+            MediaImport.CreateMediaPlayers(root, m_GltfImport.BaseUri);
+            CreateVideoTextures(MediaImport.MediaPlayers, root); 
+            CreateAudioSources(MediaImport.MediaPlayers, root);
         }
 
 #endif
 
-        void CreateNodeAudioSources(GameObject go, Schema.NodeBase aNode)
+        void CreateSpatialAudioSources(GameObject node, Schema.NodeBase aNode)
         {
             var root = m_GltfImport.GetSourceRoot();
             foreach (var srcDef in aNode.Extensions.MPEG_audio_spatial.sources)
             {
-                var aSrc = go.AddComponent<SpatialAudioSource>() as SpatialAudioSource;
+                var aSrc = node.AddComponent<SpatialAudioSource>() as SpatialAudioSource;
                 int bufferId = root.bufferViews[root.accessors[srcDef.accessors[0]].bufferView].buffer;
                 aSrc.Configure(srcDef, bufferId);
                 m_Instantiator.SceneInstance.AddAudioSource(aSrc);
@@ -526,56 +612,6 @@ namespace GLTFast
             m_Instantiator.SceneInstance.AddAnchor(anchIf);
 #endif
         }
-
-
-#if MAF_MEDIA_PIPELINES
-
-            public VideoTexture CreateVideoTexture(int i)
-            {
-                var gltf = m_GltfImport.GetSourceRoot();
-
-                var tex = (Schema.Texture)m_GltfImport.GetSourceTexture(i);
-                Texture2D tex2D = m_GltfImport.GetTexture(i);
-                if (tex == null)
-                    throw new Exception("invalid texture index");
-
-                var texExt = tex.extensions.MPEG_texture_video;
-                Schema.Accessor acc = gltf.accessors[texExt.accessor];
-                Schema.MpegAccessorTimed extAccessor = acc.extensions.MPEG_accessor_timed;
-                if (!extAccessor.immutable)
-                {
-                    Debug.LogWarning("VideoTexture: unsupported MPEG_accessor_timed.immutable != 1");
-                }
-                if (extAccessor.bufferView >= 0)
-                {
-                    Debug.LogWarning("VideoTexture: unsupported MPEG_accessor_timed.bufferView != null");
-                }
-
-                Schema.BufferView bv = gltf.bufferViews[acc.bufferView];
-                Schema.Buffer buff = gltf.buffers[bv.buffer];
-                /* 
-                * Current implementation is limited to one texture per buffer frame,
-                * with the buffer frame as whole being used by the texture.
-                */
-                if ((bv.byteOffset + acc.byteOffset) > 0)
-                {
-                    throw new NotImplementedException("VideoTexture: byteOffset != 0");
-                }
-                if (bv.byteStride > 0)
-                {
-                    throw new NotImplementedException("VideoTexture: byteStride != 0");
-                }
-                if (bv.byteLength != buff.byteLength)
-                {
-                    throw new NotImplementedException("VideoTexture: bufferView.byteLength != buffer.byteLength");
-                }
-
-                // We should get the format from the gltf document, and pass it to MAF
-                return new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format);
-            }
-
-
-#endif // MAF_MEDIA_PIPELINES
 
         public void Dispose(){
             m_Instantiator.SceneInstance.DestroyInstance();

@@ -130,7 +130,7 @@
         },
         {
             "name": "rt.xr.maf",
-            "expression": "0.0.6",
+            "expression": "",
             "define": "MAF_MEDIA_PIPELINES"
         }
     ],

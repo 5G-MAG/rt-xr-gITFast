@@ -129,6 +129,14 @@ namespace GLTFast.Schema
                 if ((e.KHR_texture_basisu?.source ?? -1) < 0)
                 {
                     e.KHR_texture_basisu = null;
+                }
+                if ((e.MPEG_texture_video?.width ?? 0) <= 0)
+                {
+                    e.MPEG_texture_video = null;
+                }
+                if (e.KHR_texture_basisu == null &&
+                    e.MPEG_texture_video == null
+                ){
                     UnsetExtensions();
                 }
             }

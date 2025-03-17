@@ -38,7 +38,7 @@ namespace GLTFast.Schema
         // MPEG_scene_interactivity extension
         public MpegSceneInteractivity MPEG_scene_interactivity;
         // MPEG anchor extension
-        public MpegAnchor MPEG_anchor = null;
+        public MpegAnchor MPEG_anchor;
 
         internal void GltfSerialize(JsonWriter writer)
         {

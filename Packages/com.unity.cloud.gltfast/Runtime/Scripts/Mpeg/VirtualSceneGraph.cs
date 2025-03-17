@@ -15,7 +15,6 @@ using UnityEngine;
 
 namespace GLTFast
 {
-    using Schema;
     using Animation = UnityEngine.Animation;
 
     /// <summary>
@@ -59,12 +58,12 @@ namespace GLTFast
             = new CustomDictionary<int, IMpegTrackable>();
         private static CustomDictionary<int, IMpegAnchor>    m_AnchorIndexAnchor 
             = new CustomDictionary<int, IMpegAnchor>();
-        private static CustomDictionary<int, MpegAnchorObject> m_AnchorObjectIndexAnchorObject
-            = new CustomDictionary<int, MpegAnchorObject>();
+        private static CustomDictionary<int, Schema.MpegAnchorObject> m_AnchorObjectIndexAnchorObject
+            = new CustomDictionary<int, Schema.MpegAnchorObject>();
 
-        public static Root root;
+        public static Schema.Root root;
 
-        public static void SetRoot(Root _root)
+        public static void SetRoot(Schema.Root _root)
         {
             root = _root;
         }
@@ -75,12 +74,12 @@ namespace GLTFast
             m_NodeGameObject.Add(nodeIndex, node, item);
         }
 
-        public static Node GetNodeFromNodeIndex(int node)
+        public static Schema.Node GetNodeFromNodeIndex(int node)
         {
             return root.nodes[node];
         }
 
-        public static Node GetNodeFromGameObject(GameObject go)
+        public static Schema.Node GetNodeFromGameObject(GameObject go)
         {
             int nodeIndex = GetNodeIndexFromGameObject(go);
             return root.nodes[nodeIndex];
@@ -246,11 +245,11 @@ namespace GLTFast
         {
             return m_AnchorIndexAnchor.GetValueFromKey(index);
         }
-        internal static void AssignAnchorObjectToIndex(MpegAnchorObject anchorOb, int index)
+        internal static void AssignAnchorObjectToIndex(Schema.MpegAnchorObject anchorOb, int index)
         {
             m_AnchorObjectIndexAnchorObject.Add(index, index, anchorOb);
         }
-        public static MpegAnchorObject GetAnchorObjectFromIndex(int index)
+        public static Schema.MpegAnchorObject GetAnchorObjectFromIndex(int index)
         {
             return m_AnchorObjectIndexAnchorObject.GetValueFromKey(index);
         }
