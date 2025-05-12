@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Unity Technologies and the glTFast authors
 // SPDX-License-Identifier: Apache-2.0
+#nullable enable
 
 namespace GLTFast.Schema
 {
@@ -13,7 +14,7 @@ namespace GLTFast.Schema
 
         /// <inheritdoc cref="Extension.TextureBasisUniversal"/>
         // ReSharper disable once InconsistentNaming
-        public TextureBasisUniversal KHR_texture_basisu;
+        public TextureBasisUniversal? KHR_texture_basisu;
 
         /// <inheritdoc cref="Extension.TextureVideo"/>
         public MpegTextureVideo? MPEG_texture_video;

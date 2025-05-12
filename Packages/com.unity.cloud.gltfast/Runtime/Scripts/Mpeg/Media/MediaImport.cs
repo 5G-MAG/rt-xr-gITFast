@@ -25,14 +25,7 @@ namespace GLTFast {
 
         private static List<MediaPlayer> mediaPlayers = new();
         public static List<MediaPlayer> MediaPlayers { get { return mediaPlayers; } }
-
-        public static MediaPlayer? GetMediaPlayer(int idx){
-            if (idx < 0 || idx+1 > mediaPlayers.Count){
-                return null;
-            }
-            return mediaPlayers[idx];
-        }
-
+        
         static void ApplyBaseUri(Schema.Media m, Uri baseUri)
         {
             foreach (Schema.MediaAlternative ma in m.alternatives)

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Unity Technologies and the glTFast authors
 // SPDX-License-Identifier: Apache-2.0
 
+#nullable enable
+
 using System;
 using UnityEngine;
 
