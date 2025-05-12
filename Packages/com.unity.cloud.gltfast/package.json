@@ -1,8 +1,8 @@
 {
-  "name": "com.unity.cloud.gltfast",
+  "name": "rt.xr.gltfast",
   "version": "6.10.2-pre.1",
-  "displayName": "Unity glTFast",
-  "description": "Use glTFast to import and export glTF 3D files efficiently at runtime or in the Editor",
+  "displayName": "5G-MAG fork of com.unity.cloud.gltfast",
+  "description": "This fork implements MPEG glTF extensions defined in ISO/IEC 23090-14:2024",
   "unity": "2020.3",
   "keywords": [
     "mesh",
