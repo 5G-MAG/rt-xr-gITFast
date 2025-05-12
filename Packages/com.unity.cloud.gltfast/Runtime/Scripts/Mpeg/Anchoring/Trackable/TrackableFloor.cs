@@ -56,33 +56,39 @@ namespace GLTFast
             }
         }
 
-        private void Awake()
+        private bool EnsureConfiguration()
         {
-            m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
             GameObject obj = ARUtilities.GetSessionOrigin();
 
+            m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
             if(m_AnchorManager == null)
             {
                 m_AnchorManager = obj.AddComponent<ARAnchorManager>();
             }
             m_AnchorManager.enabled = true;
 
-            m_ArPlaneManager = FindObjectOfType<ARPlaneManager>(true);
+            m_ArPlaneManager = FindObjectOfType<ARPlaneManager>();
             if(m_ArPlaneManager == null)
             {
                 m_ArPlaneManager = obj.AddComponent<ARPlaneManager>();
             }
             m_ArPlaneManager.enabled = true;
+
+            return true;
         }
 
         public  void Init()
-        {  
+        {
+            if (!EnsureConfiguration())
+            {
+                throw new System.Exception("Can't start TrackablFloor. Something went wrong in the configuration");
+            }
             var res  = m_ArPlaneManager.descriptor;
             
             //check if classification is supported
             if(res == null)
             {
-                Debug.LogWarning("Classification is not supported: ");
+                Debug.LogWarning("Classification is not supported by this platform, but it is required by TRACKABLE_FLOOR.");
                 m_SupportClassification = false;
             }
             else
@@ -91,76 +97,80 @@ namespace GLTFast
             }
                 
             //force horizontal detection
-            m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
+            // m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
             m_ArPlaneManager.planesChanged += PlanesChanged;  
         }
 
         private void PlanesChanged(ARPlanesChangedEventArgs arg)
         {
-            if(arg.added != null)
+            if(arg.added.Count > 0)
             {
-                if(arg.added.Count==0)
-                {
-                    return;
-                }
-                //Floor detection
-                ARPlane tempPlane = arg.added[0];
-                if (m_SupportClassification && tempPlane.classification == PlaneClassification.Floor)
-                {
-                    //Kept first detected
-                    if(m_Plane == null)
-                    {
-                        m_Plane = tempPlane;
-                        m_Id = tempPlane.trackableId;
-                        var res = BuildAnchorInternal();
-                        if(!res)
-                        {
-                            m_Plane = null;    
+                Debug.Log("TrackableFloor::PlanesChanged - added : " + arg.added.Count);
+                if (m_Plane == null){
+                    if (m_SupportClassification){
+                        foreach (ARPlane p in arg.added){
+                            if (p.classification == PlaneClassification.Floor && p.alignment == PlaneAlignment.HorizontalUp)
+                            {
+                                m_Plane = p;
+                                var res = BuildAnchorInternal();
+                                m_Id = p.trackableId;
+                                if(!res)
+                                {
+                                    m_Plane = null;
+                                    m_Id = TrackableId.invalidId;
+                                }
+                            }
+                        }
+                    } else {
+                        foreach (ARPlane p in arg.added){
+                            if (p.alignment == PlaneAlignment.HorizontalUp){
+                                // use the first plane
+                                m_Plane = p;
+                                m_Id = p.trackableId;
+                                var res = BuildAnchorInternal();
+                                if(!res)
+                                {
+                                    m_Plane = null;
+                                    m_Id = TrackableId.invalidId;
+                                }
+                            }
                         }
                     }
+                } else {
+                    Debug.Log("TrackableFloor::PlanesChanged - Ignoring " + arg.added.Count + " added planes.");
                 }
-                else
-                {
-                    if(m_Plane == null)
-                    {
-                        m_Plane = tempPlane;
-                        m_Id = tempPlane.trackableId;
-                        var res = BuildAnchorInternal();
-                        if(!res)
-                        {
-                            m_Plane = null; 
-                        }
+                foreach (ARPlane p in arg.added){
+                    if (p != m_Plane){
+                        // visualize only the plane being tracked
+                        p.gameObject.SetActive(false);
                     }
                 }
-            }
-            else if(arg.removed!= null)
-            {
-                if(arg.removed.Count == 0)
-                {
-                    return; 
-                }
 
-                ARPlane tempPlane = arg.removed[0];
-                if (tempPlane.trackableId == m_Id)
-                {
-                    m_Plane = null;
-                    m_Id = TrackableId.invalidId;
-                    RemoveAnchor();
-                }
             }
-            else if(arg.updated != null )
-            {
-                if(arg.updated.Count==0)
-                {
-                    return;  
-                }
 
-                ARPlane tempPlane = arg.updated[0];
-                if (tempPlane.trackableId == m_Id)
-                {
-                    m_Plane = tempPlane;
-                    m_Id = tempPlane.trackableId;
-                } 
+            if(m_Plane != null && arg.removed.Count > 0)
+            {
+                foreach (ARPlane p in arg.removed){
+                    if (p.trackableId == m_Id)
+                    {
+                        m_Plane = null;
+                        m_Id = TrackableId.invalidId;
+                        RemoveAnchor();
+                    }
+                }
+                Debug.Log("TrackableFloor::PlanesChanged - Removed : " + arg.removed.Count);
+            }
+
+            if(m_Plane != null && arg.updated.Count > 0)
+            {
+                foreach (ARPlane p in arg.updated){
+                    if (p.trackableId == m_Id)
+                    {
+                        p.gameObject.SetActive(true);
+                        // @TODO: ensure aligned and scaled
+                    }
+                }
+                Debug.Log("TrackableFloor::PlanesChanged - Removed : " + arg.removed.Count);
             }
         }
 
@@ -210,7 +220,7 @@ namespace GLTFast
                 CheckAlignedAndScale(m_Plane);
             }
 
-            m_Anchor = m_AnchorManager.AttachAnchor(m_Plane,new Pose(m_Plane.transform.position,m_Plane.transform.rotation));
+            m_Anchor = m_AnchorManager.AttachAnchor(m_Plane,new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
             if(!m_Attached)
             {
                 foreach (GameObject go  in m_GoToAttached)
@@ -232,7 +242,6 @@ namespace GLTFast
                 }
                 m_Attached = true;
             }
-            UpdatePlaneVisibility(false);  
             return true; 
         }
 
@@ -252,17 +261,9 @@ namespace GLTFast
             if(m_Anchor != null && !m_Attached)
             {
                 Debug.Log("TrackableFloor::GO Active:" +go.activeSelf);
-                go.transform.SetParent(m_Anchor.gameObject.transform,false);
+                go.transform.SetParent(m_Anchor.gameObject.transform, false);
                 go.SetActive(true);
             }         
-        }
-
-        private void UpdatePlaneVisibility(bool visible)
-        {
-            foreach (var plane in m_ArPlaneManager.trackables)
-            {
-                plane.gameObject.SetActive(visible);
-            }
         }
 
         public void RequiredSpace(UnityEngine.Vector3 requiredSpace)
@@ -278,19 +279,10 @@ namespace GLTFast
             Debug.Log("TrackableFloor::RequiredAnchoring "+m_RequiredAnchoring);         
         }
 
-        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
-        {
-            Debug.Log("TrackableFloor::RequiredAlignedAndScale "+aligned);
-            // if(aligned == Anchor.Aligned.ALIGNED_NOTSCALED)
-            // {
-            //     m_RequiredAlignedNotScale = true;
-            // }
-            // if(aligned == Anchor.Aligned.ALIGNED_SCALED)
-            // {
-            //     m_RequiredAlignedAndScale = true;
-            // }
-            Debug.Log("TrackableFloor::RequiredAlignedAndScale "+aligned);
-        }
+        // @TODO: was not implemented in initial contribution. 
+        // alignment is signaled on Anchor and configured on the AnchorInstance object.
+        // trackable should only provide bounds
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned){}
 
         private void ComputePlaneAABB(ARPlane plane)
         {
@@ -329,7 +321,7 @@ namespace GLTFast
             Debug.Log("TrackableFloor::computeSceneAABB");
             foreach(GameObject go in m_GoToAttached)
             {
-                Transform  trans;
+                Transform trans;
                 MeshFilter meshFilter;
                 Bounds boundsInt;
                 if(go.TryGetComponent<Transform> (out trans))
@@ -404,17 +396,17 @@ namespace GLTFast
                     foreach(GameObject go in m_GoToAttached)
                     {
                         go.SetActive(false);
-                        // TODO: Show planes because it seems that nothing happen
+                        // @TODO: Show planes because it seems that nothing happen
                         // Same on geometric
                     }
                     m_IsGoActivated = false;
                 }
             }
-            else
-            {
-                UpdatePlaneVisibility(false);
-            }  
+            if (m_Plane != null){
+
+            }
         }
+
         public void DumpAttributs()
         {
             Dictionary<string, string> attributs = new Dictionary<string, string>();
