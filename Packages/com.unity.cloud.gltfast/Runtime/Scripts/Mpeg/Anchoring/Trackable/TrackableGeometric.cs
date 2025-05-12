@@ -13,6 +13,7 @@ using GLTFast.Schema;
 using System.Collections.Generic;
 using UnityEngine;
 #if UNITY_ANDROID
+using Unity.XR.CoreUtils;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 #endif
@@ -60,6 +61,7 @@ namespace GLTFast
 
         public bool EnsureConfiguration()
         {
+
             GameObject arSession = ARUtilities.GetSessionOrigin();
 
             m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
@@ -76,8 +78,8 @@ namespace GLTFast
             }
             m_ArPlaneManager.enabled = true;
 
-            ARSessionOrigin _origin = arSession.GetComponent<ARSessionOrigin>();
-            UnityEngine.Camera _cam = _origin.camera;
+            XROrigin _origin = arSession.GetComponent<XROrigin>();
+            UnityEngine.Camera _cam = _origin.GetComponent<UnityEngine.Camera>();
 
             if (_cam.GetComponent<ARCameraBackground>() == null)
             {
@@ -109,7 +111,7 @@ namespace GLTFast
                 }
             }
 
-            _origin.camera = _cam;
+            _origin.Camera = _cam;
 
             Transform _destination = _origin.transform.GetChild(0);
             _cam.transform.SetParent(_destination);
