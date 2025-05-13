@@ -35,8 +35,6 @@ namespace GLTFast.Schema
         // MPEG_media extension
         public MpegMediaExtension MPEG_media;
 
-        // MPEG_scene_interactivity extension
-        public MpegSceneInteractivity MPEG_scene_interactivity;
         // MPEG anchor extension
         public MpegAnchor MPEG_anchor;
 
@@ -59,11 +57,6 @@ namespace GLTFast.Schema
                 MPEG_media.GltfSerialize(writer);
             }
             //// IDCC
-            if(MPEG_scene_interactivity != null)
-            {
-                writer.AddProperty("MPEG_scene_interactivity");
-                MPEG_scene_interactivity.GltfSerialize(writer);
-            }
             if(MPEG_anchor != null)
             {
                 writer.AddProperty("MPEG_anchor");
@@ -93,10 +86,6 @@ namespace GLTFast.Schema
                 MPEG_media = null;
             }
 
-            if(MPEG_scene_interactivity != null && !MPEG_scene_interactivity.JsonUtilityCleanup())
-            {
-                MPEG_scene_interactivity = null;
-            }
             if(MPEG_anchor != null && !MPEG_anchor.JsonUtilityCleanup())
             {
                 MPEG_anchor = null;
@@ -105,7 +94,6 @@ namespace GLTFast.Schema
             return KHR_lights_punctual != null
                 || KHR_materials_variants != null
                 || MPEG_media != null
-                || MPEG_scene_interactivity != null
                 || MPEG_anchor != null;
         }
     }
