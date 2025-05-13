@@ -26,8 +26,8 @@ namespace GLTFast
             try
             {
                 m_GltfImport = new GltfImport();
-                await m_GltfImport.Load(path);
-                return true;
+                bool res = await m_GltfImport.Load(path);
+                return res;
             }
             catch (Exception e)
             {
@@ -39,7 +39,8 @@ namespace GLTFast
         public bool IsImplicitXrPassthrough()
         {
             var gltfRoot = m_GltfImport.GetSourceRoot();
-            if (gltfRoot.Extensions.MPEG_anchor != null &&
+            if (gltfRoot.Extensions != null && 
+                gltfRoot.Extensions.MPEG_anchor != null &&
                 gltfRoot.Extensions.MPEG_anchor.trackables != null)
             {
                 if(gltfRoot.Extensions.MPEG_anchor.trackables != null)
@@ -90,7 +91,9 @@ namespace GLTFast
             MpegInstantiatorAddon m_goInstantiatorAddon;
 
             public override void Dispose() {
-                m_goInstantiatorAddon.Dispose();
+                if (m_goInstantiatorAddon != null){
+                    m_goInstantiatorAddon.Dispose();
+                }
             }
 
             public override void Inject(GltfImportBase gltfImport)
@@ -223,7 +226,7 @@ namespace GLTFast
         }
 
         void UpdateVirtualSceneGraph(){
-            
+
             for (var i = 0; i < m_GltfImport.TextureCount; i++)
             {
                 Texture2D tex = m_GltfImport.GetTexture(i);
@@ -252,7 +255,7 @@ namespace GLTFast
         }
 
         void ProcessMpegSceneInteractivityExtension(Schema.Scene scene){
-            
+
             //// IDCC
             if (scene.extensions.MPEG_scene_interactivity != null)
             {
@@ -306,10 +309,13 @@ namespace GLTFast
 
             var gltfRoot = m_GltfImport.GetSourceRoot();
 
+            if (gltfRoot.Extensions == null || gltfRoot.Extensions.MPEG_anchor == null){
+                return;
+            }
+
             //// IDCC
-            if (gltfRoot.Extensions.MPEG_anchor != null &&
-                (gltfRoot.Extensions.MPEG_anchor.trackables != null
-                || gltfRoot.Extensions.MPEG_anchor.anchors != null))
+            if (gltfRoot.Extensions.MPEG_anchor.trackables != null
+                || gltfRoot.Extensions.MPEG_anchor.anchors != null)
             {
                 
                 Schema.MpegAnchor MPEG_anchor = gltfRoot.Extensions.MPEG_anchor;

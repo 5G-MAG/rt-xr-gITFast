@@ -50,6 +50,11 @@ namespace GLTFast.Schema
                 writer.AddProperty("MPEG_scene_interactivity");
                 MPEG_scene_interactivity.GltfSerialize(writer);
             }
+            if (MPEG_anchor != null)
+            {
+                writer.AddProperty("MPEG_anchor");
+                MPEG_anchor.GltfSerialize(writer);
+            }
             writer.Close();
         }
     }
