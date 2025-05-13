@@ -2321,6 +2321,9 @@ namespace GLTFast
                             break;
                     }
                 }
+                
+                //// IDCC
+                VirtualSceneGraph.AssignAnimationIndexToAnimationClip(i, m_AnimationClips[i]);
 
             }
         }

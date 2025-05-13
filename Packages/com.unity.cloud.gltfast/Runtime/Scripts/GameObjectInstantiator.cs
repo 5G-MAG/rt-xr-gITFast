@@ -171,6 +171,8 @@ namespace GLTFast
                         if (index < 1) {
                             animation.clip = clip;
                         }
+                        //// IDCC
+                        VirtualSceneGraph.AssignAnimationIndexToAnimation(index, clip.name, animation);
                     }
                     
                     SceneInstance.SetLegacyAnimation(animation);
