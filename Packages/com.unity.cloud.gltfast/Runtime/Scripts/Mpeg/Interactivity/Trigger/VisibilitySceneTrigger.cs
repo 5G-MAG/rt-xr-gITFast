@@ -45,7 +45,7 @@ namespace GLTFast
                 VisibilityNodeTrigger _detector = _targetGo.AddComponent<VisibilityNodeTrigger>();
 
                 Node _node = VirtualSceneGraph.GetNodeFromGameObject(_targetGo);
-                if(_node.extensions.MPEG_node_interactivity != null
+                if(_node.extensions?.MPEG_node_interactivity != null
                 && _node.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_VISIBILITY)
                 {
                     _detector.InitSceneAndNodeLevelExtension(_node.extensions.MPEG_node_interactivity.triggers[i]);

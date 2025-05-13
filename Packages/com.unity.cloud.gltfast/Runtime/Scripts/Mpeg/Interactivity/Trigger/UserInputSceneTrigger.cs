@@ -76,7 +76,7 @@ namespace GLTFast
                 for(int i = 0; i < trigger.nodes.Length; i++)
                 {
                     Node _node = VirtualSceneGraph.GetNodeFromNodeIndex(trigger.nodes[i]);
-                    if(_node.extensions.MPEG_node_interactivity != null)
+                    if(_node.extensions?.MPEG_node_interactivity != null)
                     {
                         if(_node.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_USER_INPUT)
                         {
