@@ -164,16 +164,16 @@ namespace GLTFast.Schema
                     e.KHR_lights_punctual = null;
                 }
 
+                if (e.MPEG_node_interactivity?.triggers == null)
+                {
+                    e.MPEG_node_interactivity = null;
+                }
+
                 /*
                 if ((e.MPEG_audio_spatial?.sources?.Length ?? 0) == 0 && 
                     (e.MPEG_audio_spatial?.listener?.id ?? -1) < 0)
                 {
                     e.MPEG_audio_spatial = null;
-                }
-
-                if (e.MPEG_node_interactivity?.triggers.Length == 0)
-                {
-                    e.MPEG_node_interactivity = null;
                 }
 
                 if ((e.MPEG_anchor?.anchor ?? -1) < 0)
