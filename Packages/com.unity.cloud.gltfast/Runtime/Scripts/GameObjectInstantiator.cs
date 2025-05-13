@@ -391,7 +391,8 @@ namespace GLTFast
                         o.zfar >= 0 ? o.zfar : (float?)null,
                         o.xmag,
                         o.ymag,
-                        camera.name
+                        camera.name,
+                        cameraIndex
                     );
                     break;
                 case Schema.Camera.Type.Perspective:
@@ -402,7 +403,8 @@ namespace GLTFast
                         p.znear,
                         p.zfar,
                         p.aspectRatio > 0 ? p.aspectRatio : (float?)null,
-                        camera.name
+                        camera.name,
+                        cameraIndex
                     );
                     break;
             }
@@ -415,10 +417,11 @@ namespace GLTFast
             float farClipPlane,
             // ReSharper disable once UnusedParameter.Local
             float? aspectRatio,
-            string cameraName
+            string cameraName,
+            uint cameraIndex
         )
         {
-            var cam = CreateCamera(nodeIndex, cameraName, out var localScale);
+            Camera cam = CreateCamera(nodeIndex, cameraName, out var localScale);
 
             cam.orthographic = false;
 
@@ -432,6 +435,9 @@ namespace GLTFast
             // if (aspectRatio.HasValue) {
             //     cam.rect = GetLimitedViewPort(aspectRatio.Value);
             // }
+
+            //// IDCC
+            VirtualSceneGraph.AssignCameraIndexToCamera((int)cameraIndex, cam);
         }
 
         void AddCameraOrthographic(
@@ -440,10 +446,11 @@ namespace GLTFast
             float? farClipPlane,
             float horizontal,
             float vertical,
-            string cameraName
+            string cameraName,
+            uint cameraIndex
         )
         {
-            var cam = CreateCamera(nodeIndex, cameraName, out var localScale);
+            Camera cam = CreateCamera(nodeIndex, cameraName, out var localScale);
 
             var farValue = farClipPlane ?? float.MaxValue;
 
@@ -468,6 +475,9 @@ namespace GLTFast
             // // to match the glTFs aspect ratio (box fit)
             // var aspectRatio = horizontal / vertical;
             // cam.rect = GetLimitedViewPort(aspectRatio);
+
+            //// IDCC
+            VirtualSceneGraph.AssignCameraIndexToCamera((int)cameraIndex, cam);
         }
 
         /// <summary>
