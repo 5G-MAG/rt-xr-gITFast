@@ -45,10 +45,9 @@ namespace GLTFast {
         public static void CreateMediaPlayers(Schema.Root root, Uri baseUri = null)
         {
             List<MediaPipelineConfig> configs = MediaImport.GetMediaPipelineConfigs(root); // one config per media
-            Schema.Media[] medias = root.Extensions.MPEG_media.media;
             for (var c = 0; c < configs.Count; c++)
             {
-                Schema.Media m = medias[c];
+                Schema.Media m = root.Extensions.MPEG_media.media[c];
                 if (baseUri != null)
                 {
                     ApplyBaseUri(m, baseUri);
@@ -65,7 +64,7 @@ namespace GLTFast {
         public static List<MediaPipelineConfig> GetMediaPipelineConfigs(Schema.Root root)
         {
             Dictionary<int, maf.AttributeType> attribTypeMap = GetAccessorAttributeTypeMap(root);
-            var ext = root.Extensions.MPEG_media;
+            var ext = root.Extensions?.MPEG_media;
             if (ext == null || ext.media == null)
             {
                 return new List<MediaPipelineConfig>();
