@@ -22,7 +22,7 @@ namespace GLTFast
     /// </summary>
     public static class VirtualSceneGraph
     {
-        /// FIXME: The use of static members makes it impossible to instantiate multiple glTF assets simultaneously
+        /// TODO: The use of static members makes it impossible to instantiate multiple glTF assets simultaneously
         private static CustomDictionary<int, GameObject> m_NodeGameObject
             = new CustomDictionary<int, GameObject>();
 

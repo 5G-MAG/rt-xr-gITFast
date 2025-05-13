@@ -49,7 +49,7 @@ namespace GLTFast
         private void Execute()
         {
             // VirtualSceneGraph.root.extensions.MPEG_media.media[0].alternatives[0].uri;
-            Debug.LogError("TODO: Execute ActionMedia");
+            Debug.LogWarning("TODO: Execute ActionMedia");
         }
 
         private IEnumerator StartWithDelay(float _time)
