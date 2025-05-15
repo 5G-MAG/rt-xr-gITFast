@@ -78,7 +78,7 @@ namespace GLTFast
         }
 
         public  void Init()
-        {
+        {  
             if (!EnsureConfiguration())
             {
                 throw new System.Exception("Can't start TrackablFloor. Something went wrong in the configuration");
