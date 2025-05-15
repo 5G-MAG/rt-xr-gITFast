@@ -14,12 +14,12 @@
 1. Update the constant variable `GLTFast.Export.Constants.version`
    (in `Packages/com.unity.cloud.gltfast/Runtime/Scripts/Export/Constants.cs`)
    to the release version.
+1. Update package version in `.yamato/ValidationExceptions.json` (if any API validation exception is required)
 1. Push the branch and open a Pull Request targeting the previously created
    release branch. Add glTFast owners as approvers for this PR.
-1. On the [Yamato glTFast
-   project],
-   look for the `release/X.Y.Z-working` branch certify that the
-   `Publish Dry Run cloud.gltfast` job has been triggered automatically.
+1. On the [Yamato glTFast project], look for the `release/X.Y.Z-working` branch
+   certify that the `Publish Dry Run cloud.gltfast` job has been triggered
+   automatically.
 1. Post a link in the [shiproom channel] to the pull request with the following
    [template](./Templates/release-pr-message.md).
 1. Wait for approval and wait for the Yamato job to complete successfully. If
@@ -43,10 +43,8 @@ This step needs to be performed by the package owner.
 Until this step is automated, it will be performed by one of the glTFast
 owners
 
-1. On the [Yamato glTFast
-   project],
-   look for the `release/X.Y.Z` branch and find the
-   `Package Pack - cloud.gltfast` job.
+1. On the [Yamato glTFast project], look for the `release/X.Y.Z` branch and
+   find the `Package Pack - cloud.gltfast` job.
 1. Look for the latest instance of the job, which should correspond to the
    instance run during the above step.
 1. Copy the link to the artifacts page of this job [shiproom channel] using the
@@ -66,12 +64,14 @@ owners
 1. Update package version in `Packages/com.unity.cloud.gltfast/package.json` to
    the `X.Y.W-pre.1`.
 1. Update `Packages/com.unity.cloud.gltfast/CHANGELOG.md` by applying the same
-   `X.Y.Z` release section and date and adding an [unreleased
-   section](./Templates/changelog-section.md). Move any entries which may have
-   been added to develop since the release to the new unreleased section.
+   `X.Y.Z` release section and date and adding an
+   [unreleased section](./Templates/changelog-section.md). Move any entries
+   which may have been added to develop since the release to the new unreleased
+   section.
 1. Update the constant variable `GLTFast.Export.Constants.version`
    (in `Packages/com.unity.cloud.gltfast/Runtime/Scripts/Export/Constants.cs`)
    to `X.Y.W-pre.1`.
+1. Update package version in `.yamato/ValidationExceptions.json` (if any API validation exception is required)
 1. Open a PR and, once reviewed, merge it into develop and delete the working
    branch
 
@@ -79,14 +79,14 @@ owners
 
 1. Go to the [glTFast Package Works portal](
    https://package-works.prd.cds.internal.unity3d.com/project?id=6135).
+1. View the glTFast repository and add the new release branch.
 1. Create a new release stream called `glTFast/X.Y.Z`
 1. In the release stream, add a package to the release stream by selecting the
-   release branch within the repository.
-1. Confirm that all badges are green.
-1. On the [Yamato glTFast
-   project],
-   look for the `release/X.Y.Z` branch and find the
-   `Publish cloud.gltfast` job.
+   release branch added before.
+1. Confirm that all badges are green. As of now, certain validation jobs are
+   instable due to timeouts, so re-running the *Publish Dry Run* might solve
+   the issue.
+1. On the [Yamato glTFast project], look for the `release/X.Y.Z` branch and find the `Publish cloud.gltfast` job.
 1. Run the job and wait for it to complete.
 1. Once completed, validate that the packages are effectively present on
    [Artifactory](https://artifactory.prd.cds.internal.unity3d.com/ui/packages?name=com.unity.cloud.gltfast%2A&type=packages)
@@ -102,7 +102,7 @@ owners
 When packages are on Artifactory, they are accessible to Unity developers only.
 In order to make these packages accessible to the public, they need to be
 promoted to UPM. In order for this to be effective, one of the glTFast release
-managers must promote the package on the Go to the 
+managers must promote the package on the Go to the
 [glTFast Package Works portal](
 https://package-works.prd.cds.internal.unity3d.com/project?id=6135).
 

@@ -9,6 +9,7 @@ using UnityEngine.Rendering;
 
 namespace GLTFast.Tests.Export
 {
+    [Category("Export")]
     class VertexAttributeUsageTests
     {
         [Test]

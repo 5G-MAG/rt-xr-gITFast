@@ -30,8 +30,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
-[assembly: InternalsVisibleTo("glTFast.Editor.Tests")]
-
 namespace GLTFast.Editor
 {
 

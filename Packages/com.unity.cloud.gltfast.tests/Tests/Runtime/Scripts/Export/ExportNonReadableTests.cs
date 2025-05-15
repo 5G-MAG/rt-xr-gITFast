@@ -126,7 +126,7 @@ namespace GLTFast.Tests.Export
             Assert.IsFalse(mesh.isReadable);
         }
 
-        void Certify()
+        internal static void Certify()
         {
             if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLCore
                 || SystemInfo.graphicsDeviceType == GraphicsDeviceType.OpenGLES3

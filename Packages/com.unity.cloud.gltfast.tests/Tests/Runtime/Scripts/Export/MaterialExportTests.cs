@@ -12,6 +12,7 @@ using Material = UnityEngine.Material;
 
 namespace GLTFast.Tests.Export
 {
+    [Category("Export")]
     abstract class MaterialExportTests
     {
         const string k_ResourcePath = "Export/Materials/";

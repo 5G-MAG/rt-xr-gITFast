@@ -102,6 +102,7 @@ glTF defines an [extension mechanism][gltf-ext] that allows the base format to b
 | KHR_lights_punctual | ✅ | ✅
 | KHR_materials_anisotropy | | |
 | KHR_materials_clearcoat | ✅ | ✅
+| KHR_materials_diffuse_transmission | | |
 | KHR_materials_dispersion | | |
 | KHR_materials_emissive_strength | | |
 | KHR_materials_ior | [ℹ️][IOR] |

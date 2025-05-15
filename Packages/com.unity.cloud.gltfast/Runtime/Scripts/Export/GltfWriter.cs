@@ -902,6 +902,12 @@ namespace GLTFast.Export
                 return false;
 #endif
             }
+            else if ((m_Settings.Compression & Compression.MeshOpt) != 0)
+            {
+                m_Logger?.Error("Meshopt compression is not supported yet.");
+                return false;
+            }
+
             var tasks = m_Settings.Deterministic ? null : new List<Task>(m_Meshes.Count);
 
             var meshData = CollectMeshData(out var meshDataArray);
@@ -1136,25 +1142,7 @@ namespace GLTFast.Export
                 }
             }
 
-            // Add skin
-            var bindposes = uMesh.bindposes;
-            if (bindposes != null && bindposes.Length > 0)
-            {
-                var accessor = new Accessor
-                {
-                    byteOffset = 0,
-                    componentType = GltfComponentType.Float,
-                    count = bindposes.Length
-                };
-                accessor.SetAttributeType(GltfAccessorAttributeType.MAT4);
-
-                var accessorId = AddAccessor(accessor);
-                m_MeshBindPoses ??= new Dictionary<int, int>();
-                m_MeshBindPoses[meshId] = accessorId;
-
-                var bufferViewId = await WriteBindPosesToBuffer(bindposes);
-                accessor.bufferView = bufferViewId;
-            }
+            await ExportBindPoses(meshId, uMesh);
 
             var streamCount = 1;
             for (var stream = 0; stream < outputStrides.Length; stream++)
@@ -1470,6 +1458,29 @@ namespace GLTFast.Export
             }
         }
 
+        async Task ExportBindPoses(int meshId, UnityEngine.Mesh uMesh)
+        {
+            // Add skin
+            var bindposes = uMesh.bindposes;
+            if (bindposes != null && bindposes.Length > 0)
+            {
+                var accessor = new Accessor
+                {
+                    byteOffset = 0,
+                    componentType = GltfComponentType.Float,
+                    count = bindposes.Length
+                };
+                accessor.SetAttributeType(GltfAccessorAttributeType.MAT4);
+
+                var accessorId = AddAccessor(accessor);
+                m_MeshBindPoses ??= new Dictionary<int, int>();
+                m_MeshBindPoses[meshId] = accessorId;
+
+                var bufferViewId = await WriteBindPosesToBuffer(bindposes);
+                accessor.bufferView = bufferViewId;
+            }
+        }
+
         async Task<int> WriteBindPosesToBuffer(Matrix4x4[] bindposes)
         {
             var bufferViewId = -1;
@@ -1486,7 +1497,7 @@ namespace GLTFast.Export
             }
             job.Complete();
             bufferViewId = WriteBufferViewToBuffer(
-                matrices.Reinterpret<byte>(sizeof(float) * 4 * 4), BufferViewTarget.None
+                matrices.Reinterpret<byte>(sizeof(float) * 4 * 4), BufferViewTarget.None, byteAlignment: 4
             );
 
             nativeBindPoses.Dispose();
@@ -1589,6 +1600,8 @@ namespace GLTFast.Export
                     indices = indicesId
                 };
             }
+
+            await ExportBindPoses(meshId, unityMesh);
         }
 
         static void SetAttributesByType(

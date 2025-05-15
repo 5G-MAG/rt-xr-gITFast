@@ -40,7 +40,25 @@ namespace GLTFast.Logging
         /// <param name="logType">Type of message e.g. warn or error etc.</param>
         /// <param name="code">Message's log code</param>
         /// <param name="messages">Additional, optional message parts</param>
-        void Log(LogType logType, LogCode code, params string[] messages);
+        public void Log(LogType logType, LogCode code, params string[] messages)
+#if UNITY_2021_3_OR_NEWER
+        {
+            switch (logType)
+            {
+                case LogType.Log:
+                    Info(code, messages);
+                    break;
+                case LogType.Warning:
+                    Warning(code, messages);
+                    break;
+                default:
+                    Error(code, messages);
+                    break;
+            }
+        }
+#else
+            ;
+#endif
 
         /// <summary>
         /// Dispatches a critical error message.

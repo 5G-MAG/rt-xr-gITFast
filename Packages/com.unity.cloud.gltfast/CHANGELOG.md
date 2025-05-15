@@ -4,19 +4,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [6.10.3] - 2025-02-21
 
 ### Added
 
 ### Changed
 
 ### Fixed
+- (Import) Morph targets on multi-primitive meshes (where primitives reference identical vertex buffers; fixes [#755](https://github.com/atteneder/glTFast/issues/755)).
 
 ### Removed
 
 ### Deprecated
 
 ### Security
+
+## [6.10.2] - 2025-02-03
+
+### Added
+- (Importer) *Textures Readable* checkbox in the imnporter inspector (*Textures* section).
+- (Export) Error message when attempting to export with unsupported meshopt compression.
+- (Tests) Runtime import performance tests.
+- (Tests) Procedurally generated glTFs for testing purpose.
+- (Tests) Editor export tests.
+
+### Changed
+- (Tests) Reduced jobs performance test duration by lowering buffer sizes and switching to dynamic measurement counts.
+- (Tests) Performance tests are not run, unless the `RUN_PERFORMANCE_TESTS` scripting define is set.
+
+### Fixed
+- Performance test compilation if *Collections* package >= 1.5.0 is not installed.
+- Inconsistent profiler markers.
+- (Export) Unity Editor not responding anymore after export glTF with non-readable meshes.
+- (Export) Missing `inverseBindMatrices`/`bindPoses` on skinned meshes when exporting with Draco compression.
+- (CI) Ensuring the development documentation and the `Tools` code is checked for code formatting as well.
+- Compilation for `ICodeLogger` implementors by adding a default implementation for `Log` (works for Unity 2021 LTS and newer).
 
 ## [6.10.1] - 2025-01-09
 

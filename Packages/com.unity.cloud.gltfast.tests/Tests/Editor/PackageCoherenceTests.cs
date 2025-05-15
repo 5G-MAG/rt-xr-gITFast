@@ -35,10 +35,10 @@ namespace GLTFast.Editor.Tests
         public void ExportVersionTest()
         {
             Assert.AreEqual(
-                Export.Constants.version,
+                GLTFast.Export.Constants.version,
                 s_Package.version,
                 "GLTFast.Export.Constants.version does not match package version " +
-                $"(is \"{Export.Constants.version}\", should be \"{s_Package.version}\") ");
+                $"(is \"{GLTFast.Export.Constants.version}\", should be \"{s_Package.version}\") ");
         }
 
         [Test]

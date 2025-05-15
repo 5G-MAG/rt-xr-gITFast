@@ -38,7 +38,7 @@ public class GltfastSettings : AnnotatedSettingsBase
             new Command("cp .yamato/ValidationExceptions.json* Packages/com.unity.cloud.gltfast"
             )
         );
-        
+
         Wrench.PvpProfilesToCheck = new HashSet<string> { "supported" };
     }
 

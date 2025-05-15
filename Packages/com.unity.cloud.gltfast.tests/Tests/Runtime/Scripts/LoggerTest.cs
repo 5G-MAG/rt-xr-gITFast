@@ -29,11 +29,12 @@ namespace GLTFast.Tests
         public static void CollectingLoggerLogTest()
         {
             var r = new CollectingLogger();
-            r.Log(LogType.Error, LogCode.Download, "401", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Assert, LogCode.Download, "402", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Warning, LogCode.Download, "403", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Log, LogCode.Download, "404", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Exception, LogCode.Download, "405", "https://something.com/nowherfound.glb");
+            ICodeLogger l = r;
+            l.Log(LogType.Error, LogCode.Download, "401", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Assert, LogCode.Download, "402", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Warning, LogCode.Download, "403", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Log, LogCode.Download, "404", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Exception, LogCode.Download, "405", "https://something.com/nowherfound.glb");
 
             Assert.AreEqual(5, r.Count);
             var items = r.Items.ToArray();
@@ -61,11 +62,12 @@ namespace GLTFast.Tests
         public static void ConsoleLoggerLogTest()
         {
             var r = new ConsoleLogger();
-            r.Log(LogType.Error, LogCode.Download, "401", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Assert, LogCode.Download, "402", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Warning, LogCode.Download, "403", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Log, LogCode.Download, "404", "https://something.com/nowherfound.glb");
-            r.Log(LogType.Exception, LogCode.Download, "405", "https://something.com/nowherfound.glb");
+            ICodeLogger l = r;
+            l.Log(LogType.Error, LogCode.Download, "401", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Assert, LogCode.Download, "402", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Warning, LogCode.Download, "403", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Log, LogCode.Download, "404", "https://something.com/nowherfound.glb");
+            l.Log(LogType.Exception, LogCode.Download, "405", "https://something.com/nowherfound.glb");
 
             LogAssert.Expect(LogType.Error, "Download URL https://something.com/nowherfound.glb failed: 401");
             LogAssert.Expect(LogType.Assert, "Download URL https://something.com/nowherfound.glb failed: 402");

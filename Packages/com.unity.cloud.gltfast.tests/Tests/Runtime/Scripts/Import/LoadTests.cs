@@ -224,7 +224,7 @@ namespace GLTFast.Tests.Import
 
         // TODO: Remove pragma, as is is required for 2020 LTS and earlier only.
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        static async Task<byte[]> ReadAllBytesAsync(string path)
+        internal static async Task<byte[]> ReadAllBytesAsync(string path)
         {
 #if USE_WEB_REQUEST
             var downloadHandler = await UnityWebRequestDownload(path);

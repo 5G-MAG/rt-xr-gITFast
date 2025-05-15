@@ -4,7 +4,8 @@
 
 Once your project is correctly setup (by either opening one of the provided [test projects](test-project-setup.md#test-projects) or following the steps to [setup your own project](test-project-setup.md#setup-a-custom-project)) you'll be able to run all tests via the *Test Runner* window (under *Window* → *General* → *Test Runner*; see [Test Framework documentation][UTFRunTests] for details about running tests).
 
-Passing all tests is a requirement for getting a [contribution](contribute.md) accepted.
+> [!NOTE]
+> Passing all tests is a requirement for getting a [contribution](contribute.md) accepted.
 
 On an unmodified copy of *glTFast* all tests should pass. Once you start introducing changes it's recommended to periodically check that the tests still pass.
 
@@ -27,6 +28,15 @@ When tests are run in a player build, `GLTFast.Editor.Tests.PreprocessBuild` cop
 > [!CAUTION]
 > If you ran the tests in a production project, you need to remove the test folders in StreamingAssets to ensure they don't end up in a production build.
 
+## Performance Tests
+
+*glTFast* comes with a set of procedurally generated glTFs and tests dedicated to measure and track performance metrics. In order to run the performance tests the [Performance Testing Package for Unity Test Framework][UTFPerformance] has to be installed, otherwise they won't show up.
+
+The glTFs required for the tests have to be generated prior to running the tests by clicking *Tools* → *glTFast* → *Create performance test glTFs* from the main menu.
+
+> [!TIP]
+> The performance test can be included or excluded from test runs via the *Performance* test category they've been assigned to.
+
 ## Trademarks
 
 *Unity&reg;* is a registered trademark of [Unity Technologies][unity].
@@ -38,4 +48,5 @@ When tests are run in a player build, `GLTFast.Editor.Tests.PreprocessBuild` cop
 [StreamingAssets]: https://docs.unity3d.com/Manual/StreamingAssets.html
 [unity]: https://unity.com
 [UTF]: https://docs.unity3d.com/Packages/com.unity.test-framework@latest/
+[UTFPerformance]: https://docs.unity3d.com/Packages/com.unity.test-framework.performance@latest/
 [UTFRunTests]: https://docs.unity3d.com/Packages/com.unity.test-framework@1.4/manual/workflow-run-test.html

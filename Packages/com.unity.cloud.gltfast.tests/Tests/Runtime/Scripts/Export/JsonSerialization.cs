@@ -11,6 +11,7 @@ using Mesh = GLTFast.Schema.Mesh;
 
 namespace GLTFast.Tests.Export
 {
+    [Category("Export")]
     class JsonSerialization
     {
         [Test]

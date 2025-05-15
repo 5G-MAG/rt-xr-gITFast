@@ -28,11 +28,11 @@ on:
 jobs:
   renovate-validation:
     # The reusable workflow will be updated by renovate if there's a new version
-    uses: unity/renovate-workflows/.github/workflows/run.yml@v4.0.0
+    uses: unity/renovate-workflows/.github/workflows/run.yml@v4.1.0
     with:
       # This is the image that contains our custom renovate and will be auto
       # updated by Renovate itself.
-      image: europe-docker.pkg.dev/unity-cds-services-prd/ds-docker/renovate:10.2.4@sha256:3c19b168b1a9a4ca076ad5f858176ef0b2eafc34aafcd6e2276133a563d35112
+      image: europe-docker.pkg.dev/unity-cds-services-prd/ds-docker/renovate:10.2.8@sha256:32dc5191f585eb83b36abecee781c5d0023ea6033b3216a1829bd68a1dbd194a
       dry-run: full
       log-level: ${{ github.event.inputs.log-level }}
     secrets:

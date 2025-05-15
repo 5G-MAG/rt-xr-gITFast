@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.Profiling;
 
 namespace GLTFast.Loading
 {
@@ -111,7 +112,16 @@ namespace GLTFast.Loading
         /// <summary>
         /// Downloaded data as byte array
         /// </summary>
-        public byte[] Data => m_Request?.downloadHandler.data;
+        public byte[] Data
+        {
+            get
+            {
+                Profiler.BeginSample("AwaitableDownload.Data");
+                var result = m_Request?.downloadHandler.data;
+                Profiler.EndSample();
+                return result;
+            }
+        }
 
         /// <summary>
         /// Downloaded data as string

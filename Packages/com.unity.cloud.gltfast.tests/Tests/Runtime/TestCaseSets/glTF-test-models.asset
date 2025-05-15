@@ -80,6 +80,11 @@ MonoBehaviour:
     expectInstantiationFail: 0
     expectedLogCodes: 
     requiredExtensions: 
+  - relativeUri: SubMeshSharedAccessor/SubMeshSharedAccessor.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
   - relativeUri: UnknownExtensions/UnknownExtensions.gltf
     expectLoadFail: 0
     expectInstantiationFail: 0

@@ -15,6 +15,7 @@ using UnityEngine.TestTools.Utils;
 
 namespace GLTFast.Tests.Export
 {
+    [Category("Export")]
     class SceneOriginTests
     {
         static Vector3EqualityComparer s_Vector3Comparer;

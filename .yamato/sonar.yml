@@ -1,7 +1,7 @@
 {% metadata_file .yamato/package.metafile -%}
 
 project: "glTFast-Test"
-editor_version: 6000
+editor_version: 6000.0
 ---
 
 sonar:

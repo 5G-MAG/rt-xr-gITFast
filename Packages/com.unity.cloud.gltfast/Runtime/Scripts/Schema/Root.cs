@@ -8,8 +8,6 @@ using System.Runtime.CompilerServices;
 using UnityEngine.Assertions;
 using UnityEngine.Profiling;
 
-[assembly: InternalsVisibleTo("glTFast.Editor.Tests")]
-
 namespace GLTFast.Schema
 {
 

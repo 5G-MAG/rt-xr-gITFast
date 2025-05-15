@@ -17,7 +17,6 @@ namespace GLTFast
 
     class MorphTargetsGenerator
     {
-        readonly int[] m_VertexIntervals;
         readonly string[] m_MorphTargetNames;
         readonly GltfImportBase m_GltfImport;
 
@@ -26,7 +25,7 @@ namespace GLTFast
 
         public MorphTargetsGenerator(
             int vertexCount,
-            int[] vertexIntervals,
+            int subMeshCount,
             int morphTargetCount,
             string[] morphTargetNames,
             bool hasNormals,
@@ -34,11 +33,9 @@ namespace GLTFast
             GltfImportBase gltfImport
             )
         {
-            m_VertexIntervals = vertexIntervals;
             m_MorphTargetNames = morphTargetNames;
             m_GltfImport = gltfImport;
 
-            var subMeshCount = vertexIntervals.Length - 1;
             m_Contexts = new MorphTargetGenerator[morphTargetCount];
             for (var i = 0; i < morphTargetCount; i++)
             {
@@ -48,13 +45,12 @@ namespace GLTFast
         }
 
         public bool AddMorphTarget(
-            int subMesh,
+            int offset,
             int morphTargetIndex,
             MorphTarget morphTarget
             )
         {
             var morphTargetGenerator = m_Contexts[morphTargetIndex];
-            var offset = m_VertexIntervals[subMesh];
             var jobHandle = morphTargetGenerator.ScheduleMorphTargetJobs(
                 morphTarget,
                 offset,

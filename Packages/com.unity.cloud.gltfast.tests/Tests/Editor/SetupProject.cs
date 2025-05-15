@@ -41,7 +41,8 @@ namespace GLTFast.Editor.Tests
                         "GLTFAST_EDITOR_IMPORT_OFF",
                         "GLTFAST_SAFE",
                         "GLTFAST_KEEP_MESH_DATA"
-                    })
+                    }),
+            ["performance"] = new ProjectSetup(null, new[] { "RUN_PERFORMANCE_TESTS" })
         };
 
         public static async void ApplySetup()

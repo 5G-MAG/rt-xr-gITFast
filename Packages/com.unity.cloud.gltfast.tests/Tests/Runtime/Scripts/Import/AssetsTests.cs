@@ -20,7 +20,7 @@ namespace GLTFast.Tests.Import
     [TestFixture, Category("Import")]
     class AssetsTests
     {
-        [GltfTestCase("glTF-test-models", 36)]
+        [GltfTestCase("glTF-test-models", 37)]
         public IEnumerator GltfTestModels(GltfTestCaseSet testCaseSet, GltfTestCase testCase)
         {
             yield return AsyncWrapper.WaitForTask(RunTestCase(testCaseSet, testCase));

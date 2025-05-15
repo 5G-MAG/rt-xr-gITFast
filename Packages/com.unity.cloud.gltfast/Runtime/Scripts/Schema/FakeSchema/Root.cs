@@ -3,8 +3,6 @@
 
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("glTFast")]
-
 namespace GLTFast.FakeSchema
 {
 

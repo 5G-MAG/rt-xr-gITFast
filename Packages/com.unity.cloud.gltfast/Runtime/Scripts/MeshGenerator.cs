@@ -174,7 +174,7 @@ namespace GLTFast
             {
                 m_MorphTargetsGenerator = new MorphTargetsGenerator(
                     m_VertexData.VertexCount,
-                    m_VertexData.VertexIntervals,
+                    m_Primitives.Count,
                     morphTargets.Length,
                     morphTargetNames,
                     hasNormals,
@@ -278,12 +278,15 @@ namespace GLTFast
                     CalculateIndicesJob(primitive, vertexCount, out m_Indices[subMeshIndex], out var job);
                     tmpList.Add(job);
                 }
-
-                AddMorphTargets(subMeshIndex, primitive, gltfImport.Logger);
             }
 
             if (m_MorphTargetsGenerator != null)
             {
+                for (var subMeshIndex = 0; subMeshIndex < m_Primitives.Count; subMeshIndex++)
+                {
+                    var primitive = m_Primitives[subMeshIndex];
+                    AddMorphTargets(subMeshIndex, primitive, gltfImport.Logger);
+                }
                 tmpList.Add(m_MorphTargetsGenerator.GetJobHandle());
             }
 
@@ -296,11 +299,12 @@ namespace GLTFast
         {
             if (m_MorphTargetsGenerator == null)
                 return;
+            var vertexOffset = m_VertexData.VertexIntervals[subMesh];
             for (var morphTargetIndex = 0; morphTargetIndex < primitive.targets.Length; morphTargetIndex++)
             {
                 var morphTarget = primitive.targets[morphTargetIndex];
                 var success = m_MorphTargetsGenerator.AddMorphTarget(
-                    subMesh,
+                    vertexOffset,
                     morphTargetIndex,
                     morphTarget
                 );

@@ -115,7 +115,7 @@ namespace GLTFast {
             vertexIntervals[vertexIntervals.Length-1] = vertexCount;
             m_MorphTargetsGenerator = new MorphTargetsGenerator(
                 vertexCount,
-                vertexIntervals,
+                1,
                 morphTargets.Length,
                 morphTargetNames,
                 morphTargets[0].NORMAL >= 0,
@@ -128,7 +128,7 @@ namespace GLTFast {
                 for (var morphTargetIndex = 0; morphTargetIndex < primitive.targets.Length; morphTargetIndex++)
                 {
                     var target = primitive.targets[morphTargetIndex];
-                    m_MorphTargetsGenerator.AddMorphTarget(subMesh, morphTargetIndex, target);
+                    m_MorphTargetsGenerator.AddMorphTarget( 0, morphTargetIndex, target);
                 }
             }
         }

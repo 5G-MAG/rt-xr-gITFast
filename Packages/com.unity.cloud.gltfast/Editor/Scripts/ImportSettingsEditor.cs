@@ -33,6 +33,7 @@ namespace GLTFast.Editor
             // Group texture related properties in a foldout
             var properties = new[] {
                 serializedObject.FindProperty($"{pathPrefix}generateMipMaps"),
+                serializedObject.FindProperty($"{pathPrefix}texturesReadable"),
                 serializedObject.FindProperty($"{pathPrefix}defaultMinFilterMode"),
                 serializedObject.FindProperty($"{pathPrefix}defaultMagFilterMode"),
                 serializedObject.FindProperty($"{pathPrefix}anisotropicFilterLevel"),

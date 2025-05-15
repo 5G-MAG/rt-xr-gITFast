@@ -12,6 +12,7 @@ using UnityEngine.TestTools;
 
 namespace GLTFast.Tests.Export
 {
+    [Category("Export")]
     class GltfWriterTests
     {
         [UnityTest]
@@ -100,6 +101,19 @@ namespace GLTFast.Tests.Export
 #endif
         }
 
+        [UnityTest]
+        public IEnumerator MeshoptCompression()
+        {
+#if MESHOPT
+            yield return AsyncWrapper.WaitForTask(
+                MeshoptCompressionTest()
+            );
+#else
+            Assert.Ignore("Requires meshoptimizer decompression for Unity package to be installed.");
+            yield return null;
+#endif
+        }
+
         static async Task DracoUncompressedFallback(ICodeLogger logger)
         {
             var writer = new GltfWriter(
@@ -117,6 +131,38 @@ namespace GLTFast.Tests.Export
 
             await writer.SaveToStreamAndDispose(new MemoryStream());
 
+            Object.Destroy(tmpGameObject);
+        }
+
+        static async Task MeshoptCompressionTest()
+        {
+            var logger = new CollectingLogger();
+            var writer = new GltfWriter(
+                new ExportSettings
+                {
+                    Format = GltfFormat.Binary,
+                    Compression = Compression.MeshOpt
+                },
+                logger: logger
+            );
+
+            var node = writer.AddNode();
+            var tmpGameObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            writer.AddMeshToNode((int)node, tmpGameObject.GetComponent<MeshFilter>().sharedMesh, null, null);
+
+            await writer.SaveToStreamAndDispose(new MemoryStream());
+
+            LoggerTest.AssertLogger(
+                logger,
+                new[]
+                {
+                    new LogItem(
+                        LogType.Error,
+                        LogCode.None,
+                        "Meshopt compression is not supported yet."
+                    )
+                }
+                );
             Object.Destroy(tmpGameObject);
         }
     }

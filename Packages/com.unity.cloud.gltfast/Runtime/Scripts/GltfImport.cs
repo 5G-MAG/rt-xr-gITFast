@@ -3429,6 +3429,8 @@ namespace GLTFast
             // Retrieve indices data jobified
             m_AccessorData = new IDisposable[Root.Accessors.Count];
 
+            Profiler.EndSample();
+
             for (int i = 0; i < m_AccessorData.Length; i++)
             {
                 Profiler.BeginSample("LoadAccessorData.IndicesMatrixJob");
