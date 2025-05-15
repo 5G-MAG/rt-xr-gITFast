@@ -1,0 +1,23 @@
+{% metadata_file .yamato/package.metafile -%}
+---
+pack:
+  name: Pack (and x-ray)
+  agent:
+{% assign agent = agents.ubuntu-small -%}
+    type: {{ agent.type }}
+    image: {{ agent.image }}
+    flavor: {{ agent.flavor}}
+  variables:
+    PVP_PROFILE: "supported .yamato/dev-exemptions.json"
+  commands:
+    # `--upm-ci-compat` because we're still testing with upm-ci in `package-test.yml`
+    - upm-pvp pack "Packages/com.unity.cloud.gltfast*" --output upm-ci~/packages --upm-ci-compat
+    - upm-pvp xray --packages "upm-ci~/packages/*.tgz" --results pvp-results
+    - upm-pvp require "$PVP_PROFILE" --results pvp-results --allow-missing
+  artifacts:
+    logs:
+      paths:
+        - pvp-results/*
+    packages:
+      paths:
+        - "upm-ci~/packages/**/*"

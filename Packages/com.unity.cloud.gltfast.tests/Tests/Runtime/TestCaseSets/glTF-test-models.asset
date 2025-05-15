@@ -1,0 +1,202 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59748363cc8e485aa56e62947048bff8, type: 3}
+  m_Name: glTF-test-models
+  m_EditorClassIdentifier: 
+  assetsRelativePath: Unity
+  assetsAbsolutePath: 
+  m_TestCases:
+  - relativeUri: ColorSpace/ColorSpace.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: EightTexcoords/EightTexcoords.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 34000000
+    requiredExtensions: 
+  - relativeUri: EmbedBufferInvalid/EmbedBufferInvalid.gltf
+    expectLoadFail: 1
+    expectInstantiationFail: 0
+    expectedLogCodes: 0f000000
+    requiredExtensions: 
+  - relativeUri: Empty/Empty.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: ExtrasData/ExtrasData.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: FullyTextured/FullyTextured.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 0600000007000000
+  - relativeUri: Materials/Materials.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: MaterialsVariantsInstanced/MaterialsVariantsInstanced.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 0a000000
+  - relativeUri: NoScene/NoScene.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: OnlyAccessors/OnlyAccessors.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: OnlyTextures/OnlyTextures.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: PrimitiveModes/PrimitiveModes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SubMesh/SubMesh.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SubMeshSharedAccessor/SubMeshSharedAccessor.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: UnknownExtensions/UnknownExtensions.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: UnlitAlphaModes/UnlitAlphaModes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: Bounds/Bounds/Bounds.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: Bounds/BoundsMissing/BoundsMissing.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 20000000
+    requiredExtensions: 
+  - relativeUri: FormatVariants/glTF/FormatVariants.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: FormatVariants/glTF-Binary/FormatVariants.glb
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: FormatVariants/glTF-Embedded/FormatVariants.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: Lights/Directional/LightsDirectional.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 01000000
+  - relativeUri: Lights/Point/LightsPoint.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 01000000
+  - relativeUri: Lights/Spot/LightsSpot.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 01000000
+  - relativeUri: RainbowCuboid/meshopt-c/RainbowCuboid-meshopt-c.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 060000000b000000
+  - relativeUri: RainbowCuboid/meshopt-c-vpn/RainbowCuboid-meshopt-c-vpn.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 060000000b000000
+  - relativeUri: RainbowCuboid/meshopt-cc/RainbowCuboid-meshopt-cc.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 060000000b000000
+  - relativeUri: RainbowCuboid/meshopt-cc-vpn/RainbowCuboid-meshopt-cc-vpn.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 060000000b000000
+  - relativeUri: RainbowCuboid/original/RainbowCuboid.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RelativeUri/SubFolder/RelativeUri.glb
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RelativeUri/SubFolder/RelativeUri.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RootNodeCount/AllScenes/AllScenes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RootNodeCount/AllScenesAnimated/AllScenesAnimated.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RootNodeCount/SingleNode/SingleNode.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RootNodeCount/SingleNodeAnimated/SingleNodeAnimated.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RootNodeCount/TwoNodes/TwoNodes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RootNodeCount/TwoNodesAnimated/TwoNodesAnimated.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 

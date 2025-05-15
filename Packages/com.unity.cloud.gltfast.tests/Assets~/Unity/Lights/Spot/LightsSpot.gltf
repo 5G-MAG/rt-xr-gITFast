@@ -1,0 +1,220 @@
+{
+    "asset" : {
+        "copyright" : "(c) 2022 Andreas Atteneder, CC BY 4.0.",
+        "generator" : "Khronos glTF Blender I/O v3.2.40",
+        "version" : "2.0"
+    },
+    "extensionsUsed" : [
+        "KHR_lights_punctual"
+    ],
+    "extensionsRequired" : [
+        "KHR_lights_punctual"
+    ],
+    "extensions" : {
+        "KHR_lights_punctual" : {
+            "lights" : [
+                {
+                    "color" : [
+                        0.8,
+                        0,
+                        0
+                    ],
+                    "intensity" : 450,
+                    "spot" : {
+                        "innerConeAngle" : 0.31415927098036533,
+                        "outerConeAngle" : 0.5235987901687622
+                    },
+                    "type" : "spot",
+                    "name" : "SpotRed"
+                },
+                {
+                    "color" : [
+                        0,
+                        0.8,
+                        0
+                    ],
+                    "intensity" : 450,
+                    "spot" : {
+                        "innerConeAngle" : 0.31415927098036533,
+                        "outerConeAngle" : 0.5235987901687622
+                    },
+                    "type" : "spot",
+                    "name" : "SpotGreen"
+                },
+                {
+                    "color" : [
+                        0,
+                        0,
+                        0.8
+                    ],
+                    "intensity" : 450,
+                    "spot" : {
+                        "innerConeAngle" : 0.31415927098036533,
+                        "outerConeAngle" : 0.5235987901687622
+                    },
+                    "type" : "spot",
+                    "range" : 40,
+                    "name" : "SpotBlue"
+                }
+            ]
+        }
+    },
+    "scene" : 0,
+    "scenes" : [
+        {
+            "name" : "SpotLights",
+            "nodes" : [
+                0,
+                1,
+                2,
+                3
+            ]
+        }
+    ],
+    "nodes" : [
+        {
+            "mesh" : 0,
+            "name" : "Plane"
+        },
+        {
+            "extensions" : {
+                "KHR_lights_punctual" : {
+                    "light" : 0
+                }
+            },
+            "name" : "SpotRed",
+            "rotation" : [
+                -0.7071068286895752,
+                0,
+                0,
+                0.7071068286895752
+            ],
+            "translation" : [
+                2,
+                5,
+                0
+            ]
+        },
+        {
+            "extensions" : {
+                "KHR_lights_punctual" : {
+                    "light" : 1
+                }
+            },
+            "name" : "SpotGreen",
+            "rotation" : [
+                -0.3535533845424652,
+                0.6123724579811096,
+                0.6123723983764648,
+                0.3535533845424652
+            ],
+            "translation" : [
+                -1,
+                5,
+                -1.7320507764816284
+            ]
+        },
+        {
+            "extensions" : {
+                "KHR_lights_punctual" : {
+                    "light" : 2
+                }
+            },
+            "name" : "SpotBlue",
+            "rotation" : [
+                -0.3535533845424652,
+                -0.6123724579811096,
+                -0.6123723983764648,
+                0.3535533845424652
+            ],
+            "translation" : [
+                -1,
+                5,
+                1.7320507764816284
+            ]
+        }
+    ],
+    "materials" : [
+        {
+            "doubleSided" : true,
+            "name" : "Material",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1
+                ],
+                "metallicFactor" : 0
+            }
+        }
+    ],
+    "meshes" : [
+        {
+            "name" : "Plane",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 0,
+                        "NORMAL" : 1
+                    },
+                    "indices" : 2,
+                    "material" : 0
+                }
+            ]
+        }
+    ],
+    "accessors" : [
+        {
+            "bufferView" : 0,
+            "componentType" : 5126,
+            "count" : 4,
+            "max" : [
+                5,
+                0,
+                5
+            ],
+            "min" : [
+                -5,
+                0,
+                -5
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 1,
+            "componentType" : 5126,
+            "count" : 4,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 2,
+            "componentType" : 5123,
+            "count" : 6,
+            "type" : "SCALAR"
+        }
+    ],
+    "bufferViews" : [
+        {
+            "buffer" : 0,
+            "byteLength" : 48,
+            "byteOffset" : 0
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 48,
+            "byteOffset" : 48
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 12,
+            "byteOffset" : 96
+        }
+    ],
+    "buffers" : [
+        {
+            "byteLength" : 108,
+            "uri" : "LightsSpot.bin"
+        }
+    ]
+}

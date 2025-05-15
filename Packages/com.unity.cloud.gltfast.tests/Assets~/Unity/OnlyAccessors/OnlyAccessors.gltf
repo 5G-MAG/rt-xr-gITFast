@@ -1,0 +1,28 @@
+{
+    "asset": {
+        "generator": "I wrote this by hand",
+        "copyright": "(c) 2022 Chris Djali, CC0 1.0",
+        "version": "2.0"
+    },
+    "accessors": [
+        {
+            "bufferView": 0,
+            "componentType": 5126,
+            "count": 1,
+            "type": "SCALAR"
+        }
+    ],
+    "bufferViews": [
+        {
+            "buffer": 0,
+            "byteLength": 4,
+            "byteOffset": 0
+        }
+    ],
+    "buffers": [
+        {
+            "byteLength": 4,
+            "uri": "data:application/gltf-buffer;base64,MTExMQ=="
+        }
+    ]
+}

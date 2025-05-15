@@ -1,0 +1,95 @@
+{% metadata_file .yamato/package.metafile -%}
+---
+
+{% for editor in editor_versions -%}
+{% for platform in test_platforms -%}
+{% assign agent = agents[platform.agent] -%}
+{% if agent.os == "win" -%}{% assign os = os_variables.win -%}{% else -%}{% assign os = os_variables.unix -%}{% endif -%}
+test_{{ platform.name }}_{{ editor }}:
+  name : Test {{ editor }} on {{ platform.name }}
+  agent:
+    type: {{ agent.type }}
+    image: {{ agent.image }}
+    flavor: {{ agent.flavor}}
+  variables:
+    PVP_PROFILE: "supported .yamato/dev-exemptions.json"
+  commands:
+    - unity-downloader-cli --fast --wait -u {{ editor }} -c editor
+
+    - upm-pvp test --unity .Editor --packages "upm-ci~/packages/*.tgz" --results pvp-results
+    - >
+      upm-pvp require {% if platform.name == "win" %}"%PVP_PROFILE%"{% else %}"$PVP_PROFILE"{% endif %}
+      --results pvp-results
+      --exemptions "pvp-results/new-exemptions.json"
+
+    - upm-pvp create-test-project Projects/TestProject --packages "upm-ci~/packages/*.tgz" --unity .Editor
+
+    # Install glTF-Validator for Unity package
+    - |
+      pushd Packages
+      git clone --depth 1 --single-branch --branch={{ gltf_validator.git_branch }} {{ gltf_validator.git_uri }}
+      popd
+      unity-config project add dependency {{ gltf_validator.id }}@file:./../../../Packages/{{ gltf_validator.git_name }}/Packages/{{ gltf_validator.id }} -p Projects/TestProject
+
+    - >
+      UnifiedTestRunner
+      --suite=editor
+      --suite=playmode
+      --editor-location=.Editor
+      --testproject=Projects/TestProject
+      --artifacts-path=test-results
+      --reruncount=2
+      "--ff={ops.upmpvpevidence.enable=true}"
+      --category="{{ test_categories }}"
+
+{% if agent.os == "win" -%}
+{% if editor == "2020" -%}
+  after:
+    # To prevent random artifacts zip failures, ensure Unity.Licensing.Client.exe is no longer running. See this slack thread for more information (https://unity.slack.com/archives/C998PJJDD/p1683307400228169)
+    # "ver > nul" ensures the ERRORLEVEL is reset to 0 in case Unity.Licensing.Client.exe is already closed
+    - |
+      taskkill /f /t /im Unity.Licensing.Client.exe
+      ver > nul
+{% endif -%}
+{% endif -%}
+  artifacts:
+    logs:
+      paths:
+        - pvp-results/*
+        - test-results/**
+        - upm-ci~/test-results/**
+        - upm-ci~/upm-ci.log
+  dependencies:
+    - .yamato/pack.yml#pack
+{% endfor -%}
+{% endfor -%}
+
+
+tests_all:
+  name: _Test All
+  dependencies:
+{% for editor in editor_versions -%}
+{% for platform in test_platforms -%}
+    - .yamato/package-test.yml#test_{{platform.name}}_{{editor}}
+{% endfor -%}
+{% endfor -%}
+
+tests_pr:
+  name: _Test subset for PRs
+  dependencies:
+{% for editor in editor_versions limit: 1 -%}
+{% for platform in test_platforms limit: 1 -%}
+    # First(oldest) editor, first(most important) platform
+    - .yamato/package-test.yml#test_{{platform.name}}_{{editor}}
+{% endfor -%}
+{% endfor -%}
+{% for platform in test_platforms limit: 1 offset: continue -%}
+    # Newest editor, next(second) platform
+    - .yamato/package-test.yml#test_{{platform.name}}_{{editor_versions[-1]}}
+{% endfor -%}
+{% for editor in editor_versions limit: 1 offset: continue -%}
+{% for platform in test_platforms limit: 1 offset: continue -%}
+    # Next(second) editor, next(third) platform
+    - .yamato/package-test.yml#test_{{platform.name}}_{{editor}}
+{% endfor -%}
+{% endfor -%}

@@ -1,0 +1,57 @@
+{
+  "schema_version": 0.7,
+  "packages": {
+    "com.unity.cloud.gltfast": {
+      "directory": "Packages/com.unity.cloud.gltfast/",
+      "prePackCommands": [
+        "unity-config package add dependency com.unity.formats.gltf.validator@0.2.0-preview.1 --package-path Packages/com.unity.cloud.gltfast.tests",
+        "cp .yamato/ValidationExceptions.json* Packages/com.unity.cloud.gltfast"
+      ],
+      "preTestCommands": {
+        "MacOS": [],
+        "Ubuntu": [],
+        "Windows": []
+      },
+      "InternalOnly": false,
+      "NeverPublish": false,
+      "MaxEditorVersion": "",
+      "coverageEnabled": false,
+      "coverageCommands": [
+        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;pathReplacePatterns:@*,,**/PackageCache/,;sourcePaths:YAMATO_SOURCE_DIR/Packages;"
+      ],
+      "dependantsToIgnoreInPreviewApv": {}
+    },
+    "com.unity.cloud.gltfast.tests": {
+      "directory": "Packages/com.unity.cloud.gltfast.tests/",
+      "prePackCommands": [],
+      "preTestCommands": {
+        "MacOS": [],
+        "Ubuntu": [],
+        "Windows": []
+      },
+      "InternalOnly": false,
+      "NeverPublish": false,
+      "MaxEditorVersion": "",
+      "coverageEnabled": false,
+      "coverageCommands": [
+        "generateAdditionalMetrics;generateHtmlReport;assemblyFilters:ASSEMBLY_NAME;pathReplacePatterns:@*,,**/PackageCache/,;sourcePaths:YAMATO_SOURCE_DIR/Packages;"
+      ],
+      "dependantsToIgnoreInPreviewApv": {}
+    }
+  },
+  "releasing_packages": [
+    "com.unity.cloud.gltfast"
+  ],
+  "jobs_to_monitor": {
+    "com.unity.cloud.gltfast": [
+      ".yamato/wrench/api-validation-jobs.yml#api_validation_-_cloud_gltfast_-_2020_3_-_windows",
+      ".yamato/wrench/preview-a-p-v.yml#all_preview_apv_jobs",
+      ".yamato/wrench/promotion-jobs.yml#publish_dry_run_cloud_gltfast"
+    ]
+  },
+  "publishing_job": ".yamato/wrench/promotion-jobs.yml#publish_cloud_gltfast",
+  "branch_pattern": "ReleaseSlash",
+  "wrench_version": "0.10.37.0",
+  "pvp_exemption_path": ".yamato/wrench/pvp-exemptions.json",
+  "cs_project_path": "Tools/CI/Gltfast.Cookbook.csproj"
+}

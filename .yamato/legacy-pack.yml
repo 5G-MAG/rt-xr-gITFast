@@ -1,0 +1,20 @@
+{% metadata_file .yamato/package.metafile -%}
+---
+legacy_pack:
+  name: Legacy Pack
+  agent:
+{% assign agent = agents.ubuntu-small -%}
+    type: {{ agent.type }}
+    image: {{ agent.image }}
+    flavor: {{ agent.flavor}}
+  commands:
+    - npm install upm-ci-utils@stable -g --registry {{ registry.npm }}
+    # # Inject ValidationExceptions.json
+    # This is required, because com.unity.cloud.gltfast.tests has Newtonsoft JSON 
+    # as dependency, which alters the schema class inheritance hierarchy,resulting in a breaking change.
+    - cp .yamato/ValidationExceptions.json* Packages/com.unity.cloud.gltfast
+    - upm-ci project pack --project-path Projects/glTFast-Test-minimalistic
+  artifacts:
+    packages:
+      paths:
+        - "upm-ci~/packages/**/*"

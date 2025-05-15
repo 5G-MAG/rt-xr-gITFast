@@ -1,0 +1,222 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59748363cc8e485aa56e62947048bff8, type: 3}
+  m_Name: glTF-Sample-Assets
+  m_EditorClassIdentifier: 
+  assetsRelativePath: Khronos
+  assetsAbsolutePath: 
+  m_TestCases:
+  - relativeUri: AnimatedMorphCube/glTF/AnimatedMorphCube.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: AnimatedMorphCube/glTF-Quantized/AnimatedMorphCube.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 06000000
+  - relativeUri: AnimatedTriangle/glTF/AnimatedTriangle.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: AnisotropyStrengthTest/glTF/AnisotropyStrengthTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: AttenuationTest/glTF/AttenuationTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: Box/glTF-Draco/Box.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 00000000
+  - relativeUri: BoxInterleaved/glTF/BoxInterleaved.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: BoxVertexColors/glTF/BoxVertexColors.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: Cameras/glTF/Cameras.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: ClearCoatTest/glTF/ClearCoatTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: EmissiveStrengthTest/glTF/EmissiveStrengthTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: InterpolationTest/glTF/InterpolationTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: IridescenceDielectricSpheres/glTF/IridescenceDielectricSpheres.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: IridescenceMetallicSpheres/glTF/IridescenceMetallicSpheres.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: MeshPrimitiveModes/glTF/MeshPrimitiveModes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: MetalRoughSpheresNoTextures/glTF/MetalRoughSpheresNoTextures.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: MorphPrimitivesTest/glTF/MorphPrimitivesTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: MultipleScenes/glTF/MultipleScenes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: NegativeScaleTest/glTF/NegativeScaleTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RiggedFigure/glTF/RiggedFigure.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: RiggedSimple/glTF/RiggedSimple.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SimpleInstancing/glTF/SimpleInstancing.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SimpleMaterial/glTF/SimpleMaterial.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SimpleMeshes/glTF/SimpleMeshes.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SimpleMorph/glTF/SimpleMorph.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SimpleSkin/glTF/SimpleSkin.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SimpleSparseAccessor/glTF/SimpleSparseAccessor.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: SpecularTest/glTF/SpecularTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TextureCoordinateTest/glTF/TextureCoordinateTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TextureEncodingTest/glTF/TextureEncodingTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TextureLinearInterpolationTest/glTF/TextureLinearInterpolationTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TextureSettingsTest/glTF/TextureSettingsTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TextureTransformMultiTest/glTF/TextureTransformMultiTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 08000000
+  - relativeUri: TextureTransformTest/glTF/TextureTransformTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TriangleWithoutIndices/glTF/TriangleWithoutIndices.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: TwoSidedPlane/glTF/TwoSidedPlane.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: "Unicode\u2764\u267BTest/glTF/Unicode\u2764\u267BTest.gltf"
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: "Unicode\u2764\u267BTest/glTF-Binary/Unicode\u2764\u267BTest.glb"
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: UnlitTest/glTF/UnlitTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 04000000
+  - relativeUri: VertexColorTest/glTF/VertexColorTest.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 
+  - relativeUri: XmpMetadataRoundedCube/glTF/XmpMetadataRoundedCube.gltf
+    expectLoadFail: 0
+    expectInstantiationFail: 0
+    expectedLogCodes: 
+    requiredExtensions: 

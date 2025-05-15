@@ -1,0 +1,257 @@
+package:
+  id: com.unity.cloud.gltfast
+
+test_setups:
+  # Project profile name
+  # see GLTFast.Editor.Tests.SetupProject.ApplySetup (Tests/Editor/SetupProject.cs) for details
+  - project_setup: default
+    project: glTFast-Test
+    # # Use to limit versions
+    # editor_versions: [2020,2021,2022,6000.0,6000.1,trunk]
+    # # Use to limit to platforms
+    # platforms: [win,mac,ubuntu]
+    utr_timeout: 1200
+    pr_test_subset:
+      - platform: win
+        editor: 2020
+      - platform: mac
+        editor: 6000.0
+      - platform: win
+        editor: 2022
+    pr_build_subset:
+      - platform: mac
+        editor: 2022
+    coverage_subset:
+      # default for coverage: windows + current LTS
+      - platform: win
+        editor: 2022
+  - project_setup: minimalistic
+    project: glTFast-Test-minimalistic
+    editor_versions: [2020,2022,6000.0,trunk]
+    platforms: [win]
+    utr_timeout: 1200
+    pr_test_subset:
+      - platform: win
+        editor: 6000.0
+    pr_build_subset:
+      - platform: win
+        editor: 6000.0
+    coverage_subset:
+      # default for coverage: windows + current LTS
+      - platform: win
+        editor: 6000.0
+  - project_setup: all_defines
+    project: glTFast-Test
+    setup: all_defines
+    render_pipeline: URP-Forward
+    utr_timeout: 1200
+    editor_versions: [2020,2021,2022,6000.0,trunk]
+    platforms: [win]
+    pr_test_subset:
+      - platform: win
+        editor: 6000.0
+      # TODO: Move those to `urp` and `hdrp` test setup at some point
+      # For URP/shader graph test all versions
+      - platform: win
+        editor: 2020
+      - platform: win
+        editor: 2021
+      - platform: win
+        editor: 2022
+    pr_build_subset:
+      - platform: win
+        editor: 6000.0
+    coverage_subset:
+      # default for coverage: windows + current LTS
+      - platform: win
+        editor: 6000.0
+  - project_setup: entities
+    project: glTFast-Test-entities
+    setup: urp
+    render_pipeline: URP-ForwardPlus
+    test_categories: "!Performance;!Export"
+    utr_timeout: 1200
+    editor_versions: [2022,6000.0,trunk]
+    platforms: [win]
+    pr_test_subset:
+      - platform: win
+        editor: 2022
+      - platform: win
+        editor: 6000.0
+    pr_build_subset:
+      - platform: win
+        editor: 6000.0
+    coverage_subset:
+      # default for coverage: windows + current LTS
+      - platform: win
+        editor: 6000.0
+  - project_setup: entities-legacy
+    project: glTFast-Test-entities-legacy
+    setup: urp
+    render_pipeline: URP-Forward
+    test_categories: "!Performance;!Export"
+    utr_timeout: 1200
+    editor_versions: [2020]
+    platforms: [win]
+  - project_setup: hdrp
+    project: glTFast-Test
+    setup: hdrp
+    render_pipeline: HDRP-Deferred
+    utr_timeout: 3600
+    agent_xlarge_required: !!bool true
+    gpu_required: !!bool true
+    editor_versions: [2022,6000.0,trunk]
+    platforms: [win]
+    pr_test_subset:
+      - platform: win
+        editor: 6000.0
+    coverage_subset:
+      # default for coverage: windows + current LTS
+      - platform: win
+        editor: 6000.0
+
+editor_versions:
+  - 2020
+  - 2021
+  - 2022
+  - 6000.0
+  - 6000.1
+  - trunk
+
+platforms:
+  win:
+    test: win
+    run: win
+    platform: StandaloneWindows64
+    component: il2cpp
+  mac:
+    test: mac
+    run: mac
+    platform: StandaloneOSX
+    component: il2cpp
+  ubuntu:
+    test: ubuntu
+    # run: ubuntu
+    platform: StandaloneLinux64
+    component: il2cpp
+  android:
+    build: win
+    run: samsung
+    component: Android
+
+test_platforms:
+  - name: win
+    agent: win
+  - name: mac
+    agent: mac
+  - name: ubuntu
+    agent: ubuntu
+
+player_test_editors:
+  - version: 2020
+  - version: trunk
+
+player_test_platforms:
+  - name: win
+    id: standalone
+    run: win
+  - name: mac
+    id: standalone
+    run: mac
+  - name: android
+    id: android
+    upm_ci_params: --backend=Il2Cpp
+    build: win
+    run: shield
+    platform: Android
+  # - name: ios
+  #   id: ios
+  #   build: mac-intel
+  #   run: mac-iphone
+  #   platform: iOS
+
+gltf_validator:
+  id: com.unity.formats.gltf.validator
+  git_name: com.unity.cloud.gltf-validator
+  git_uri: https://github.cds.internal.unity3d.com/unity/com.unity.cloud.gltf-validator.git
+  git_branch: develop
+
+agents:
+  win:
+    os: win
+    type: Unity::VM
+    gpu_type: Unity::VM::GPU
+    image: package-ci/win10:v4
+    flavor: b1.large
+    flavor_xlarge: b1.xlarge
+  mac:
+    os: mac
+    type: Unity::VM::osx
+    image: package-ci/macos-13:v4
+    flavor: m1.mac
+    flavor_xlarge: m1.mac
+  ubuntu:
+    os: linux
+    type: Unity::VM
+    gpu_type: Unity::VM::GPU
+    image: package-ci/ubuntu-22.04:v4
+    flavor: b1.large
+    flavor_xlarge: b1.xlarge
+  samsung:
+    os: win
+    type: Unity::mobile::samsung
+    image: package-ci/win10:v4
+    flavor: b1.large
+    flavor_xlarge: b1.xlarge
+  shield:
+    os: win
+    type: Unity::mobile::shield
+    image: package-ci/win10:v4
+    flavor: b1.large
+    flavor_xlarge: b1.xlarge
+  mac-intel:
+    os: mac
+    type: Unity::VM::osx
+    image: package-ci/macos-13:v4
+    flavor: b1.large
+    flavor_xlarge: b1.xlarge
+  mac-iphone:
+    os: mac
+    type: Unity::mobile::iPhone
+    image: package-ci/macos-13:v4
+    flavor: b1.large
+    flavor_xlarge: b1.xlarge
+  ubuntu-small:
+    os: linux
+    type: Unity::VM
+    image: package-ci/ubuntu-22.04:v4
+    flavor: b1.small
+    flavor_xlarge: b1.xlarge
+
+test_framework: com.unity.test-framework@1.4.3
+
+registry:
+  npm: https://artifactory.prd.it.unity3d.com/artifactory/api/npm/upm-npm
+  homebrew: "git@github.cds.internal.unity3d.com:unity/homebrew-unity.git"
+  artifactory: https://artifactory.prd.cds.internal.unity3d.com/artifactory
+
+generic_project_path: Projects/TestProject
+test_categories: "!Performance"
+
+# Operating system specific variables
+os_variables:
+  # Unix (macOS and Ubuntu)
+  unix:
+    yamato_source_dir: ${YAMATO_SOURCE_DIR}
+    git_revision: ${GIT_REVISION}
+    bokken_host_ip: ${BOKKEN_HOST_IP}
+  # Windows specific
+  win:
+    yamato_source_dir: "%YAMATO_SOURCE_DIR%"
+    git_revision: "%GIT_REVISION%"
+    bokken_host_ip: "%BOKKEN_HOST_IP%"
+
+editor_location:
+  win: "\\.Editor\\Unity.exe"
+  mac: "/.Editor/Unity.app/Contents/MacOS/Unity"
+  ubuntu: "/.Editor/Unity"
