@@ -29,11 +29,13 @@ namespace GLTFast
     /// </summary>
     public class TrackableMarker2D : MonoBehaviour, IMpegTrackable
     {
+        public const int MAX_NUM_IMAGES = 1;
 #if UNITY_ANDROID
         private int m_MarkerNode;
         private ARTrackedImageManager m_TrackedImageManager;
         private XRReferenceImageLibrary m_XrReferenceImageLibrary;
         private ARTrackedImage imgTrack = null; //Only one marker
+        
         private TrackableId m_Id = TrackableId.invalidId;
 
         private GameObject m_Anchor = null;
@@ -89,9 +91,9 @@ namespace GLTFast
             }
 
             m_TrackedImageManager.referenceLibrary = m_TrackedImageManager.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
-            m_TrackedImageManager.requestedMaxNumberOfMovingImages = 1;
+            m_TrackedImageManager.requestedMaxNumberOfMovingImages = MAX_NUM_IMAGES;
             m_TrackedImageManager.enabled = true;
-            // m_TrackedImageManager.trackedImagePrefab = GameObject.CreatePrimitive(UnityEngine.PrimitiveType.Cube);
+            // m_TrackedImageManager.trackedImagePrefab = GameObject.CreatePrimitive(UnityEngine.PrimitiveType.Plane);
             m_TrackedImageManager.trackedImagesChanged += OnTrackedImagesChanged;
 
             //retrieve the node to get image    
@@ -168,11 +170,10 @@ namespace GLTFast
             var _job = runtimeReferenceImageLibrary.ScheduleAddImageWithValidationJob(
                 _texture,                                           // Texture
                 $"{_texture.name}||{Guid.NewGuid().ToString()}",    // Unique name
-                0.1f                                                // 10cm
+                null                                                // real world image scale
             );
 
             Debug.Log("TrackableMarker2D::Waiting until the job is complete");
-            // Async
 
             while (!_job.status.IsComplete())
             {
@@ -189,46 +190,43 @@ namespace GLTFast
         /// </summary>
         void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
         {
-            // Handle added event
-            if (eventArgs.added != null)
+
+            if (eventArgs.added.Count > 0)
             {
-                if (eventArgs.added.Count > 0)
+                if (imgTrack == null)
                 {
-                    if (imgTrack == null)
-                    {
-                        imgTrack = eventArgs.added[0];
-                        m_Id = imgTrack.trackableId;
-                    }
+                    imgTrack = eventArgs.added[0];
+                    m_Id = imgTrack.trackableId;
                 }
             }
 
-            // Handle updated event
-            if (eventArgs.updated != null)
+            if (eventArgs.updated.Count > 0)
             {
                 if (m_Anchor == null)
                 {
                     BuildAnchorInternal();
                 }
 
-                List<ARTrackedImage> _updateImages = eventArgs.updated;
-                for (int i = 0; i < _updateImages.Count; i++)
-                {
-                    ARTrackedImage _image = _updateImages[i];
-                    m_Id = _image.trackableId;
-                    m_Anchor.transform.SetPositionAndRotation(_image.transform.position, _image.transform.rotation);
+                foreach (ARTrackedImage img in eventArgs.updated){
+                    if (imgTrack == img){
+                        m_Anchor.transform.SetPositionAndRotation(img.transform.position, img.transform.rotation);
+                        m_Anchor.transform.RotateAround(img.transform.position, img.transform.up, 180);
+                    }
                 }
+
             }
 
-            // Handle removed event
-            if (eventArgs.removed != null)
+            if (eventArgs.removed.Count > 0)
             {
-                if (eventArgs.removed.Count > 0)
+                if (imgTrack != null)
                 {
-                    if (imgTrack != null)
-                    {
-                        ClearInfo(imgTrack);
-                        imgTrack = null;
-                        m_Id = TrackableId.invalidId;
+                    foreach (ARTrackedImage img in eventArgs.removed){
+                        if (img == imgTrack){
+                            ClearInfo(imgTrack);
+                            imgTrack = null;
+                            m_Id = TrackableId.invalidId;
+                            m_Anchor.SetActive(false);
+                        }
                     }
                 }
             }
@@ -279,6 +277,24 @@ namespace GLTFast
             //}
         }
 
+        private void EnableAnchorInternal()
+        {
+            foreach (GameObject go in m_GoToAttach)
+            {
+                go.transform.SetParent(m_Anchor.transform, false);
+                go.SetActive(true);
+            }
+        }
+
+        private void DisableAnchorInternal()
+        {
+            foreach (GameObject go in m_GoToAttach)
+            {
+                go.transform.SetParent(m_Anchor.transform, false);
+                go.SetActive(false);
+            }
+        }
+
         public void RemoveAnchor()
         {
             if (m_Anchor != null)
@@ -297,6 +313,7 @@ namespace GLTFast
             {
                 go.transform.SetParent(m_Anchor.gameObject.transform, false);
                 go.SetActive(true);
+                Debug.Log("TrackableMarker2D::AttachNodeToTrackable");
             }
         }
 
@@ -304,14 +321,14 @@ namespace GLTFast
         {
             if (m_Anchor == null)
             {
-                if (m_RequiredAnchoring)
-                {
-                    foreach (GameObject go in m_GoToAttach)
-                    {
-                        go.SetActive(false);
-                    }
+                if (m_RequiredAnchoring){
+                    DisableAnchorInternal();
                 }
-            }
+            } 
+            /*
+            else if (imgTrack != null && imgTrack.trackingState == TrackingState.None){
+                DisableAnchorInternal();
+            }*/
         }
 
         public void readImage(int index)
@@ -328,11 +345,11 @@ namespace GLTFast
             Schema.MeshPrimitive[] primitives = new MeshPrimitive[meshSCH.primitives.Length];
             for (int i = 0; i < meshSCH.primitives.Length; i++)
             {
-                Debug.Log("Read Primitives :" + i);
+                // Debug.Log("Read Primitives :" + i);
                 primitives[i] = (MeshPrimitive)meshSCH.primitives[i].Clone();
-                Debug.Log("Clone Primitives :" + i);
+                // Debug.Log("Clone Primitives :" + i);
                 matIndex1 = primitives[i].material;
-                Debug.Log("Read Material :" + matIndex1);
+                // Debug.Log("Read Material :" + matIndex1);
                 Schema.Material matSCH = VirtualSceneGraph.root.materials[matIndex1];
                 if (matSCH.pbrMetallicRoughness.baseColorTexture != null)
                 {
@@ -342,7 +359,7 @@ namespace GLTFast
                     UnityEngine.Texture2D tex = VirtualSceneGraph.GetTextureFromIndex(sourceIndex1);
                     byte[] bytes = tex.EncodeToPNG();
                     var dirPath = Application.persistentDataPath + "/SaveImages/";
-                    Debug.Log("dirPath: " + dirPath);
+                    // Debug.Log("dirPath: " + dirPath);
                     if (!System.IO.Directory.Exists(dirPath))
                     {
                         System.IO.Directory.CreateDirectory(dirPath);

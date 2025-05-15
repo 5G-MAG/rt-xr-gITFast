@@ -41,13 +41,14 @@ namespace GLTFast
         private Vector3 m_RequiredSpaceToCheck = Vector3.zero;
         private bool m_RequiredSpaceOk = false;
         private bool m_RequiredAnchoring = false;
-        // private bool m_RequiredAlignedNotScale =false;
         private bool m_RequiredAlignedAndScale = false;
         private bool m_RequiredSpace = false;
         private Bounds m_PlaneBounds;
         private Bounds m_SceneBounds;
         private Vector3 m_ScaleFactor = Vector3.one;
         private bool m_ApplyScale = false;
+
+        private bool m_EnableVisualization = true;
 
         public void InitFromGltf(Trackable track)
         {
@@ -60,6 +61,7 @@ namespace GLTFast
 
         public bool EnsureConfiguration()
         {
+
             GameObject arSession = ARUtilities.GetSessionOrigin();
 
             m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
@@ -75,46 +77,6 @@ namespace GLTFast
                 m_ArPlaneManager = arSession.AddComponent<ARPlaneManager>();
             }
             m_ArPlaneManager.enabled = true;
-
-            ARSessionOrigin _origin = arSession.GetComponent<ARSessionOrigin>();
-            UnityEngine.Camera _cam = _origin.camera;
-
-            if (_cam.GetComponent<ARCameraBackground>() == null)
-            {
-                Debug.Log("ARCameraBackground == null. Creating one");
-                _cam.gameObject.AddComponent<ARCameraBackground>();
-            }
-            if (_cam.GetComponent<ARCameraManager>() == null)
-            {
-                Debug.Log("ARCameraManager == null. Creating one");
-                _cam.gameObject.AddComponent<ARCameraManager>();
-            }
-            if (_cam.GetComponent<TrackedPoseDriver>() == null)
-            {
-                Debug.Log("TrackedPoseDriver == null. Creating one");
-                _cam.gameObject.AddComponent<TrackedPoseDriver>();
-            }
-
-
-            // Use XR camera prior to any other cameras
-            if (_cam != null)
-            {
-                UnityEngine.Camera[] _cameras = FindObjectsOfType<UnityEngine.Camera>();
-                for (int i = 0; i < _cameras.Length; i++)
-                {
-                    if (_cameras[i] != _cam)
-                    {
-                        _cameras[i].enabled = false;
-                    }
-                }
-            }
-
-            _origin.camera = _cam;
-
-            Transform _destination = _origin.transform.GetChild(0);
-            _cam.transform.SetParent(_destination);
-            Debug.Log($"Set camera as a child of {_destination.name}");
-
 
             return true;
         }
@@ -138,14 +100,16 @@ namespace GLTFast
                 m_SupportClassification = m_ArPlaneManager.descriptor.supportsClassification;
             }
 
-            //set detection mode
+            // set detection mode
+            // Note, it is possible to combine both mode by combining the flags: 
+            //  m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical
             if (m_Geoconstraint == Trackable.GeometricConstraint.HORIZONTAL_PLANE)
             {
-                m_ArPlaneManager.requestedDetectionMode = UnityEngine.XR.ARSubsystems.PlaneDetectionMode.Horizontal;
+                m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
             }
             else
             {
-                m_ArPlaneManager.requestedDetectionMode = UnityEngine.XR.ARSubsystems.PlaneDetectionMode.Vertical;
+                m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Vertical;
             }
 
             m_ArPlaneManager.planesChanged += PlanesChanged;
@@ -153,81 +117,57 @@ namespace GLTFast
 
         private void PlanesChanged(ARPlanesChangedEventArgs arg)
         {
-            if (arg.added.Count == 0)
+            if (arg.added.Count > 0)
             {
-                return;
-            }
-
-            ARPlane tempPlane = arg.added[0];
-            if (m_SupportClassification && tempPlane.classification == PlaneClassification.Floor)
-            {
+                Debug.Log("TrackableGeometric::PlanesChanged - added : " + arg.added.Count);
+                // Currently supports only the first detected plane
                 if (m_Plane == null)
                 {
+                    ARPlane tempPlane = arg.added[0];
                     m_Plane = tempPlane;
                     m_Id = tempPlane.trackableId;
                     var res = BuildAnchorInternal();
                     if (!res)
                     {
                         m_Plane = null;
+                        m_Id = TrackableId.invalidId;
                     }
-                    else
-                    {
-                        foreach (GameObject go in m_GoToAttached)
-                        {
-                            go.transform.position = m_Anchor.transform.position;
-                            go.transform.rotation = m_Anchor.transform.rotation;
-                        }
+                } else {
+                    Debug.Log("TrackableGeometric::PlanesChanged - Ignoring " + arg.added.Count + " added planes.");
+                }
+                foreach (ARPlane p in arg.added){
+                    if (p != m_Plane){
+                        // visualize only the plane being tracked
+                        p.gameObject.SetActive(false);
                     }
                 }
             }
-            else
-            {
-                //Kept first detected
-                if (m_Plane == null)
-                {
-                    m_Plane = tempPlane;
-                    m_Id = tempPlane.trackableId;
 
-                    var res = BuildAnchorInternal();
-                    if (!res)
+            if (m_Plane != null && arg.removed.Count > 0)
+            {
+                foreach (ARPlane p in arg.removed){
+                    if (p.trackableId == m_Id)
                     {
                         m_Plane = null;
-                    }
-                    else
-                    {
-                        foreach (GameObject go in m_GoToAttached)
-                        {
-                            go.transform.position = m_Anchor.transform.position;
-                            go.transform.rotation = m_Anchor.transform.rotation;
-                        }
+                        m_Id = TrackableId.invalidId;
+                        RemoveAnchor();
                     }
                 }
+                Debug.Log("TrackableGeometric::PlanesChanged - Removed : " + arg.removed.Count);
             }
 
-            if (arg.removed.Count == 0)
+            if (m_Plane != null && arg.updated.Count > 0)
             {
-                return;
+                foreach (ARPlane p in arg.updated){
+                    if (p.trackableId == m_Id)
+                    {
+                        p.gameObject.SetActive(true);
+                        // @TODO: ensure aligned and scaled
+                    }
+                }
+                Debug.Log("TrackableGeometric::PlanesChanged - Updated : " + arg.updated.Count);
             }
 
-            tempPlane = arg.removed[0];
-            if (tempPlane.trackableId == m_Id)
-            {
-                m_Plane = null;
-                m_Id = TrackableId.invalidId;
-                RemoveAnchor();
-            }
-
-            if (arg.updated.Count == 0)
-            {
-                return;
-            }
-
-            tempPlane = arg.updated[0];
-            if (tempPlane.trackableId == m_Id)
-            {
-                m_Plane = tempPlane;
-                m_Id = tempPlane.trackableId;
-            }
         }
 
         public bool Detect()
@@ -254,19 +194,18 @@ namespace GLTFast
 
         private bool BuildAnchorInternal()
         {
-            Debug.Log("TrackableGeometric::BuildAnchorInternal");
             if (m_RequiredSpace)
             {
                 var res = CheckRequiredSpace(m_Plane);
                 if (!res)
                 {
+                    Debug.Log("TrackableGeometric::CheckRequiredSpace - required space requirement not passed. Will not create anchor.");
                     return false; ;
                 }
             }
-            Debug.Log("TrackableGeometric::_requiredAlignedAndScale " + m_RequiredAlignedAndScale);
+            Debug.Log("TrackableGeometric::BuildAnchorInternal");
             if (m_RequiredAlignedAndScale)
             {
-                Debug.Log("TrackableGeometric::Start computeSceneAABB");
                 CheckAlignedAndScale(m_Plane);
             }
 
@@ -277,13 +216,13 @@ namespace GLTFast
                 foreach (GameObject go in m_GoToAttached)
                 {
                     go.SetActive(true);
-                    Debug.Log("TrackableGeometric::GO(" + go.name + ") Active:" + go.activeSelf);
-                    go.transform.position = m_Anchor.transform.position;
-                    go.transform.rotation = m_Anchor.transform.rotation;
+                    // Note: the initial contribution didn't support alignment and scale constraints. see, RequiredAlignedAndScale()               
+                    go.transform.position = m_Anchor.gameObject.transform.position; // no alignment constraint
+                    // go.transform.SetParent(m_Anchor.gameObject.transform, false); // align but not scaled
+                    // go.transform.SetParent(m_Anchor.gameObject.transform, false); // align but not scaled
                     if (m_ApplyScale)
                     {
                         go.transform.localScale = m_ScaleFactor;
-                        Debug.Log("TrackableGeometric::Apply Scale:" + m_ScaleFactor);
                         foreach (Transform t in go.GetComponentsInChildren<Transform>())
                         {
                             t.localScale = m_ScaleFactor;
@@ -292,7 +231,6 @@ namespace GLTFast
                 }
                 m_Attached = true;
             }
-            //UpdatePlaneVisibility(false);  
             return true;
         }
 
@@ -305,6 +243,7 @@ namespace GLTFast
 
             m_Anchor = null;
             m_Id = TrackableId.invalidId;
+            Debug.Log("TrackableGeometric::RemoveAnchor()");
         }
 
         public void AttachNodeToTrackable(GameObject go)
@@ -313,17 +252,8 @@ namespace GLTFast
             if (m_Anchor != null && !m_Attached)
             {
                 Debug.Log("TrackableGeometric::AttachNodeToAnchor: " + go.name);
-                go.transform.position = m_Anchor.transform.position;
-                go.transform.rotation = m_Anchor.transform.rotation;
+                go.transform.SetParent(m_Anchor.gameObject.transform, false);
                 go.SetActive(true);
-            }
-        }
-
-        private void UpdatePlaneVisibility(bool visible)
-        {
-            foreach (var plane in m_ArPlaneManager.trackables)
-            {
-                plane.gameObject.SetActive(visible);
             }
         }
 
@@ -338,17 +268,10 @@ namespace GLTFast
             m_RequiredAnchoring = requiredAnchoring;
         }
 
-        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
-        {
-            // if(aligned == Anchor.Aligned.ALIGNED_NOTSCALED)
-            // {
-            //     m_RequiredAlignedNotScale = true;
-            // }
-            // if(aligned == Anchor.Aligned.ALIGNED_SCALED)
-            // {
-            //     m_RequiredAlignedAndScale = true;
-            // }
-        }
+        // @TODO: was not implemented in initial contribution. 
+        // alignment is signaled on Anchor and configured on the AnchorInstance object.
+        // trackable should only provide bounds
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned){}
 
         private void ComputePlaneAABB(ARPlane plane)
         {
@@ -417,6 +340,7 @@ namespace GLTFast
 
         private void CheckAlignedAndScale(ARPlane plane)
         {
+            Debug.Log("TrackableGeometric::CheckAlignedAndScale()");
             ComputeSceneAABB();
             ComputePlaneAABB(plane);
             //now compute scale factor
@@ -451,35 +375,7 @@ namespace GLTFast
             }
             Debug.Log("TrackableGeometric::bounds scale" + m_ScaleFactor);
         }
-
-        void Update()
-        {
-            if (m_Anchor == null)
-            {
-                if (m_RequiredAnchoring)
-                {
-                    //foreach (GameObject go in m_GoToAttached)
-                    //{
-                    //    go.SetActive(false);
-                    //}
-                }
-                else
-                {
-                    foreach (GameObject go in m_GoToAttached)
-                    {
-                        go.SetActive(true);
-                        go.transform.position = m_Anchor.transform.position;
-                        go.transform.rotation = m_Anchor.transform.rotation;
-                    }
-                }
-
-                // Try get anchor
-                if (m_Plane != null)
-                {
-                    m_Anchor = m_AnchorManager.AttachAnchor(m_Plane, new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
-                }
-            }
-        }
+        
 
         public void DumpAttributs()
         {
