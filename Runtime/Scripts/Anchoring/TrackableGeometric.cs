@@ -216,10 +216,8 @@ namespace GLTFast
                 foreach (GameObject go in m_GoToAttached)
                 {
                     go.SetActive(true);
-                    // Note: the initial contribution didn't support alignment and scale constraints. see, RequiredAlignedAndScale()               
+                    // Note: the initial contribution didn't support alignment and scale constraints. see, RequiredAlignedAndScale()
                     go.transform.position = m_Anchor.gameObject.transform.position; // no alignment constraint
-                    // go.transform.SetParent(m_Anchor.gameObject.transform, false); // align but not scaled
-                    // go.transform.SetParent(m_Anchor.gameObject.transform, false); // align but not scaled
                     if (m_ApplyScale)
                     {
                         go.transform.localScale = m_ScaleFactor;
@@ -227,8 +225,23 @@ namespace GLTFast
                         {
                             t.localScale = m_ScaleFactor;
                         }
+                    } else {
+                        switch (m_Geoconstraint)
+                        {
+                            case Trackable.GeometricConstraint.HORIZONTAL_PLANE:
+                                Vector3 targetPostition = new Vector3(UnityEngine.Camera.main.transform.position.x, go.transform.position.y, UnityEngine.Camera.main.transform.position.z);
+                                go.transform.LookAt(targetPostition);
+                                break;
+                            case Trackable.GeometricConstraint.VERTICAL_PLANE:
+                                go.transform.forward = m_Anchor.gameObject.transform.up;
+                                break;
+                            default:
+                                break;
+                        }
                     }
+
                 }
+                // Instantiate(Resources.Load<GameObject>("Debug/axes"), m_Anchor.gameObject.transform, false);
                 m_Attached = true;
             }
             return true;
