@@ -204,7 +204,6 @@ namespace GLTFast
 
         private bool BuildAnchorInternal()
         {
-            Debug.Log("TrackableFloor::BuildAnchorInternal");
             if(m_RequiredSpace)
             {
                 var res = CheckRequiredSpace(m_Plane);
@@ -213,33 +212,33 @@ namespace GLTFast
                     return false;;
                 }
             }
-            Debug.Log("TrackableFloor::_requiredAlignedAndScale "+ m_RequiredAlignedAndScale);
             if(m_RequiredAlignedAndScale)
             {
-                Debug.Log("TrackableFloor::Start computeSceneAABB");
                 CheckAlignedAndScale(m_Plane);
             }
 
-            m_Anchor = m_AnchorManager.AttachAnchor(m_Plane,new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
+            m_Anchor = m_AnchorManager.AttachAnchor(m_Plane, new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
             if(!m_Attached)
             {
                 foreach (GameObject go  in m_GoToAttached)
                 {
                     m_IsGoActivated = true;
                     go.SetActive(true);
-                    Debug.Log("GO Active:" +go.activeSelf);
                     go.transform.SetParent(m_Anchor.gameObject.transform,false);
                     
                     if(m_ApplyScale)
                     {
                         go.transform.localScale = m_ScaleFactor;
-                        Debug.Log("Apply Scale:" +m_ScaleFactor);
                         foreach(Transform t in go.GetComponentsInChildren<Transform>())
                         {
                             t.localScale = m_ScaleFactor;
                         }
-                    }                    
+                    } else {
+                        Vector3 targetPostition = new Vector3(UnityEngine.Camera.main.transform.position.x, go.transform.position.y, UnityEngine.Camera.main.transform.position.z);
+                        go.transform.LookAt(targetPostition);
+                    }             
                 }
+                // Instantiate(Resources.Load<GameObject>("Debug/axes"), m_Anchor.gameObject.transform, false);
                 m_Attached = true;
             }
             return true; 
