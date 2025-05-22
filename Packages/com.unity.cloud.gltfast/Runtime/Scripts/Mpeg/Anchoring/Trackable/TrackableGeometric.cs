@@ -48,7 +48,6 @@ namespace GLTFast
         private Vector3 m_ScaleFactor = Vector3.one;
         private bool m_ApplyScale = false;
 
-        private bool m_EnableVisualization = true;
 
         public void InitFromGltf(Trackable track)
         {
