@@ -15,11 +15,11 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 #if RT_XR_ENABLE_ARCORE_EXTENSIONS
+using UnityEngine.XR.ARCore;
 using Google.XR.ARCoreExtensions;
 #endif
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
-using UnityEngine.XR.ARCore;
 using System.Collections.Generic;
 using System.Reflection;
 
