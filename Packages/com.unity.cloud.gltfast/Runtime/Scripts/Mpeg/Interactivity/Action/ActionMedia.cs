@@ -22,6 +22,8 @@ namespace GLTFast
     {
         public float Delay => m_Delay;
         private float m_Delay;
+        private int m_MediaIndex;
+        private Schema.Action.MediaControl m_MediaControl;
         
         public void Dispose()
         {
@@ -31,7 +33,8 @@ namespace GLTFast
         public void Init(Schema.Action action)
         {
             m_Delay = action.delay;
-            Debug.Log("TODO: Init ActionMedia");
+            m_MediaIndex = action.media;
+            m_MediaControl = action.mediaControl;
         }
 
         public void Invoke()
@@ -48,8 +51,14 @@ namespace GLTFast
 
         private void Execute()
         {
-            // VirtualSceneGraph.root.extensions.MPEG_media.media[0].alternatives[0].uri;
-            Debug.LogWarning("TODO: Execute ActionMedia");
+            MediaPlayer mp = VirtualSceneGraph.GetMediaPlayerFromMediaIndex(m_MediaIndex);
+            switch (m_MediaControl)
+            {
+                case Schema.Action.MediaControl.MEDIA_PLAY: mp.Play();
+                case Schema.Action.MediaControl.MEDIA_PAUSE: mp.Pause();
+                case Schema.Action.MediaControl.MEDIA_RESUME: mp.Play();
+                case Schema.Action.MediaControl.MEDIA_STOP: mp.Stop();
+            }
         }
 
         private IEnumerator StartWithDelay(float _time)
