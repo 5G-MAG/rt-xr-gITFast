@@ -61,6 +61,9 @@ namespace GLTFast
         private static CustomDictionary<int, Schema.MpegAnchorObject> m_AnchorObjectIndexAnchorObject
             = new CustomDictionary<int, Schema.MpegAnchorObject>();
 
+        private static CustomDictionary<int, MediaPlayer> m_MediaIndexMediaPlayer
+            = new CustomDictionary<int, MediaPlayer>();
+
         public static Schema.Root root;
 
         public static void SetRoot(Schema.Root _root)
@@ -261,12 +264,41 @@ namespace GLTFast
         {
             return m_AnchorObjectIndexAnchorObject.keys;
         }
+
+#if MAF_MEDIA_PIPELINES
+        public static int GetMediaPlayerCount()
+        {
+            return m_MediaIndexMediaPlayer.values.Count;
+        }
+
+        public static void AssignMediaPlayerToIndex(MediaPlayer mediaPlayer, int index)
+        {
+            m_MediaIndexMediaPlayer.Add(index, index, mediaPlayer);
+        }
+
+        public static MediaPlayer GetMediaPlayerFromMediaIndex(int index)
+        {
+            return m_MediaIndexMediaPlayer.GetValueFromKey(index); ;
+        }
+
+        /*
+        public static MediaPlayer[] GetAllMediaPlayers()
+        {
+            return m_AnchorObjectIndexAnchorObject.GetAllValues();
+        }
+        */
         
+        public static List<MediaPlayer> GetAllMediaPlayers()
+        {
+            return m_MediaIndexMediaPlayer.values;
+        }
+#endif
+
         public static void ResetAll()
         {
             root = null;
             sceneTransform = null;
-            
+
             m_ActionIndexAction.ClearAll();
             m_TriggerIndexTrigger.ClearAll();
             m_BehaviorIndexBehavior.ClearAll();
@@ -280,6 +312,7 @@ namespace GLTFast
             m_TrackableIndexTrackable.ClearAll();
             m_AnchorIndexAnchor.ClearAll();
             m_AnchorObjectIndexAnchorObject.ClearAll();
+            m_MediaIndexMediaPlayer.ClearAll();
         }
     }
 

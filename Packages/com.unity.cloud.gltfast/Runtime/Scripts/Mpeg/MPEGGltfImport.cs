@@ -461,7 +461,7 @@ namespace GLTFast
                     if (sourceTextures[t].Extensions?.MPEG_texture_video != null)
                     {
                         var result = CreateVideoTexture(t);
-                        mediaPlayers[result.MediaIdx].AddVideoTexture(result.Texture);
+                        VirtualSceneGraph.GetMediaPlayerFromMediaIndex(result.MediaIdx).AddVideoTexture(result.Texture);
                     }
                 }
             }
@@ -476,7 +476,7 @@ namespace GLTFast
             foreach (SpatialAudioSource aSrc in m_Instantiator.SceneInstance.audioSources)
             {
                 int mediaIdx = GetBufferSourceMediaIndex(root, aSrc.BufferId);
-                mediaPlayers[mediaIdx].AddAudioSource(aSrc);
+                VirtualSceneGraph.GetMediaPlayerFromMediaIndex(mediaIdx).AddAudioSource(aSrc);
             }
         }
 
@@ -484,8 +484,8 @@ namespace GLTFast
         {
             Schema.Root root = m_GltfImport.GetSourceRoot();
             MediaImport.CreateMediaPlayers(root, m_GltfImport.BaseUri);
-            CreateVideoTextures(MediaImport.MediaPlayers, root); 
-            CreateAudioSources(MediaImport.MediaPlayers, root);
+            CreateVideoTextures(VirtualSceneGraph.GetAllMediaPlayers(), root); 
+            CreateAudioSources(VirtualSceneGraph.GetAllMediaPlayers(), root);
         }
 
 #endif
