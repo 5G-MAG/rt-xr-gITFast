@@ -423,6 +423,7 @@ namespace GLTFast {
         }
 
         public void Pause()
+        {
             if (pipeline == null)
             {
                 return;
@@ -449,7 +450,7 @@ namespace GLTFast {
                 Stop();
                 pipeline.Dispose();
                 pipeline = null;
-            }            
+            }
             foreach (var mb in mediaBuffers.Values)
             {
                 mb.Dispose();
@@ -501,9 +502,8 @@ namespace GLTFast {
             }
         }
 
-    };
+    }; // class MediaPlayer
 
-
-}
+} // GLTFast
 
 #endif

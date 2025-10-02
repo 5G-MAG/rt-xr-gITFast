@@ -23,7 +23,7 @@ namespace GLTFast
         public float Delay => m_Delay;
         private float m_Delay;
         private int m_MediaIndex;
-        private Schema.Action.MediaControl m_MediaControl;
+        private Schema.MediaControl m_MediaControl;
         
         public void Dispose()
         {
@@ -54,10 +54,10 @@ namespace GLTFast
             MediaPlayer mp = VirtualSceneGraph.GetMediaPlayerFromMediaIndex(m_MediaIndex);
             switch (m_MediaControl)
             {
-                case Schema.Action.MediaControl.MEDIA_PLAY: mp.Play();
-                case Schema.Action.MediaControl.MEDIA_PAUSE: mp.Pause();
-                case Schema.Action.MediaControl.MEDIA_RESUME: mp.Play();
-                case Schema.Action.MediaControl.MEDIA_STOP: mp.Stop();
+                case Schema.MediaControl.MEDIA_PLAY: mp.Play(); break;
+                case Schema.MediaControl.MEDIA_PAUSE: mp.Pause(); break;
+                case Schema.MediaControl.MEDIA_RESUME: mp.Play(); break;
+                case Schema.MediaControl.MEDIA_STOP: mp.Stop(); break;
             }
         }
 
