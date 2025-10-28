@@ -82,7 +82,7 @@ namespace GLTFast
                 throw new Exception("Can't Find Session Origin");
             }
 
-            m_TrackedImageManager = FindObjectOfType<ARTrackedImageManager>(true);
+            m_TrackedImageManager = FindFirstObjectByType<ARTrackedImageManager>(FindObjectsInactive.Include); 
 
             if (m_TrackedImageManager == null)
             {

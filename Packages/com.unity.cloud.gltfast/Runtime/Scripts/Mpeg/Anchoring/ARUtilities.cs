@@ -20,7 +20,7 @@ public static class ARUtilities
     public static GameObject GetSessionOrigin()
     {
         GameObject go = null;
-        XROrigin or = GameObject.FindObjectOfType<XROrigin>();
+        XROrigin or = GameObject.FindFirstObjectByType<XROrigin>(FindObjectsInactive.Include); 
         if(or == null)
         {
             throw new Exception("No XR Origin found");

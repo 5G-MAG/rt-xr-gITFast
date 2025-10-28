@@ -22,9 +22,6 @@ namespace GLTFast {
 
     public class MediaImport
     {
-
-        private static List<MediaPlayer> mediaPlayers = new();
-        public static List<MediaPlayer> MediaPlayers { get { return mediaPlayers; } }
         
         static void ApplyBaseUri(Schema.Media m, Uri baseUri)
         {
@@ -44,7 +41,8 @@ namespace GLTFast {
 
         public static void CreateMediaPlayers(Schema.Root root, Uri baseUri = null)
         {
-            List<MediaPipelineConfig> configs = MediaImport.GetMediaPipelineConfigs(root); // one config per media
+            // one config per gltf MPEG_media definition, preserving media index
+            List<MediaPipelineConfig> configs = MediaImport.GetMediaPipelineConfigs(root);
             for (var c = 0; c < configs.Count; c++)
             {
                 Schema.Media m = root.Extensions.MPEG_media.media[c];
@@ -57,7 +55,7 @@ namespace GLTFast {
                 {
                     Debug.LogError("Failed to create media player");
                 }
-                mediaPlayers.Add(mp);
+                VirtualSceneGraph.AssignMediaPlayerToIndex(mp, c);
             }
         }
 

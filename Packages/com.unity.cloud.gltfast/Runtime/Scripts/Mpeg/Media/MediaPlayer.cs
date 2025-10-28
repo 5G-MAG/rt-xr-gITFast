@@ -27,7 +27,13 @@ namespace GLTFast {
     {
         
         public bool autoPlay = false;
-
+        
+        private bool playing;
+        public bool Playing
+        {
+            get { return playing; }
+        }
+          
         static BufferInfo GetBufferInfo(MediaPipelineConfig cfg, int accessorIdx)
         {
             Schema.Accessor ac = cfg.accessors[accessorIdx];
@@ -396,6 +402,7 @@ namespace GLTFast {
                     aSrc.Play();
                 }
             }
+            playing = true;
         }
 
         public void Stop()
@@ -412,8 +419,26 @@ namespace GLTFast {
                 }
             }
             pipeline.stopFetching();
+            playing = false;
         }
 
+        public void Pause()
+        {
+            if (pipeline == null)
+            {
+                return;
+            }
+            if (audioReaders != null)
+            {
+                foreach (var aSrc in audioReaders.Values)
+                {
+                    aSrc.Stop();
+                }
+            }
+            pipeline.stopFetching();
+            playing = false;
+        }
+        
         // Dispose() stops media pipeline and properly dispose of the media pipeline.
         // After calling Dispose(), the MediaPlayer instance is not longer usable and should no longer be referenced.
         public void Dispose()
@@ -421,11 +446,11 @@ namespace GLTFast {
             if (pipeline == null)
             {
                 return;
+            } else {
+                Stop();
+                pipeline.Dispose();
+                pipeline = null;
             }
-            Stop();
-            pipeline.Dispose();
-            pipeline = null;
-
             foreach (var mb in mediaBuffers.Values)
             {
                 mb.Dispose();
@@ -477,9 +502,8 @@ namespace GLTFast {
             }
         }
 
-    };
+    }; // class MediaPlayer
 
-
-}
+} // GLTFast
 
 #endif

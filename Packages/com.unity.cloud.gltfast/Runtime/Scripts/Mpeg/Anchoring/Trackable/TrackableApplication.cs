@@ -14,12 +14,12 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
-#if UNITY_ANDROID
+#if RT_XR_ENABLE_ARCORE_EXTENSIONS
+using UnityEngine.XR.ARCore;
 using Google.XR.ARCoreExtensions;
+#endif
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
-using UnityEngine.XR.ARCore;
-#endif
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -31,7 +31,7 @@ namespace GLTFast
     public class AnchorEventResolver: UnityEvent<Transform>{};
     public class TrackableApplication : MonoBehaviour, IMpegTrackable
     {
-#if UNITY_ANDROID
+#if RT_XR_ENABLE_ARCORE_EXTENSIONS
         private TrackableId m_Id = TrackableId.invalidId;
         private string m_AnchorToResolve = "";
         private ARCloudAnchor m_CloudAnchor = null;
@@ -58,14 +58,11 @@ namespace GLTFast
         {
             m_AnchorEventResolver = new AnchorEventResolver();
             m_AnchorEventResolver.AddListener((t) => ARPlacementManager.Instance.ReCreatePlacement(t));
-
-#if UNITY_ANDROID
             ARCorePermissionManager.RequestPermission("android.permission.INTERNET", OnAccessInternetPermissionGranted);
-#endif
             
             GameObject arOrigin = ARUtilities.GetSessionOrigin();
 
-            m_ArAnchorManager = FindObjectOfType<ARAnchorManager>(true);
+            m_ArAnchorManager = FindFirstObjectByType<ARAnchorManager>(FindObjectsInactive.Include); 
             if(m_ArAnchorManager == null)
             {
                 m_ArAnchorManager = arOrigin.AddComponent<ARAnchorManager>();
@@ -75,7 +72,7 @@ namespace GLTFast
             //get the prefab if any
             m_PlacedPrefab = m_ArAnchorManager.anchorPrefab;
 
-            m_PlaneManager = FindObjectOfType<ARPlaneManager>(true);
+            m_PlaneManager = FindFirstObjectByType<ARPlaneManager>(FindObjectsInactive.Include); 
             if(m_PlaneManager == null)
             {
                 m_PlaneManager = arOrigin.AddComponent<ARPlaneManager>();

@@ -15,10 +15,10 @@ using System.Collections.Generic;
 using System.Collections;
 using System;
 using UnityEngine.InputSystem.XR;
-#if UNITY_ANDROID
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
 using Unity.XR.CoreUtils;
+#if RT_XR_ENABLE_ARCORE_EXTENSIONS
 using UnityEngine.XR.ARCore;
 using Google.XR.ARCoreExtensions;
 #endif
@@ -32,7 +32,7 @@ namespace GLTFast
     /// </summary>
     public class TrackableMarkerGeo : MonoBehaviour, IMpegTrackable
     {
-#if UNITY_ANDROID
+#if RT_XR_ENABLE_ARCORE_EXTENSIONS
         private Vector3 m_Coordinates;
         private ARAnchorManager m_AnchorManager = null;
         private TrackableId m_Id = TrackableId.invalidId;
@@ -95,7 +95,7 @@ namespace GLTFast
             // Use XR camera prior to any other cameras
             if (_cam != null)
             {
-                UnityEngine.Camera[] _cameras = FindObjectsOfType<UnityEngine.Camera>();
+                UnityEngine.Camera[] _cameras = FindObjectsByType(typeof(UnityEngine.Camera), FindObjectsSortMode.None) as UnityEngine.Camera[];
                 for (int i = 0; i < _cameras.Length; i++)
                 {
                     if (_cameras[i] != _cam)
@@ -111,7 +111,7 @@ namespace GLTFast
             _cam.transform.SetParent(_destination);
             Debug.Log($"Set camera as a child of {_destination.name}");
 
-            m_AnchorManager = FindObjectOfType<ARAnchorManager>(true);
+            m_AnchorManager = FindFirstObjectByType<ARAnchorManager>(FindObjectsInactive.Include);
             if (m_AnchorManager == null)
             {
                 Debug.Log("ARAnchorManager == null. Creating one");
@@ -172,7 +172,7 @@ namespace GLTFast
             }
 
             // Check duplicates
-            m_EarthManager = FindObjectOfType<AREarthManager>(true);
+            m_EarthManager = FindFirstObjectByType<AREarthManager>(FindObjectsInactive.Include);
             if(m_EarthManager == null)
             {
                 m_EarthManager = m_ArOrigin.AddComponent<AREarthManager>();
