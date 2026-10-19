@@ -74,7 +74,8 @@ namespace GLTFast.Schema {
             MIDPOINT = 1
         }
 
-        public YCbCrModel ycbcrModel = YCbCrModel.RGB_IDENTITY;
+        // ISO/IEC 23090-14:2024 Table 70: ycbcrModel defaults to 1
+        public YCbCrModel ycbcrModel = (YCbCrModel)1;
         public YCbCrRange ycbcrRange = YCbCrRange.FULL;
         public ChromaFilter chromaFilter = ChromaFilter.NEAREST;
         public ComponentSwizzle[] components = { ComponentSwizzle.IDENTITY, ComponentSwizzle.IDENTITY, ComponentSwizzle.IDENTITY, ComponentSwizzle.IDENTITY };

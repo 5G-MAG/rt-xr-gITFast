@@ -40,7 +40,7 @@ namespace GLTFast
 
         private GameObject m_Anchor = null;
         private Texture2D m_DefaultTexture;
-        private List<GameObject> m_GoToAttach;
+        private List<GameObject> m_GoToAttach = new List<GameObject>();
         private bool m_IsAttached = false;
         private Vector3 m_RequiredSpaceToCheck = Vector3.zero;
         private bool m_RequiredAnchoring = false;
@@ -90,7 +90,10 @@ namespace GLTFast
                 m_TrackedImageManager = obj.AddComponent<ARTrackedImageManager>();
             }
 
-            m_TrackedImageManager.referenceLibrary = m_TrackedImageManager.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
+            // several marker 2D trackables share one library: the library is created once, each marker adds its image to it
+            if (m_TrackedImageManager.referenceLibrary == null) {
+                m_TrackedImageManager.referenceLibrary = m_TrackedImageManager.CreateRuntimeLibrary(m_XrReferenceImageLibrary);
+            }
             m_TrackedImageManager.requestedMaxNumberOfMovingImages = MAX_NUM_IMAGES;
             m_TrackedImageManager.enabled = true;
             // m_TrackedImageManager.trackedImagePrefab = GameObject.CreatePrimitive(UnityEngine.PrimitiveType.Plane);
@@ -118,7 +121,6 @@ namespace GLTFast
                     AddMarkerImage(tex, size);
                 }
             }
-            m_GoToAttach = new List<GameObject>();
         }
 
         public void RequiredSpace(UnityEngine.Vector3 requiredSpace)
@@ -146,8 +148,34 @@ namespace GLTFast
 
         public void AddMarkerImage(Texture2D _texture, Size _size)
         {
-            Debug.Log($"TrackableMarker2D::AddMarkerImage...");
+            m_ImageWidth = MarkerWidthFromNode();
+            // a width set by the user for the marker on their screen or print overrides the scene's geometry (0 = use the scene)
+            float cm = PlayerPrefs.GetFloat("set.markerwidthcm", 0f);
+            if (cm > 0f) m_ImageWidth = cm / 100f;
+            Debug.Log($"TrackableMarker2D::AddMarkerImage... physical width {(m_ImageWidth.HasValue ? m_ImageWidth.Value.ToString("0.###") + " m" : "unknown")}");
             StartCoroutine(AddImageJob(_texture, _size));
+        }
+
+        // Width of the marker in metres, from the marker node's geometry (position bounds times node scale).
+        // ARCore needs it to estimate the pose of the image; without it the image is found but its pose stays unknown.
+        private float? m_ImageWidth;
+        // the reference image of this marker: tracked images of other markers are not ours
+        private string m_ImageName;
+
+        private float? MarkerWidthFromNode()
+        {
+            try
+            {
+                Node node = VirtualSceneGraph.root.nodes[m_MarkerNode];
+                if (node.mesh < 0) return null;
+                var prim = VirtualSceneGraph.root.meshes[node.mesh].primitives[0];
+                var acc = VirtualSceneGraph.root.accessors[prim.attributes.POSITION];
+                if (acc.min == null || acc.max == null || acc.min.Length < 3) return null;
+                float sx = node.scale != null && node.scale.Length >= 3 ? Mathf.Abs(node.scale[0]) : 1f;
+                float w = (acc.max[0] - acc.min[0]) * sx;
+                return w > 0.001f ? w : (float?)null;
+            }
+            catch (Exception) { return null; }
         }
 
         private IEnumerator AddImageJob(Texture2D _texture, Size _size)
@@ -167,10 +195,11 @@ namespace GLTFast
             }
 
             //Start the process of adding the image in the mutable runtime reference image library
+            m_ImageName = $"{_texture.name}||{Guid.NewGuid().ToString()}";
             var _job = runtimeReferenceImageLibrary.ScheduleAddImageWithValidationJob(
                 _texture,                                           // Texture
-                $"{_texture.name}||{Guid.NewGuid().ToString()}",    // Unique name
-                null                                                // real world image scale
+                m_ImageName,                                        // Unique name
+                m_ImageWidth                                        // real world width of the image in metres
             );
 
             Debug.Log("TrackableMarker2D::Waiting until the job is complete");
@@ -190,27 +219,45 @@ namespace GLTFast
         /// </summary>
         void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
         {
+            Debug.Log($"TrackableMarker2D::images added={eventArgs.added.Count} updated={eventArgs.updated.Count} removed={eventArgs.removed.Count}" +
+                      (eventArgs.updated.Count > 0 ? $" state={eventArgs.updated[0].trackingState}" : ""));
 
             if (eventArgs.added.Count > 0)
             {
                 if (imgTrack == null)
                 {
-                    imgTrack = eventArgs.added[0];
-                    m_Id = imgTrack.trackableId;
+                    foreach (ARTrackedImage added in eventArgs.added)
+                    {
+                        if (m_ImageName != null && added.referenceImage.name != m_ImageName) continue;
+                        imgTrack = added;
+                        m_Id = imgTrack.trackableId;
+                        break;
+                    }
                 }
             }
 
             if (eventArgs.updated.Count > 0)
             {
-                if (m_Anchor == null)
+                if (m_Anchor == null && imgTrack != null && imgTrack.trackingState == TrackingState.Tracking)
                 {
                     BuildAnchorInternal();
                 }
 
                 foreach (ARTrackedImage img in eventArgs.updated){
-                    if (imgTrack == img){
-                        m_Anchor.transform.SetPositionAndRotation(img.transform.position, img.transform.rotation);
-                        m_Anchor.transform.RotateAround(img.transform.position, img.transform.up, 180);
+                    if (imgTrack == img && m_Anchor != null && img.trackingState == TrackingState.Tracking){
+                        if (!m_Anchor.activeSelf) m_Anchor.SetActive(true);
+                        // the image pose is noisy from frame to frame: follow it through a low-pass filter
+                        Quaternion targetRot = img.transform.rotation * Quaternion.AngleAxis(180f, Vector3.up);
+                        if (!m_PoseInit)
+                        {
+                            m_Anchor.transform.SetPositionAndRotation(img.transform.position, targetRot);
+                            m_PoseInit = true;
+                        }
+                        else
+                        {
+                            m_Anchor.transform.position = Vector3.Lerp(m_Anchor.transform.position, img.transform.position, 0.15f);
+                            m_Anchor.transform.rotation = Quaternion.Slerp(m_Anchor.transform.rotation, targetRot, 0.15f);
+                        }
                     }
                 }
 
@@ -225,7 +272,7 @@ namespace GLTFast
                             ClearInfo(imgTrack);
                             imgTrack = null;
                             m_Id = TrackableId.invalidId;
-                            m_Anchor.SetActive(false);
+                            if (m_Anchor != null) m_Anchor.SetActive(false);
                         }
                     }
                 }
@@ -234,10 +281,11 @@ namespace GLTFast
 
         void ClearInfo(ARTrackedImage trackedImage)
         {
-            var planeParentGo = trackedImage.transform.GetChild(0).gameObject;
-            var planeGo = planeParentGo.transform.GetChild(0).gameObject;
-            // Disable the visual plane if it is not being tracked  
-            planeGo.SetActive(false);
+            // Disable the visual plane if it is not being tracked
+            if (trackedImage == null || trackedImage.transform.childCount == 0) return;
+            var planeParent = trackedImage.transform.GetChild(0);
+            if (planeParent.childCount == 0) return;
+            planeParent.GetChild(0).gameObject.SetActive(false);
         }
 
         public bool Detect()
@@ -247,7 +295,7 @@ namespace GLTFast
 
         public Transform Track()
         {
-            if (m_Anchor == null)
+            if (m_Anchor == null || imgTrack == null)
             {
                 return null;
             }
@@ -279,8 +327,10 @@ namespace GLTFast
 
         private void EnableAnchorInternal()
         {
+            if (m_Anchor == null) return;
             foreach (GameObject go in m_GoToAttach)
             {
+                if (go == null) continue;
                 go.transform.SetParent(m_Anchor.transform, false);
                 go.SetActive(true);
             }
@@ -290,7 +340,9 @@ namespace GLTFast
         {
             foreach (GameObject go in m_GoToAttach)
             {
-                go.transform.SetParent(m_Anchor.transform, false);
+                if (go == null) continue;
+                // before the marker is seen there is no anchor: the node stays where it is, hidden
+                if (m_Anchor != null) go.transform.SetParent(m_Anchor.transform, false);
                 go.SetActive(false);
             }
         }
@@ -317,8 +369,110 @@ namespace GLTFast
             }
         }
 
+        private bool m_PoseInit;
+        private bool m_PictureHidden;
+
+        private static string ImageKey(Schema.Image img)
+        {
+            if (img == null) return null;
+            string k = !string.IsNullOrEmpty(img.name) ? img.name : img.uri;
+            if (string.IsNullOrEmpty(k)) return null;
+            k = k.Substring(k.LastIndexOf('/') + 1);
+            int dot = k.LastIndexOf('.');
+            if (dot > 0) k = k.Substring(0, dot);
+            return k.ToLowerInvariant();
+        }
+
+        private string MarkerImageKey()
+        {
+            var root = VirtualSceneGraph.root;
+            Node node = root.nodes[m_MarkerNode];
+            if (node.mesh < 0) return null;
+            foreach (var prim in root.meshes[node.mesh].primitives)
+            {
+                if (prim.material < 0) continue;
+                var bc = root.materials[prim.material].pbrMetallicRoughness?.baseColorTexture;
+                if (bc == null) continue;
+                int src = root.textures[bc.index].source;
+                if (src >= 0 && src < root.images.Length) return ImageKey(root.images[src]);
+            }
+            return null;
+        }
+
+        // Scenes may show the marker picture as ordinary content, which is confusing next to the real marker: with the
+        // setting on, nodes whose material uses the same picture as the marker node are not drawn.
+        private void HideMarkerPicture()
+        {
+            m_PictureHidden = true;
+            if (PlayerPrefs.GetInt("set.hidemarkerpicture", 1) != 1) return;
+            try
+            {
+                var root = VirtualSceneGraph.root;
+                string key = MarkerImageKey();
+                if (key == null) return;
+                var sceneRoot = VirtualSceneGraph.GetSceneTransform();
+                var renderers = sceneRoot != null ? sceneRoot.GetComponentsInChildren<Renderer>(true) : new Renderer[0];
+                foreach (var r in renderers)
+                {
+                    var go = r.gameObject;
+                    if (!VirtualSceneGraph.IsNodeGameObject(go)) continue;
+                    int i = VirtualSceneGraph.GetNodeIndexFromGameObject(go);
+                    if (i < 0 || i >= root.nodes.Length || i == m_MarkerNode || root.nodes[i].mesh < 0) continue;
+                    bool same = false;
+                    foreach (var prim in root.meshes[root.nodes[i].mesh].primitives)
+                    {
+                        if (prim.material < 0) continue;
+                        var bc = root.materials[prim.material].pbrMetallicRoughness?.baseColorTexture;
+                        if (bc == null) continue;
+                        int src = root.textures[bc.index].source;
+                        if (src >= 0 && src < root.images.Length && ImageKey(root.images[src]) == key) same = true;
+                    }
+                    if (!same) continue;
+                    r.enabled = false;
+                    Debug.Log("TrackableMarker2D::hid the marker picture on node " + i);
+                }
+            }
+            catch (Exception e) { Debug.Log("TrackableMarker2D::could not hide the marker picture: " + e.Message); }
+        }
+        // While the image is out of view the content is held by a world anchor, which ARCore keeps aligned as its map
+        // improves; a plain transform would drift against the room.
+        private ARAnchor m_WorldAnchor;
+
+        void LateUpdate()
+        {
+            if (m_Anchor == null || imgTrack == null) return;
+            bool visible = imgTrack.trackingState == TrackingState.Tracking;
+            if (visible)
+            {
+                if (m_WorldAnchor != null) { Destroy(m_WorldAnchor.gameObject); m_WorldAnchor = null; }
+                return;
+            }
+            if (m_WorldAnchor == null)
+            {
+                var mgr = FindObjectOfType<ARAnchorManager>(true);
+                if (mgr == null)
+                {
+                    GameObject origin = null;
+                    try { origin = ARUtilities.GetSessionOrigin(); } catch (Exception) { }
+                    if (origin == null) return;
+                    mgr = origin.AddComponent<ARAnchorManager>();
+                }
+                m_WorldAnchor = mgr.AddAnchor(new Pose(m_Anchor.transform.position, m_Anchor.transform.rotation));
+                return;
+            }
+            if (m_WorldAnchor.trackingState != TrackingState.None)
+                m_Anchor.transform.SetPositionAndRotation(m_WorldAnchor.transform.position, m_WorldAnchor.transform.rotation);
+        }
+        private int m_LastLog = -1;
         void Update()
         {
+            if (!m_PictureHidden && m_GoToAttach.Count > 0) HideMarkerPicture();
+            int logState = (m_Anchor == null ? 0 : 1) + (m_GoToAttach.Count << 1);
+            if (logState != m_LastLog)
+            {
+                m_LastLog = logState;
+                Debug.Log($"TrackableMarker2D::state anchor={(m_Anchor != null)} nodes={m_GoToAttach.Count} requiresAnchoring={m_RequiredAnchoring}");
+            }
             if (m_Anchor == null)
             {
                 if (m_RequiredAnchoring){

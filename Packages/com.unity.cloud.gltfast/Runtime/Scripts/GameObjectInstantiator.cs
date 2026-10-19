@@ -554,6 +554,7 @@ namespace GLTFast
                 lightGameObject = tmp;
             }
             var light = lightGameObject.AddComponent<Light>();
+            MpegPunctualLightController.ImporterIntensityFactor = m_Settings.LightIntensityFactor;
             lightSource.ToUnityLight(light, m_Settings.LightIntensityFactor);
             SceneInstance.AddLight(light);
         }

@@ -39,6 +39,21 @@ namespace GLTFast {
             }
         }
 
+        /// <summary>Addresses the user gave to replace the media of the scene being opened, by media index.</summary>
+        public static Dictionary<int, string> MediaOverrides = new Dictionary<int, string>();
+
+        public static string MimeFor(string uri, string fallback)
+        {
+            string u = uri.Split('?')[0].ToLowerInvariant();
+            if (u.EndsWith(".mpd")) return "application/dash+xml";
+            if (u.EndsWith(".m3u8")) return "application/vnd.apple.mpegurl";
+            bool audioBefore = fallback != null && fallback.StartsWith("audio/");
+            if (u.EndsWith(".mp4") || u.EndsWith(".m4v") || u.EndsWith(".mov")) return audioBefore ? fallback : "video/mp4";
+            if (u.EndsWith(".m4a") || u.EndsWith(".aac")) return "audio/aac";
+            if (u.EndsWith(".mp3")) return "audio/mpeg";
+            return fallback ?? "video/mp4";
+        }
+
         public static void CreateMediaPlayers(Schema.Root root, Uri baseUri = null)
         {
             // one config per gltf MPEG_media definition, preserving media index
@@ -49,6 +64,13 @@ namespace GLTFast {
                 if (baseUri != null)
                 {
                     ApplyBaseUri(m, baseUri);
+                }
+                // application feature, not part of ISO/IEC 23090-14: the user may replace the address of a media (see MediaOverrides)
+                string over;
+                if (MediaOverrides != null && MediaOverrides.TryGetValue(c, out over) && !string.IsNullOrEmpty(over))
+                {
+                    string oldMime = m.alternatives != null && m.alternatives.Length > 0 ? m.alternatives[0].mimeType : null;
+                    m.alternatives = new[] { new Schema.MediaAlternative { uri = over, mimeType = MimeFor(over, oldMime) } };
                 }
                 MediaPlayer mp = MediaPlayer.Create(m, configs[c]);
                 if (mp == null)
@@ -254,6 +276,46 @@ namespace GLTFast {
                     m.accessorAttributeType[k] = accessorAttribTypeMap[k];
                 }
             }
+            // maximum picture size of the video textures and target sample rate of the audio sources, by accessor
+            Schema.Texture[] sourceVideoTextures = root.textures;
+            if (sourceVideoTextures != null)
+            {
+                foreach (Schema.Texture vt in sourceVideoTextures)
+                {
+                    Schema.MpegTextureVideo tv = vt?.Extensions?.MPEG_texture_video;
+                    if (tv != null && m.accessors.ContainsKey(tv.accessor))
+                    {
+                        m.textureMaxSize[tv.accessor] = new Vector2Int(tv.width, tv.height);
+                    }
+                }
+            }
+            Schema.Node[] sourceNodes = root.nodes;
+            if (sourceNodes != null)
+            {
+                foreach (Schema.Node sn in sourceNodes)
+                {
+                    Schema.MpegAudioSpatialSource[] audioSources = sn?.Extensions?.MPEG_audio_spatial?.sources;
+                    if (audioSources == null)
+                    {
+                        continue;
+                    }
+                    foreach (Schema.MpegAudioSpatialSource audioSource in audioSources)
+                    {
+                        if (audioSource == null || audioSource.accessors == null || audioSource.targetSampleRate <= 0)
+                        {
+                            continue;
+                        }
+                        foreach (int audioAccessor in audioSource.accessors)
+                        {
+                            if (m.accessors.ContainsKey(audioAccessor))
+                            {
+                                m.targetSampleRate[audioAccessor] = audioSource.targetSampleRate;
+                                m.playbackSpeed[audioAccessor] = audioSource.playbackSpeed;
+                            }
+                        }
+                    }
+                }
+            }
             if (m.accessors.Count == 0)
             {
                 Debug.LogWarningFormat("no accessor found referencing media[%d]", mediaIndex);
@@ -285,6 +347,12 @@ namespace GLTFast {
         public Dictionary<int, Schema.BufferView> bufferViews { get; } = new Dictionary<int, Schema.BufferView>();
         public Dictionary<int, Schema.Accessor> accessors { get; } = new Dictionary<int, Schema.Accessor>();
         public Dictionary<int, maf.AttributeType> accessorAttributeType { get; } = new Dictionary<int, maf.AttributeType>();
+        // MPEG_texture_video: maximum picture size of the video texture using the accessor
+        public Dictionary<int, Vector2Int> textureMaxSize { get; } = new Dictionary<int, Vector2Int>();
+        // MPEG_audio_spatial targetSampleRate of the audio source using the accessor
+        public Dictionary<int, int> targetSampleRate { get; } = new Dictionary<int, int>();
+        // MPEG_audio_spatial playbackSpeed of the audio source using the accessor
+        public Dictionary<int, float> playbackSpeed { get; } = new Dictionary<int, float>();
         
         public float GetSuggestedUpdateRate(int bufferId)
         {

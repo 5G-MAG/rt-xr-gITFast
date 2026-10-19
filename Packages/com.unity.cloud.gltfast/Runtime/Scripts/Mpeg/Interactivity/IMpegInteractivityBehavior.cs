@@ -48,6 +48,17 @@ namespace GLTFast
         /// </summary>
         public void AddGameEngineAction(System.Action action);
 
+        /// <summary>
+        /// Priority of the behavior (Table 42), default 0. The highest value wins among
+        /// behaviors that affect the same node(s) at the same time.
+        /// </summary>
+        public int Priority { get; }
+
+        /// <summary>
+        /// Indices of the nodes modified by the actions of this behavior, or null when none.
+        /// </summary>
+        public int[] AffectedNodes { get; }
+
         public void Dispose();
     }
 }

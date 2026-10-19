@@ -130,6 +130,8 @@ namespace GLTFast
         public const string SceneInteractivity = "MPEG_scene_interactivity";
         public const string NodeInteractivity = "MPEG_node_interactivity";
         public const string Anchor = "MPEG_anchor";
+        public const string Haptic = "MPEG_haptic";
+        public const string HapticMaterial = "MPEG_haptic_material";
 
         /// <summary>
         /// Returns the official name of the glTF extension

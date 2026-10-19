@@ -30,16 +30,41 @@ namespace GLTFast
             m_Behaviors.Add(bhv);
         }
 
+        private readonly List<IMpegInteractivityBehavior> m_Activated = new List<IMpegInteractivityBehavior>();
+        private readonly List<IMpegInteractivityBehavior> m_Selected = new List<IMpegInteractivityBehavior>();
+
         private void FixedUpdate()
         {
+            m_Activated.Clear();
             for(int i = 0; i < m_Behaviors.Count; i++)
             {
-                bool result = m_Behaviors[i].AreTriggersActived();
-                if(!result)
+                // Every behavior evaluates its triggers each step, whether it may run or not.
+                // A behavior that throws does not stop the others.
+                try
                 {
-                    continue;
+                    if(m_Behaviors[i].AreTriggersActived())
+                    {
+                        m_Activated.Add(m_Behaviors[i]);
+                    }
                 }
-                m_Behaviors[i].ActivateActions();
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
+            }
+
+            // Highest priority wins among behaviors affecting the same nodes (Table 42).
+            BehaviorArbiter.Select(m_Activated, m_Selected);
+            for(int i = 0; i < m_Selected.Count; i++)
+            {
+                try
+                {
+                    m_Selected[i].ActivateActions();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
             }
         }
 

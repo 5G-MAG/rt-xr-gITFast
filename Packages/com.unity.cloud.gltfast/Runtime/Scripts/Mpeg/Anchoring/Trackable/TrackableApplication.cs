@@ -145,6 +145,10 @@ namespace GLTFast
 
         public Transform  Track()
         {
+            if(m_CloudAnchor == null)
+            {
+                return null;
+            }
             if(m_CloudAnchor.trackingState== TrackingState.Tracking)
             {
                 return m_CloudAnchor.transform;

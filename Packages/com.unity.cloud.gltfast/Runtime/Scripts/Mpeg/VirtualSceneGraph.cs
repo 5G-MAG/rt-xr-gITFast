@@ -98,6 +98,12 @@ namespace GLTFast
             return m_NodeGameObject.GetValueFromKey(node);
         }
 
+        /// <summary>True when the game object was created for a glTF node.</summary>
+        public static bool IsNodeGameObject(GameObject go)
+        {
+            return go != null && m_NodeGameObject.values.IndexOf(go) >= 0;
+        }
+
         public static int GetNodeCount()
         {
             return m_NodeGameObject.values.Count;
@@ -118,6 +124,45 @@ namespace GLTFast
         public static void AssignMeshToMeshIndex(int meshIndex, UnityEngine.Mesh mesh)
         {
             m_MeshIndexMesh.Add(meshIndex, meshIndex, mesh);
+        }
+
+        /// <summary>
+        /// The Unity mesh of the first primitive of the glTF mesh, or null when that mesh is not
+        /// part of the instantiated scene. Meshes are registered by primitive index.
+        /// </summary>
+        public static UnityEngine.Mesh TryGetMeshOfGltfMesh(int gltfMeshIndex)
+        {
+            if (root == null || root.meshes == null || gltfMeshIndex < 0 || gltfMeshIndex >= root.meshes.Length) return null;
+            int primitiveIndex = 0;
+            for (int i = 0; i < gltfMeshIndex; i++)
+            {
+                var prims = root.meshes[i].primitives;
+                primitiveIndex += prims != null ? prims.Length : 0;
+            }
+            int at = m_MeshIndexMesh.keys.IndexOf(primitiveIndex);
+            return at < 0 ? null : m_MeshIndexMesh.values[at];
+        }
+
+        /// <summary>
+        /// Set by the importer for the scene being instantiated: the Unity meshes of all primitives of a glTF mesh,
+        /// whether or not a node uses that mesh.
+        /// </summary>
+        public static System.Func<int, UnityEngine.Mesh[]> MeshPrimitiveMeshesProvider;
+
+        /// <summary>
+        /// The Unity meshes of every primitive of the glTF mesh (an empty array when the mesh does not exist).
+        /// Works for meshes that no node references.
+        /// </summary>
+        public static UnityEngine.Mesh[] GetMeshesOfGltfMesh(int gltfMeshIndex)
+        {
+            UnityEngine.Mesh[] result = MeshPrimitiveMeshesProvider != null ? MeshPrimitiveMeshesProvider(gltfMeshIndex) : null;
+            if (result == null)
+            {
+                // No provider: only the meshes that a node uses are known
+                UnityEngine.Mesh used = TryGetMeshOfGltfMesh(gltfMeshIndex);
+                result = used != null ? new UnityEngine.Mesh[] { used } : new UnityEngine.Mesh[0];
+            }
+            return result;
         }
 
         public static UnityEngine.Mesh GetMeshFromIndex(int mesh_index)
@@ -298,7 +343,8 @@ namespace GLTFast
         {
             root = null;
             sceneTransform = null;
-
+            MeshPrimitiveMeshesProvider = null;
+            
             m_ActionIndexAction.ClearAll();
             m_TriggerIndexTrigger.ClearAll();
             m_BehaviorIndexBehavior.ClearAll();

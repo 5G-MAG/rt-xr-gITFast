@@ -35,7 +35,7 @@ namespace GLTFast
         public void Init(Schema.Action action)
         {
             m_Objects = VirtualSceneGraph.GetGameObjectsFromIndexes(action.nodes);
-            m_ActivationStatus = action.activationStatus == ActivationStatus.DISABLED;
+            m_ActivationStatus = action.activationStatus == ActivationStatus.ENABLED;
             m_Delay = action.delay;
         }
 

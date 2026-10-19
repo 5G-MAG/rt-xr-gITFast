@@ -69,8 +69,7 @@ namespace GLTFast
 
             if (_origin.GetComponent<ARInputManager>() == null)
             {
-                Debug.Log("ARInputManager == null. Creating one");
-                _origin.gameObject.AddComponent<ARInputManager>();
+                throw new Exception("Can't Find the XR Origin component");
             }
 
             UnityEngine.Camera _cam = _origin.GetComponent<UnityEngine.Camera>();
@@ -126,8 +125,10 @@ namespace GLTFast
         {
             Debug.Log("TrackableMarkerGeo::InitFromGltf: Marker Geo");
             //get coordinates
-            m_Coordinates.x= track.coordinates[0];
-            m_Coordinates.y= track.coordinates[1];
+            // ISO/IEC 23090-14:2024 lists the longitude first, then the latitude, then the elevation;
+            // m_Coordinates holds (latitude, longitude, altitude) as AddAnchor expects them.
+            m_Coordinates.x= track.coordinates[1];
+            m_Coordinates.y= track.coordinates[0];
             m_Coordinates.z= track.coordinates[2];
             if (Application.isEditor)
             {
@@ -180,12 +181,16 @@ namespace GLTFast
             // Force the activation
             m_EarthManager.enabled = true;
 
-            FeatureSupported _support = m_EarthManager.IsGeospatialModeSupported(GeospatialMode.Enabled);
-        
+            // without a running AR session (flat preview) or without the geospatial runtime the query fails: the marker cannot be resolved
+            FeatureSupported _support = FeatureSupported.Unsupported;
+            try { _support = m_EarthManager.IsGeospatialModeSupported(GeospatialMode.Enabled); }
+            catch (System.Exception e) { Debug.LogWarning("TrackableMarkerGeo::geospatial support cannot be queried: " + e.Message); yield break; }
+
             while(_support == FeatureSupported.Unknown)
             {
                 Debug.Log("TrackableMarkerGeo::Waiting for feature support to status...");
-                _support = m_EarthManager.IsGeospatialModeSupported(GeospatialMode.Enabled);
+                try { _support = m_EarthManager.IsGeospatialModeSupported(GeospatialMode.Enabled); }
+                catch (System.Exception e) { Debug.LogWarning("TrackableMarkerGeo::geospatial support cannot be queried: " + e.Message); yield break; }
                 yield return new WaitForSeconds(1);
             }
 

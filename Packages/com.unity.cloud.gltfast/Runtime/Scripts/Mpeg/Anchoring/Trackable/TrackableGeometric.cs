@@ -26,7 +26,7 @@ namespace GLTFast
     /// Trackable defined as geometric horizontal or vertical plane 
     /// </summary>
     /// 
-    public class TrackableGeometric : MonoBehaviour, IMpegTrackable
+    public class TrackableGeometric : MonoBehaviour, IMpegTrackable, IPlaceableTrackable
     {
 #if UNITY_ANDROID
         private ARPlaneManager m_ArPlaneManager;
@@ -38,6 +38,15 @@ namespace GLTFast
         private bool m_SupportClassification = true;
         private List<GameObject> m_GoToAttached = new List<GameObject>();
         private bool m_Attached = false;
+        private Pose? m_PlacementPose = null;
+        private float m_UserScale = 1f;
+        private bool m_PlacedOnWall = false;
+        private AnchorHolder m_Holder;
+        private Transform HolderTransform { get { return m_Holder != null ? m_Holder.transform : m_Anchor.transform; } }
+        private float m_UserYaw = 0f;
+        private Dictionary<GameObject, Vector3> m_OriginalPositions = new Dictionary<GameObject, Vector3>();
+        private Dictionary<GameObject, Quaternion> m_OriginalRotations = new Dictionary<GameObject, Quaternion>();
+        private Dictionary<GameObject, Vector3> m_OriginalScales = new Dictionary<GameObject, Vector3>();
         private Vector3 m_RequiredSpaceToCheck = Vector3.zero;
         private bool m_RequiredSpaceOk = false;
         private bool m_RequiredAnchoring = false;
@@ -112,6 +121,7 @@ namespace GLTFast
             }
 
             m_ArPlaneManager.planesChanged += PlanesChanged;
+            AnchorPlacement.Register(this);
         }
 
         private void PlanesChanged(ARPlanesChangedEventArgs arg)
@@ -120,29 +130,35 @@ namespace GLTFast
             {
                 Debug.Log("TrackableGeometric::PlanesChanged - added : " + arg.added.Count);
                 // Currently supports only the first detected plane
-                if (m_Plane == null)
+                if (m_Plane == null && !AnchorPlacement.TapToPlace)
                 {
-                    ARPlane tempPlane = arg.added[0];
-                    m_Plane = tempPlane;
-                    m_Id = tempPlane.trackableId;
-                    var res = BuildAnchorInternal();
-                    if (!res)
+                    // the first plane that fits geometricConstraint (Table 29)
+                    foreach (ARPlane tempPlane in arg.added)
                     {
-                        m_Plane = null;
-                        m_Id = TrackableId.invalidId;
+                        if (!IsCandidate(tempPlane)) continue;
+                        m_Plane = tempPlane;
+                        m_Id = tempPlane.trackableId;
+                        var res = BuildAnchorInternal();
+                        if (!res)
+                        {
+                            m_Plane = null;
+                            m_Id = TrackableId.invalidId;
+                            continue;
+                        }
+                        break;
                     }
                 } else {
                     Debug.Log("TrackableGeometric::PlanesChanged - Ignoring " + arg.added.Count + " added planes.");
                 }
                 foreach (ARPlane p in arg.added){
-                    if (p != m_Plane){
-                        // visualize only the plane being tracked
+                    if (p != m_Plane && !AnchorPlacement.TapToPlace){
+                        // visualize only the plane being tracked (all planes stay visible while the user chooses)
                         p.gameObject.SetActive(false);
                     }
                 }
             }
 
-            if (m_Plane != null && arg.removed.Count > 0)
+            if (m_Plane != null && arg.removed.Count > 0 && !AnchorPlacement.TapToPlace)
             {
                 foreach (ARPlane p in arg.removed){
                     if (p.trackableId == m_Id)
@@ -158,7 +174,7 @@ namespace GLTFast
             if (m_Plane != null && arg.updated.Count > 0)
             {
                 foreach (ARPlane p in arg.updated){
-                    if (p.trackableId == m_Id)
+                    if (p.trackableId == m_Id && !AnchorPlacement.TapToPlace)
                     {
                         p.gameObject.SetActive(true);
                         // @TODO: ensure aligned and scaled
@@ -169,9 +185,173 @@ namespace GLTFast
 
         }
 
+        private bool IsCandidate(ARPlane p)
+        {
+            if (m_Geoconstraint == Trackable.GeometricConstraint.HORIZONTAL_PLANE)
+            {
+                return p.alignment == PlaneAlignment.HorizontalUp || p.alignment == PlaneAlignment.HorizontalDown;
+            }
+            return p.alignment == PlaneAlignment.Vertical;
+        }
+
+        public bool AwaitingPlacement { get { return m_Anchor == null; } }
+
+        public bool PlaceAt(ARPlane plane, Pose pose)
+        {
+            if (plane == null || !(AnchorPlacement.PlaceOnAnySurface ? AnchorPlacement.IsUserSurface(plane) : IsCandidate(plane)))
+            {
+                return false;
+            }
+            if (m_Anchor != null)
+            {
+                ResetPlacement();
+            }
+            m_Plane = plane;
+            m_Id = plane.trackableId;
+            var viewCamera = UnityEngine.Camera.main;
+            Vector3 viewPosition = viewCamera != null ? viewCamera.transform.position : pose.position + plane.transform.up;
+            m_PlacementPose = new Pose(pose.position, AnchorPlacement.UserRotation(plane, pose.position, viewPosition));
+            m_PlacedOnWall = plane.alignment == PlaneAlignment.Vertical;
+            if (!BuildAnchorInternal())
+            {
+                m_Plane = null;
+                m_Id = TrackableId.invalidId;
+                m_PlacementPose = null;
+                return false;
+            }
+            return true;
+        }
+
+        public bool PlaceAtPose(Pose pose, bool onWall)
+        {
+            if (m_AnchorManager == null)
+            {
+                return false;
+            }
+            if (m_Anchor != null)
+            {
+                ResetPlacement();
+            }
+            m_Plane = null;
+            m_Id = TrackableId.invalidId;
+            m_PlacedOnWall = onWall;
+            var viewCamera = UnityEngine.Camera.main;
+            Vector3 viewPosition = viewCamera != null ? viewCamera.transform.position : pose.position + pose.up;
+            m_PlacementPose = new Pose(pose.position, AnchorPlacement.UserRotationFromNormal(pose.up, onWall, pose.position, viewPosition));
+            if (!BuildAnchorInternal())
+            {
+                m_PlacementPose = null;
+                return false;
+            }
+            return true;
+        }
+
+        // ARCore dropped the anchor: the scene stays where it was and a new anchor takes over there.
+        private bool OnAnchorLost()
+        {
+            if (m_AnchorManager == null || m_Holder == null)
+            {
+                return false;
+            }
+            var anchor = m_AnchorManager.AddAnchor(new Pose(m_Holder.transform.position, m_Holder.transform.rotation));
+            if (anchor == null)
+            {
+                return false;
+            }
+            m_Anchor = anchor;
+            m_Holder.Bind(anchor, OnAnchorLost);
+            return true;
+        }
+
+        public void SetUserTransform(float scale, float yawDegrees)
+        {
+            m_UserScale = scale;
+            m_UserYaw = yawDegrees;
+            ApplyUserTransform();
+        }
+
+        // The scene sits on the spot the user tapped: lowest point on the floor or table, back against a wall and centred on the tap.
+        private void SitOnSurface()
+        {
+            bool any = false;
+            Bounds bounds = new Bounds();
+            foreach (GameObject go in m_GoToAttached)
+            {
+                if (go == null) continue;
+                foreach (Renderer r in go.GetComponentsInChildren<Renderer>())
+                {
+                    if (!r.enabled) continue;
+                    if (!any) { bounds = r.bounds; any = true; } else { bounds.Encapsulate(r.bounds); }
+                }
+            }
+            if (!any) return;
+            Vector3 anchorPosition = HolderTransform.position;
+            Vector3 shift;
+            if (!m_PlacedOnWall)
+            {
+                shift = Vector3.up * (anchorPosition.y - bounds.min.y);
+            }
+            else
+            {
+                Vector3 normal = HolderTransform.forward;   // leaves the wall
+                Vector3 right = HolderTransform.right;
+                Vector3 toCenter = bounds.center - anchorPosition;
+                float half = Mathf.Abs(normal.x) * bounds.extents.x + Mathf.Abs(normal.y) * bounds.extents.y + Mathf.Abs(normal.z) * bounds.extents.z;
+                shift = right * -Vector3.Dot(toCenter, right) + Vector3.up * -Vector3.Dot(toCenter, Vector3.up) + normal * -(Vector3.Dot(toCenter, normal) - half);
+            }
+            foreach (GameObject go in m_GoToAttached)
+            {
+                if (go != null) go.transform.position += shift;
+            }
+        }
+
+        private void ApplyUserTransform()
+        {
+            if (m_Holder != null)
+            {
+                m_Holder.transform.localScale = Vector3.one * m_UserScale;
+            }
+            Quaternion turn = Quaternion.Euler(0f, m_UserYaw, 0f);
+            foreach (GameObject go in m_GoToAttached)
+            {
+                if (go != null && m_OriginalPositions.ContainsKey(go))
+                {
+                    go.transform.localPosition = turn * m_OriginalPositions[go];
+                    go.transform.localRotation = turn * m_OriginalRotations[go];
+                }
+            }
+            if (AnchorPlacement.GroundOnPlacement && m_PlacementPose.HasValue && m_Holder != null)
+            {
+                SitOnSurface();
+            }
+        }
+
+        public void ResetPlacement()
+        {
+            foreach (GameObject go in m_GoToAttached)
+            {
+                if (go != null) go.transform.SetParent(null, false);
+            }
+            if (m_Anchor != null)
+            {
+                Destroy(m_Anchor.gameObject);
+            }
+            if (m_Holder != null)
+            {
+                Destroy(m_Holder.gameObject);
+                m_Holder = null;
+            }
+            m_Anchor = null;
+            m_Attached = false;
+            m_Plane = null;
+            m_Id = TrackableId.invalidId;
+            m_PlacementPose = null;
+            m_ApplyScale = false;
+        }
+
         public bool Detect()
         {
-            return m_Plane != null;
+            return m_Plane != null || m_Anchor != null;
         }
 
         public Transform Track()
@@ -183,7 +363,7 @@ namespace GLTFast
 
             if (m_Anchor.trackingState == TrackingState.Tracking)
             {
-                return m_Plane.transform;
+                return m_Plane != null ? m_Plane.transform : HolderTransform;
             }
             else
             {
@@ -193,7 +373,7 @@ namespace GLTFast
 
         private bool BuildAnchorInternal()
         {
-            if (m_RequiredSpace)
+            if (m_RequiredSpace && m_Plane != null)
             {
                 var res = CheckRequiredSpace(m_Plane);
                 if (!res)
@@ -203,26 +383,60 @@ namespace GLTFast
                 }
             }
             Debug.Log("TrackableGeometric::BuildAnchorInternal");
-            if (m_RequiredAlignedAndScale)
+            if (m_RequiredAlignedAndScale && m_Plane != null)
             {
                 CheckAlignedAndScale(m_Plane);
             }
 
-            m_Anchor = m_AnchorManager.AttachAnchor(m_Plane, new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
+            if (m_PlacementPose.HasValue && !AnchorPlacement.AnchorToPlane)
+            {
+                // the user chose the spot: a free-standing anchor there stays put while planes are refined or merged
+                m_Anchor = m_AnchorManager.AddAnchor(m_PlacementPose.Value);
+            }
+            if (m_Anchor == null)
+            {
+                if (m_Plane != null) m_Anchor = m_AnchorManager.AttachAnchor(m_Plane, m_PlacementPose ?? new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
+            }
+            if (m_Anchor == null)
+            {
+                return false;
+            }
+            if (m_Holder == null)
+            {
+                m_Holder = new GameObject("MpegAnchoredScene").AddComponent<AnchorHolder>();
+            }
+            m_Holder.transform.SetParent(m_Anchor.transform.parent, false);
+            m_Holder.Bind(m_Anchor, OnAnchorLost);
 
             if (!m_Attached)
             {
                 foreach (GameObject go in m_GoToAttached)
                 {
                     go.SetActive(true);
-                    // Note: the initial contribution didn't support alignment and scale constraints. see, RequiredAlignedAndScale()
-                    go.transform.position = m_Anchor.gameObject.transform.position; // no alignment constraint
+                    // The TRS of the anchored node is the transform between the trackable space and the anchor space,
+                    // so the node lives under the anchor and keeps its own TRS.
+                    go.transform.SetParent(HolderTransform, false);
+                    if (!m_OriginalPositions.ContainsKey(go))
+                    {
+                        m_OriginalPositions[go] = go.transform.localPosition;
+                        m_OriginalRotations[go] = go.transform.localRotation;
+                    }
                     if (m_ApplyScale)
                     {
-                        go.transform.localScale = m_ScaleFactor;
-                        foreach (Transform t in go.GetComponentsInChildren<Transform>())
+                        if (!m_OriginalScales.ContainsKey(go)) m_OriginalScales[go] = go.transform.localScale;
+                        go.transform.localScale = Vector3.Scale(m_OriginalScales[go], m_ScaleFactor);
+                    } else if (AnchorPlacement.FaceUserOnPlacement) {
+                        switch (m_Geoconstraint)
                         {
-                            t.localScale = m_ScaleFactor;
+                            case Trackable.GeometricConstraint.HORIZONTAL_PLANE:
+                                Vector3 targetPostition = new Vector3(UnityEngine.Camera.main.transform.position.x, go.transform.position.y, UnityEngine.Camera.main.transform.position.z);
+                                go.transform.LookAt(targetPostition);
+                                break;
+                            case Trackable.GeometricConstraint.VERTICAL_PLANE:
+                                go.transform.forward = m_Anchor.gameObject.transform.up;
+                                break;
+                            default:
+                                break;
                         }
                     } else {
                         switch (m_Geoconstraint)
@@ -240,6 +454,7 @@ namespace GLTFast
                     }
 
                 }
+                ApplyUserTransform();
                 // Instantiate(Resources.Load<GameObject>("Debug/axes"), m_Anchor.gameObject.transform, false);
                 m_Attached = true;
             }
@@ -264,7 +479,7 @@ namespace GLTFast
             if (m_Anchor != null && !m_Attached)
             {
                 Debug.Log("TrackableGeometric::AttachNodeToAnchor: " + go.name);
-                go.transform.SetParent(m_Anchor.gameObject.transform, false);
+                go.transform.SetParent(HolderTransform, false);
                 go.SetActive(true);
             }
         }
@@ -280,10 +495,47 @@ namespace GLTFast
             m_RequiredAnchoring = requiredAnchoring;
         }
 
+        private float m_NextAdopt;
+
+        void Update()
+        {
+            // The pose of the anchor is unknown again when ARCore removed the tracked plane (merged into another one): the anchor is set up on
+            // a plane that is still tracked, as soon as there is one (8.1.3: the assets are skipped until the pose is known)
+            if (m_Plane == null && m_Anchor == null && !AnchorPlacement.TapToPlace && m_ArPlaneManager != null && Time.unscaledTime >= m_NextAdopt)
+            {
+                m_NextAdopt = Time.unscaledTime + 0.5f;
+                foreach (ARPlane candidate in m_ArPlaneManager.trackables)
+                {
+                    if (candidate == null || candidate.trackingState != TrackingState.Tracking || candidate.subsumedBy != null || !IsCandidate(candidate)) continue;
+                    m_Plane = candidate;
+                    m_Id = candidate.trackableId;
+                    if (!BuildAnchorInternal()) { m_Plane = null; m_Id = TrackableId.invalidId; continue; }
+                    Debug.Log("TrackableGeometric::re-adopted the plane " + m_Id);
+                    break;
+                }
+            }
+            if (m_Anchor == null && m_RequiredAnchoring)
+            {
+                // requiresAnchoring: the assets are skipped until the pose of the anchor is known
+                foreach (GameObject go in m_GoToAttached)
+                {
+                    if (go != null && go.activeSelf)
+                    {
+                        go.SetActive(false);
+                    }
+                }
+            }
+        }
+
         // @TODO: was not implemented in initial contribution. 
         // alignment is signaled on Anchor and configured on the AnchorInstance object.
         // trackable should only provide bounds
-        public void RequiredAlignedAndScale(Anchor.Aligned aligned){}
+        // ALIGNED_SCALED: the assets are scaled to match the available space (width and depth of the plane).
+        // ALIGNED_NOTSCALED: the assets keep their scale; they are aligned because they live in the anchor space.
+        public void RequiredAlignedAndScale(Anchor.Aligned aligned)
+        {
+            m_RequiredAlignedAndScale = aligned == Anchor.Aligned.ALIGNED_SCALED;
+        }
 
         private void ComputePlaneAABB(ARPlane plane)
         {
@@ -298,8 +550,8 @@ namespace GLTFast
                 Vector3 vec3 = new Vector3(vec.x, y, vec.y);
                 m_PlaneBounds.Encapsulate(vec3);
             }
-            float height = 2.50f;
-            m_PlaneBounds.Expand(new Vector3(0.0f, height, 0.0f));
+            // The XR runtime estimates a plane, not a volume: the height of the available space is unknown,
+            // so minimumRequiredSpace is compared on width and depth only.
             Debug.Log("TrackableGeometric::bounds" + m_PlaneBounds);
             Debug.Log("TrackableGeometric::bounds size" + m_PlaneBounds.size);
         }
@@ -308,7 +560,7 @@ namespace GLTFast
         {
             ComputePlaneAABB(plane);
             Debug.Log("TrackableGeometric::requiredSpacetoCheck" + m_RequiredSpaceToCheck);
-            if ((m_PlaneBounds.size.x >= m_RequiredSpaceToCheck.x) && (m_PlaneBounds.size.y >= m_RequiredSpaceToCheck.y) && (m_PlaneBounds.size.z >= m_RequiredSpaceToCheck.z))
+            if ((m_PlaneBounds.size.x >= m_RequiredSpaceToCheck.x) && (m_PlaneBounds.size.z >= m_RequiredSpaceToCheck.z))
             {
                 m_RequiredSpaceOk = true;
             }
@@ -352,37 +604,15 @@ namespace GLTFast
 
         private void CheckAlignedAndScale(ARPlane plane)
         {
-            Debug.Log("TrackableGeometric::CheckAlignedAndScale()");
             ComputeSceneAABB();
             ComputePlaneAABB(plane);
-            //now compute scale factor
-            float xScale = 1.0f;
-            float yScale = 1.0f;
-            float zScale = 1.0f;
-            if (m_PlaneBounds.size.x != 0.0f)
+            // uniform scale that makes the assets fit the width and depth of the available space
+            float sx = m_SceneBounds.size.x > 0.0f ? m_PlaneBounds.size.x / m_SceneBounds.size.x : float.PositiveInfinity;
+            float sz = m_SceneBounds.size.z > 0.0f ? m_PlaneBounds.size.z / m_SceneBounds.size.z : float.PositiveInfinity;
+            float s = Mathf.Min(sx, sz);
+            if (s > 0.0f && !float.IsInfinity(s))
             {
-                xScale = m_SceneBounds.size.x / m_PlaneBounds.size.x;
-            }
-            if (m_PlaneBounds.size.y != 0.0f)
-            {
-                yScale = m_SceneBounds.size.y / m_PlaneBounds.size.y;
-            }
-            if (m_PlaneBounds.size.z != 0.0f)
-            {
-                zScale = m_SceneBounds.size.z / m_PlaneBounds.size.z;
-            }
-
-            float[] scales = new float[3];
-            scales[0] = xScale;
-            scales[1] = yScale;
-            scales[2] = zScale;
-            var scaleMax = scales.Max();
-            //if scene  space is sup to plane space (maxVal > 1.0), rescale the scene
-            if (scaleMax > 1.0f)
-            {
-                m_ScaleFactor.x = 1.0f / scaleMax;
-                m_ScaleFactor.y = 1.0f / scaleMax;
-                m_ScaleFactor.z = 1.0f / scaleMax;
+                m_ScaleFactor = new Vector3(s, s, s);
                 m_ApplyScale = true;
             }
             Debug.Log("TrackableGeometric::bounds scale" + m_ScaleFactor);
@@ -404,6 +634,12 @@ namespace GLTFast
 
         public void Dispose()
         {
+            AnchorPlacement.Unregister(this);
+            if (m_Holder != null)
+            {
+                Destroy(m_Holder.gameObject);
+                m_Holder = null;
+            }
             if (m_ArPlaneManager != null)
             {
                 m_ArPlaneManager.planesChanged -= PlanesChanged;
