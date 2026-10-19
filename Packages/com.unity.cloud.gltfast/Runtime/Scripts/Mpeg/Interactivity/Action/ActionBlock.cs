@@ -17,7 +17,7 @@ namespace GLTFast
     /// <summary>
     /// Lock any object or set of objects at a given position/rotation
     /// </summary>
-    public class ActionBlock : MonoBehaviour, IMpegInteractivityAction
+    public class ActionBlock : MonoBehaviour, IMpegInteractivityAction, IMpegInteractivityStoppable
     {
         public float Delay => m_Delay;
         private float m_Delay;
@@ -42,7 +42,8 @@ namespace GLTFast
             m_Delay = action.delay;
         }
 
-        private void Update()
+        // LateUpdate so that the lock holds after animations and other actions ran in the frame.
+        private void LateUpdate()
         {
             if (!m_IsBlock)
             {
@@ -51,6 +52,7 @@ namespace GLTFast
 
             for (int i = 0; i < m_LockedObjects.Length; i++)
             {
+                if (m_LockedObjects[i] == null) continue;
                 m_LockedObjects[i].transform.position = m_BlockedPosition[i];
                 m_LockedObjects[i].transform.rotation = m_BlockedRotation[i];
                 m_LockedObjects[i].transform.localScale = m_BlockedScale[i];
@@ -60,6 +62,12 @@ namespace GLTFast
         public void Unlock()
         {
             m_IsBlock = false;
+        }
+
+        /// <summary>Releases the lock when the behavior that set it is interrupted.</summary>
+        public void Stop()
+        {
+            Unlock();
         }
 
         public void Invoke()
@@ -81,6 +89,7 @@ namespace GLTFast
             // Cache values 
             for (int i = 0; i < m_LockedObjects.Length; i++)
             {
+                if (m_LockedObjects[i] == null) continue;
                 m_BlockedPosition[i] = m_LockedObjects[i].transform.position;
                 m_BlockedRotation[i] = m_LockedObjects[i].transform.rotation;
                 m_BlockedScale[i] = m_LockedObjects[i].transform.localScale;

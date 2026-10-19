@@ -55,26 +55,27 @@ namespace GLTFast
             }
             else
             {
-                // Build collisions according to primitives
-                // The node itself isn't considered for collision
+                // Build collisions according to primitives (Table 33: "primitives" used to activate the
+                // trigger). Reading: primitive i is a trigger volume in world space, placed by its
+                // transformationMatrix, and node i activates the trigger while its collider overlaps it.
                 for(int i = 0; i < trigger.primitives.Length; i++)
                 {
+                    if (i >= trigger.nodes.Length)
+                    {
+                        Debug.LogWarning("Collision trigger: primitive " + i + " has no node at the same index and is ignored");
+                        continue;
+                    }
+
                     GameObject _primitive = CreateCollisionMeshFromPrimitive(trigger.primitives[i]);
                     GameObject _node = VirtualSceneGraph.GetGameObjectFromIndex(trigger.nodes[i]);
 
-                    // Move the primitive according to the transformation matrix
-                    Matrix4x4 m = trigger.primitives[i].transformationMatrix;
-                    Vector3 _pos = m.GetPosition();
-                    Quaternion _rot = m.rotation;
-                    Vector3 _scale = Vector3.one;
+                    Matrix4x4 m = trigger.primitives[i].TransformationMatrixValue;
+                    _primitive.transform.SetPositionAndRotation(m.GetPosition(), m.rotation);
+                    _primitive.transform.localScale = m.lossyScale;
 
-                    // Move the world position of the primitive according
-                    // to the associated primitive node
-                    _primitive.transform.position = _node.transform.position;
-                    _primitive.transform.localPosition = _pos;
-                    _primitive.transform.rotation = _rot;
-                    _primitive.transform.localScale = _scale;
-                    InitCollisionDetector(ref _primitive);
+                    // The detector sits on the node, the primitive is its only target
+                    CollisionNodeTrigger _detector = InitCollisionDetector(ref _node);
+                    _detector.AddTarget(_primitive);
                 }
             }
         }
@@ -94,30 +95,30 @@ namespace GLTFast
                     target = PrimitivesHelper.PrimitivesCreateCuboidGameObject(primitive.width,
                             primitive.height,
                             primitive.length,
-                            primitive.centroid);
+                            primitive.CentroidVector);
                     break;
 
                 case Schema.PrimitiveType.BV_PLANE_REGION:
                     target = PrimitivesHelper.PrimitivesCreatePlaneGameObject(primitive.width,
                         primitive.height,
-                        primitive.centroid);
+                        primitive.CentroidVector);
                     break;
 
                 case Schema.PrimitiveType.BV_CYLINDER_REGION:
                     target = PrimitivesHelper.PrimitivesCreateCylinderGameObject(primitive.radius,
                         primitive.length,
-                        primitive.centroid);
+                        primitive.CentroidVector);
                     break;
 
                 case Schema.PrimitiveType.BV_CAPSULE_REGION:
                     target = PrimitivesHelper.PrimitivesCreateCapsuleGameObject(primitive.radius,
-                        primitive.baseCentroid,
-                        primitive.topCentroid);
+                        primitive.BaseCentroidVector,
+                        primitive.TopCentroidVector);
                     break;
 
                 case Schema.PrimitiveType.BV_SPHEROID:
                     target = PrimitivesHelper.PrimitivesCreateSpheroidGameObject(primitive.radius,
-                        primitive.centroid);
+                        primitive.CentroidVector);
                     break;
             }
 
@@ -128,11 +129,16 @@ namespace GLTFast
                 Destroy(col);
             }
 
-            // For now we are adding a mesh collider that will handle collisions for us
+            // A trigger volume: it reports overlaps and does not push the node. A kinematic body lets the
+            // overlap with a static node be reported too.
             // TODO: Create a custom collision system that handles boundary
             MeshCollider mshCol = target.AddComponent<MeshCollider>();
             mshCol.sharedMesh = target.GetComponent<MeshFilter>().mesh;
             mshCol.convex = true;
+            mshCol.isTrigger = true;
+            Rigidbody volumeBody = target.AddComponent<Rigidbody>();
+            volumeBody.isKinematic = true;
+            volumeBody.useGravity = false;
 
             return target;
         }
@@ -149,18 +155,11 @@ namespace GLTFast
             {
                 CollisionNodeTrigger _collisionDetector = obj.AddComponent<CollisionNodeTrigger>();
 
-                // If the extensions exists, it means that we want to specify the collision detector behavior
-                if (_nd.extensions?.MPEG_node_interactivity != null)
+                // If the node extension has a collision trigger, it specifies the collision detector behavior
+                var _nodeTrigger = NodeInteractivityLookup.Find(_nd, TriggerType.TRIGGER_COLLISION);
+                if (_nodeTrigger != null)
                 {
-                    // Find if there is any collision trigger to be found
-                    for (int i = 0; i < _nd.extensions.MPEG_node_interactivity.triggers.Length; i++)
-                    {
-                        if (_nd.extensions.MPEG_node_interactivity.triggers[i].type == (int)TriggerType.TRIGGER_COLLISION)
-                        {
-                            _collisionDetector.InitExtension(_nd.extensions.MPEG_node_interactivity.triggers[i]);
-                            break;
-                        }
-                    }
+                    _collisionDetector.InitExtension(_nodeTrigger);
                 }
                 else
                 {
@@ -182,13 +181,15 @@ namespace GLTFast
 
         private void Update()
         {
-            bool result = true;
+            // Table 33: "Any detection of collision shall activate the trigger".
+            bool result = false;
 
             for (int i = 0; i < m_CollisionsDetectors.Count; i++)
             {
-                if (!m_CollisionsDetectors[i].Collides)
+                if (m_CollisionsDetectors[i].Collides)
                 {
-                    result = false;
+                    result = true;
+                    break;
                 }
             }
             m_Collides = result;

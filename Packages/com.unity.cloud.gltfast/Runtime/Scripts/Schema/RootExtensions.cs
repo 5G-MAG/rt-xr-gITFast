@@ -38,6 +38,17 @@ namespace GLTFast.Schema
         // MPEG anchor extension
         public MpegAnchor MPEG_anchor;
 
+        // MPEG lighting extensions
+        public MpegLightsPunctual MPEG_lights_punctual;
+        public MpegLightsTextureBased MPEG_lights_texture_based;
+
+        // MPEG_audio_spatial at the root holds the reverb units (5.4.1.1)
+        public MpegAudioSpatial MPEG_audio_spatial;
+
+        // MPEG haptics extensions (Annex G.3)
+        public MpegHaptic MPEG_haptic;
+        public MpegHapticMaterial MPEG_haptic_material;
+
         internal void GltfSerialize(JsonWriter writer)
         {
             writer.AddObject();

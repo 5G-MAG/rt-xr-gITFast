@@ -25,6 +25,9 @@ namespace GLTFast.Schema
         /// <inheritdoc cref="Perspective"/>
         public TPerspective perspective;
 
+        /// <inheritdoc cref="CameraExtensions"/>
+        public CameraExtensions extensions;
+
         /// <inheritdoc />
         public override CameraOrthographic Orthographic => orthographic;
 

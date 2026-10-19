@@ -49,45 +49,65 @@ namespace GLTFast
         // bias used for the visibility computation
         private float m_VisibilityBias = 0.01f;
 
+        // Renderer standing in for the node mesh when the node extension names another mesh
+        private List<Renderer> m_ProxyRenderers = new List<Renderer>();
+        // Renderers of the nodes ignored as occluders (Table 52 nodes, allowsPartialOcclusion FALSE)
+        private List<Renderer> m_IgnoredOccluders = new List<Renderer>();
+
         internal void InitSceneAndNodeLevelExtension(MpegNodeInteractivity.Trigger trigger)
         {
             m_AllowsPartialOcclusion = trigger.allowsPartialOcclusion;
+            m_CurrentRenderer = GetComponent<Renderer>();
+            m_CurrentMaterial = m_CurrentRenderer != null ? m_CurrentRenderer.sharedMaterial : null;
+            InitializeNodeTrigger();
 
-            if(trigger.nodes == null)
+            // Table 52 mesh: the mesh used to compute the visibility of this node. Every primitive of that
+            // glTF mesh is a target, also when no node uses the mesh.
+            Renderer ownTarget = m_CurrentRenderer;
+            if (trigger.mesh >= 0 && VirtualSceneGraph.GetNodeFromGameObject(gameObject).mesh != trigger.mesh)
             {
-                m_Target = new Renderer[1];
-                m_TargetMaterials = new UnityEngine.Material[1];
-
-                // TODO: Retrieve a gameobject from a mesh index
-                int _meshIndex = trigger.mesh;
-                int _nodesCount = VirtualSceneGraph.GetNodeCount();
-                for(int i = 0; i < _nodesCount; i++)
+                UnityEngine.Mesh[] meshesForVisibility = VirtualSceneGraph.GetMeshesOfGltfMesh(trigger.mesh);
+                for (int p = 0; p < meshesForVisibility.Length; p++)
                 {
-                    Node _n = VirtualSceneGraph.GetNodeFromNodeIndex(i);
-                    if(_n.mesh == _meshIndex)
+                    if (meshesForVisibility[p] == null) continue;
+                    GameObject proxy = new GameObject("VisibilityMesh");
+                    proxy.transform.SetParent(transform, false);
+                    proxy.AddComponent<MeshFilter>().sharedMesh = meshesForVisibility[p];
+                    Renderer proxyRenderer = proxy.AddComponent<MeshRenderer>();
+                    proxyRenderer.sharedMaterial = m_VisibilityMaterial;
+                    proxyRenderer.enabled = false;   // enabled only while the visibility is computed
+                    m_ProxyRenderers.Add(proxyRenderer);
+                }
+                if (m_ProxyRenderers.Count == 0)
+                {
+                    Debug.LogWarning("Visibility trigger mesh " + trigger.mesh + " does not exist, the node mesh is used");
+                }
+            }
+
+            int targetCount = m_ProxyRenderers.Count > 0 ? m_ProxyRenderers.Count : 1;
+            m_Target = new Renderer[targetCount];
+            m_TargetMaterials = new UnityEngine.Material[targetCount];
+            for (int t = 0; t < targetCount; t++)
+            {
+                m_Target[t] = m_ProxyRenderers.Count > 0 ? m_ProxyRenderers[t] : ownTarget;
+                m_TargetMaterials[t] = m_Target[t] != null ? m_Target[t].sharedMaterial : null;
+            }
+
+            // Table 52 nodes: not considered for the visibility computation when
+            // allowsPartialOcclusion is FALSE.
+            if (trigger.nodes != null && !m_AllowsPartialOcclusion)
+            {
+                for (int i = 0; i < trigger.nodes.Length; i++)
+                {
+                    GameObject ignored = VirtualSceneGraph.GetGameObjectFromIndex(trigger.nodes[i]);
+                    if (ignored == null) continue;
+                    Renderer[] renderers = ignored.GetComponentsInChildren<Renderer>(true);
+                    for (int r = 0; r < renderers.Length; r++)
                     {
-                        // found
-                        m_Target[0] = VirtualSceneGraph.GetGameObjectFromIndex(i).GetComponent<Renderer>();
-                        m_TargetMaterials[0] = m_Target[0].sharedMaterial;
-                        break;
+                        if (renderers[r] != m_CurrentRenderer) m_IgnoredOccluders.Add(renderers[r]);
                     }
                 }
             }
-            else
-            {
-                m_Target = new Renderer[trigger.nodes.Length];
-                m_TargetMaterials = new UnityEngine.Material[trigger.nodes.Length];
-                for (int i = 0; i < m_Target.Length; i++)
-                {
-                    GameObject _go = VirtualSceneGraph.GetGameObjectFromIndex(trigger.nodes[i]);
-                    m_Target[i] = _go.GetComponent<Renderer>();
-                    m_TargetMaterials[i] = m_Target[i].sharedMaterial;
-                }
-            }
-
-            m_CurrentRenderer = GetComponent<Renderer>();
-            m_CurrentMaterial = m_CurrentRenderer.sharedMaterial;
-            InitializeNodeTrigger();
         }
 
         private void InitializeNodeTrigger()
@@ -119,7 +139,7 @@ namespace GLTFast
         internal void InitSceneLevelExtension(Trigger trigger)
         {
             m_CurrentRenderer = GetComponent<Renderer>();
-            m_CurrentMaterial = m_CurrentRenderer.sharedMaterial;
+            m_CurrentMaterial = m_CurrentRenderer != null ? m_CurrentRenderer.sharedMaterial : null;
             InitializeNodeTrigger();
         }
 
@@ -177,13 +197,43 @@ namespace GLTFast
 
         private bool EvaluateVisibility(Renderer _rd, UnityEngine.Material _previous, UnityEngine.Camera camera)
         {
+            if (_rd == null)
+            {
+                return false;
+            }
             m_ComputeCamera.enabled=true;
+
+            // Occluders that are ignored, and the stand-in mesh, only change while the computation runs
+            bool[] _ignoredStates = new bool[m_IgnoredOccluders.Count];
+            for (int i = 0; i < _ignoredStates.Length; i++)
+            {
+                if (m_IgnoredOccluders[i] == null) continue;
+                _ignoredStates[i] = m_IgnoredOccluders[i].enabled;
+                m_IgnoredOccluders[i].enabled = false;
+            }
+            bool _ownEnabled = m_CurrentRenderer != null && m_CurrentRenderer.enabled;
+            bool _isProxy = m_ProxyRenderers.Contains(_rd);
+            if (_isProxy)
+            {
+                _rd.enabled = true;
+                if (m_CurrentRenderer != null) m_CurrentRenderer.enabled = false;
+            }
 
             // Set a temporary material to the renderer for the computation
             _rd.sharedMaterial = m_VisibilityMaterial;
             GenerateSceneDepthMap(camera);
             int _value = ComputeVisibility(_rd);
             _rd.sharedMaterial = _previous;
+
+            if (_isProxy)
+            {
+                _rd.enabled = false;
+                if (m_CurrentRenderer != null) m_CurrentRenderer.enabled = _ownEnabled;
+            }
+            for (int i = 0; i < _ignoredStates.Length; i++)
+            {
+                if (m_IgnoredOccluders[i] != null) m_IgnoredOccluders[i].enabled = _ignoredStates[i];
+            }
             m_ComputeCamera.enabled=false;
 
             // Either fully occluded(0), fully visible(1) or partialy visible(2)
@@ -317,21 +367,21 @@ namespace GLTFast
                 return EvaluateVisibility(m_CurrentRenderer, m_CurrentMaterial, _camera);
             }
 
+            // Several primitives of the named mesh: all must be visible, or one when partial visibility is allowed
+            bool anyVisible = false;
             for (int i = 0; i < m_Target.Length; i++)
             {
                 bool _result = EvaluateVisibility(m_Target[i], m_TargetMaterials[i], _camera);
-                if(!_result)
-                {
-                    return false;
-                }
+                if (_result) anyVisible = true;
+                else if (!m_AllowsPartialOcclusion || m_ProxyRenderers.Count == 0) return false;
             }
 
-            return true;
+            return m_Target.Length == 0 || anyVisible || !m_AllowsPartialOcclusion;
         }
 
         private void OnDestroy()
         {
-            m_VisiblePixelsBuffer.Dispose();
+            if (m_VisiblePixelsBuffer != null) m_VisiblePixelsBuffer.Dispose();
         }
 
         internal void Dispose()

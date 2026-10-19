@@ -24,9 +24,18 @@ namespace GLTFast
         private List<GameObject> m_Target;
         private List<System.Action<GameObject>> m_GameEngineActions;
 
-        public bool Collides => m_Collides;
+        // Targets currently in contact (collision) or overlapping (trigger volume): the flag stays set
+        // until the last of them leaves.
+        private readonly HashSet<GameObject> m_Touching = new HashSet<GameObject>();
 
-        private bool m_Collides = false;
+        public bool Collides
+        {
+            get
+            {
+                m_Touching.RemoveWhere(g => g == null);
+                return m_Touching.Count > 0;
+            }
+        }
 
         private Rigidbody m_Rb;
 #if UNITY_6000_0_OR_NEWER
@@ -69,7 +78,8 @@ namespace GLTFast
                 else
                 {
                     MeshCollider _meshCol = gameObject.AddComponent<MeshCollider>();
-                    UnityEngine.Mesh _msh = VirtualSceneGraph.GetMeshFromIndex(meshIndex);
+                    UnityEngine.Mesh _msh = VirtualSceneGraph.TryGetMeshOfGltfMesh(meshIndex);
+                    if (_msh == null) _msh = VirtualSceneGraph.GetMeshFromIndex(meshIndex);
                     _meshCol.sharedMesh = _msh;
                     _meshCol.convex = true;
                 }
@@ -80,21 +90,49 @@ namespace GLTFast
 
         public void InitExtension(MpegNodeInteractivity.Trigger node_info)
         {
+            // Table 52 collider: the mesh that provides the collider geometry of this node, one collider
+            // for each primitive of that mesh, also when no node uses the mesh. When the mesh does not
+            // exist, Init() falls back to the node mesh.
+            if (!TryGetComponent(out Collider _existing))
+            {
+                UnityEngine.Mesh[] _colliderMeshes = VirtualSceneGraph.GetMeshesOfGltfMesh(node_info.collider);
+                int _added = 0;
+                for (int m = 0; m < _colliderMeshes.Length; m++)
+                {
+                    if (_colliderMeshes[m] == null) continue;
+                    MeshCollider _colMeshCol = gameObject.AddComponent<MeshCollider>();
+                    _colMeshCol.sharedMesh = _colliderMeshes[m];
+                    _colMeshCol.convex = true;
+                    _added++;
+                }
+                if (_added == 0)
+                {
+                    Debug.LogWarning($"Collider mesh {node_info.collider} does not exist, using the node mesh as collider");
+                }
+            }
+
             Init();
 
-            if (!TryGetComponent(out Collider _col))
-            {
-                MeshCollider _meshCol = gameObject.AddComponent<MeshCollider>();
-                UnityEngine.Mesh _msh = VirtualSceneGraph.GetMeshFromIndex(node_info.collider);
-                _meshCol.sharedMesh = _msh;
-                _meshCol.convex = true;
-            }
+            // isStatic: static collider. usePhysics false: the physics simulation does not move the
+            // node (all axes frozen), the collider still takes part in collision detection.
             m_Rb.isKinematic = node_info.isStatic;
+            if (!node_info.usePhysics && !node_info.isStatic)
+            {
+                m_Rb.useGravity = false;
+                m_Rb.constraints = RigidbodyConstraints.FreezeAll;
+            }
 
             if (node_info.usePhysics)
             {
                 m_Rb.useGravity = node_info.useGravity;
                 m_Rb.mass = node_info.mass;
+                // Table 52 damping: V(t+dt) = V(t)*(1-damping*dt), the Unity drag formula.
+                m_Rb.drag = Mathf.Max(0f, node_info.linearDamping);
+                m_Rb.angularDrag = Mathf.Max(0f, node_info.angularDamping);
+                if (node_info.needPreciseCollisionDetection && !node_info.isStatic)
+                {
+                    m_Rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                }
                 if (TryGetComponent<MeshCollider>(out MeshCollider _meshCol))
                 {
 #if UNITY_6000_0_OR_NEWER
@@ -118,38 +156,31 @@ namespace GLTFast
             }
         }
 
-        private void OnCollisionEnter(Collision other)
+        private void Touch(GameObject other)
         {
-            if (m_Target.Contains(other.gameObject))
+            if (!m_Target.Contains(other)) return;
+            m_Touching.Add(other);
+            for (int i = 0; i < m_GameEngineActions.Count; i++)
             {
-                m_Collides = true;
-                
-                for(int i = 0; i < m_GameEngineActions.Count; i++) {
-                    m_GameEngineActions[i]?.Invoke(other.gameObject);
-                }
+                m_GameEngineActions[i]?.Invoke(other);
             }
         }
 
-        private void OnCollisionStay(Collision other)
+        private void Untouch(GameObject other)
         {
-            if (m_Target.Contains(other.gameObject))
-            {
-                m_Collides = true;
-
-                
-                for(int i = 0; i < m_GameEngineActions.Count; i++) {
-                    m_GameEngineActions[i]?.Invoke(other.gameObject);
-                }
-            }
+            m_Touching.Remove(other);
         }
 
-        private void OnCollisionExit(Collision other)
-        {
-            if (m_Target.Contains(other.gameObject))
-            {
-                m_Collides = false;
-            }
-        }
+        private void OnDisable() { m_Touching.Clear(); }
+
+        private void OnCollisionEnter(Collision other) { Touch(other.gameObject); }
+        private void OnCollisionStay(Collision other) { Touch(other.gameObject); }
+        private void OnCollisionExit(Collision other) { Untouch(other.gameObject); }
+
+        // Trigger volumes (the primitives of a collision trigger) report overlaps, not contacts
+        private void OnTriggerEnter(Collider other) { Touch(other.gameObject); }
+        private void OnTriggerStay(Collider other) { Touch(other.gameObject); }
+        private void OnTriggerExit(Collider other) { Untouch(other.gameObject); }
 
         public void AddCollisionCallback(System.Action<GameObject> _act) {
             m_GameEngineActions.Add(_act);

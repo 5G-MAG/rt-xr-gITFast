@@ -45,10 +45,11 @@ namespace GLTFast
                 VisibilityNodeTrigger _detector = _targetGo.AddComponent<VisibilityNodeTrigger>();
 
                 Node _node = VirtualSceneGraph.GetNodeFromGameObject(_targetGo);
-                if(_node.extensions?.MPEG_node_interactivity != null
-                && _node.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_VISIBILITY)
+                // node triggers are matched by type ("Only distinct types are allowed")
+                var _nodeTrigger = NodeInteractivityLookup.Find(_node, TriggerType.TRIGGER_VISIBILITY);
+                if(_nodeTrigger != null)
                 {
-                    _detector.InitSceneAndNodeLevelExtension(_node.extensions.MPEG_node_interactivity.triggers[i]);
+                    _detector.InitSceneAndNodeLevelExtension(_nodeTrigger);
                 }
                 else
                 {
@@ -61,6 +62,15 @@ namespace GLTFast
 
         public bool MeetConditions()
         {
+            // Table 33: "The visibility trigger shall be evaluated only if the related camera is active."
+            // The camera is active while its node is active in the hierarchy. The Camera component
+            // itself is not tested: the scene viewer mirrors the first scene camera on the main camera
+            // and disables the component.
+            if (m_Camera == null || !m_Camera.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
             bool result = true;
             for (int i = 0; i < m_Targets.Length; i++)
             {

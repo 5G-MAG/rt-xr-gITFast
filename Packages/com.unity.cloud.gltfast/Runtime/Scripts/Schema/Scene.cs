@@ -41,6 +41,10 @@ namespace GLTFast.Schema
     {
         public MpegSceneInteractivity MPEG_scene_interactivity;
         public MpegAnchorObject MPEG_anchor = null;
+        public MpegAnimationTiming MPEG_animation_timing;
+        public MpegSceneDynamic MPEG_scene_dynamic;
+        public MpegViewportRecommended MPEG_viewport_recommended;
+        public MpegLightsTextureBasedScene MPEG_lights_texture_based;
 
         internal void GltfSerialize(JsonWriter writer)
         {

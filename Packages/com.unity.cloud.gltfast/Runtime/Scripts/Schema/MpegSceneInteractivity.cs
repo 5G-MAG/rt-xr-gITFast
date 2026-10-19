@@ -14,7 +14,11 @@ using UnityEngine;
 
 namespace GLTFast.Schema
 {
-    // List of haptic action nodes
+    // List of haptic action nodes (ISO/IEC 23090-14:2024, Table 44).
+    // The PDF names the properties in camelCase (hapticActionMedias, mediaIndex, perceptionIndices,
+    // hapticModality, hapticControl, materialHapticModality); the registry schemas name some of them in
+    // snake_case (haptic_action_medias, media_index, perception_indices, haptic_modality, haptic_control,
+    // material_haptic_modality). Both spellings are read; the camelCase one wins when both are present.
     [Serializable]
     public class HapticActionNode
     {
@@ -25,14 +29,15 @@ namespace GLTFast.Schema
 
         /// <summary>
         /// Index to a haptic object in the hapticObjects array of the 
-        /// MPEG_haptic extension
+        /// MPEG_haptic extension, -1 when absent
         /// </summary>
-        public int hapticObject;
+        public int hapticObject = -1;
 
         /// <summary>
-        /// Body part mask specifying where on the body the signal can be rendered.
+        /// Body part mask specifying where on the body the signal can be rendered
+        /// (Table 48). Default 0xFFFFFFFF.
         /// </summary>
-        public int actionLocation;
+        public long actionLocation = 0xFFFFFFFFL;
 
         /// <summary>
         /// Specifies whether the action should trigger a washout (reset to the origin) 
@@ -51,11 +56,23 @@ namespace GLTFast.Schema
         /// List of haptic material modalities that shall be rendered.
         /// </summary>
         public HapticMaterialModality[] materialHapticModality;
+        public HapticMaterialModality[] material_haptic_modality;
 
         /// <summary>
         /// List of Haptic Action Media.
         /// </summary>
         public HapticActionMedia[] hapticActionMedias;
+        public HapticActionMedia[] haptic_action_medias;
+
+        public HapticActionMedia[] Medias
+        {
+            get { return hapticActionMedias != null ? hapticActionMedias : haptic_action_medias; }
+        }
+
+        public HapticMaterialModality[] MaterialModalities
+        {
+            get { return materialHapticModality != null ? materialHapticModality : material_haptic_modality; }
+        }
     }
 
     [Serializable]
@@ -64,29 +81,50 @@ namespace GLTFast.Schema
         /// <summary>
         /// Index in the accessors array of the associated haptic data
         /// </summary>
-        public int mediaIndex;
+        public int mediaIndex = -1;
+        public int media_index = -1;
 
         /// <summary>
         /// Indices of the perceptions of the media that shall be rendered.
         /// If the list if empty all perceptions shall be rendered
         /// </summary>
         public int[] perceptionIndices;
+        public int[] perception_indices;
 
         /// <summary>
-        /// List of haptic modalities that can be rendered
+        /// List of haptic modalities that can be rendered (Table 46 values)
         /// </summary>
-        public HapticModality hapticModality;
+        public int[] hapticModality;
+        public int[] haptic_modality;
 
         /// <summary>
         /// One element of that defines the control of the haptic rendering.
         /// </summary>
         public HapticControl hapticControl;
+        public int haptic_control = -1;
 
         /// <summary>
         /// Specifies if the haptic rendering of the data should be 
         /// continuously looping.
         /// </summary>
         public bool loop;
+
+        public int MediaIndex { get { return mediaIndex >= 0 ? mediaIndex : media_index; } }
+
+        public int[] PerceptionIndices
+        {
+            get { return perceptionIndices != null ? perceptionIndices : perception_indices; }
+        }
+
+        // hapticControl is HAPTIC_PLAY (0) when absent (Table 45)
+        public HapticControl Control
+        {
+            get
+            {
+                if (hapticControl != HapticControl.HAPTIC_PLAY) return hapticControl;
+                return haptic_control > 0 ? (HapticControl)haptic_control : HapticControl.HAPTIC_PLAY;
+            }
+        }
     }
 
     /// <summary>
@@ -324,6 +362,14 @@ namespace GLTFast.Schema
         public Trigger[] triggers;
         public Action[] actions;
         public GLTFast.Schema.Behavior[] behaviors;
+        /// <summary>Table 32: the gravity for the whole scene, m.s-2 (default -9.81).</summary>
+        public float gravity = -9.81f;
+        /// <summary>Table 32: recommended physics frame rate (default 50).</summary>
+        public float recommendedPhysicsFrameRate = 50f;
+        /// <summary>Table 32: whether the application should enable a more deterministic and precise physics simulation (default false).</summary>
+        public bool recommendedPhysicsHighPrecision = false;
+        /// <summary>Table 32: a contact with a relative velocity below this threshold does not result in a bounce, m.s-1 (default 1).</summary>
+        public float bounceThreshold = 1f;
 
         public bool JsonUtilityCleanup()
         {
@@ -372,7 +418,8 @@ namespace GLTFast.Schema
             /// The available options are. BV_CUBOID, BV_PLANE_REGION, BV_CYLINDER_REGION,
             /// BV_CAPSULE_REGION, and the default BV_SPHEROID.
             /// </summary>
-            public PrimitiveType type;
+            // Table 35: the default is BV_SPHEROID. JsonUtility keeps this initial value when the property is absent.
+            public PrimitiveType type = PrimitiveType.BV_SPHEROID;
 
             /// <summary>
             /// Defines the region of intersection within the primitive.
@@ -390,7 +437,8 @@ namespace GLTFast.Schema
             /// The primitive shall follow x+ for width, y+ for height, z+ for length.
             /// The matrix transformation allows to transform any primitive after initialization.
             /// </summary>
-            public Matrix4x4 transformationMatrix;
+            // JSON array of 16 numbers (JsonUtility cannot read an array into a Matrix4x4); absent means identity.
+            public float[] transformationMatrix;
 
             /// <summary>
             /// Width of the box
@@ -410,7 +458,8 @@ namespace GLTFast.Schema
             /// <summary>
             /// Centroid 3D coordinates(x,y,z) of the box
             /// </summary>
-            public Vector3 centroid;
+            // JSON array [x, y, z] (or [a, b] for a plane); JsonUtility cannot read an array into a Vector3.
+            public float[] centroid;
 
             /// <summary>
             /// Radius of the cylinder, or radius of the sphere
@@ -420,12 +469,47 @@ namespace GLTFast.Schema
             /// <summary>
             /// Centroid 3D coordinates(x,y,z) of the base semi-sphere of the capsule
             /// </summary>
-            public Vector3 baseCentroid;
+            // JSON array [x, y, z]
+            public float[] baseCentroid;
 
             /// <summary>
             /// Centroid 3D Coordinates(x,y,z) of the top semi-sphere of the capsule
             /// </summary>
-            public Vector3 topCentroid;
+            // JSON array [x, y, z]
+            public float[] topCentroid;
+
+            /// <summary>
+            /// Centroid as a Unity vector: the glTF X axis is negated like the node transforms of the loader
+            /// (NodeExtension.GetTransform). Missing components are 0 (the two-element form of a plane has no
+            /// axis assignment in Table 36).
+            /// </summary>
+            public Vector3 CentroidVector => ToVector3(centroid);
+            public Vector3 BaseCentroidVector => ToVector3(baseCentroid);
+            public Vector3 TopCentroidVector => ToVector3(topCentroid);
+
+            /// <summary>
+            /// The matrix as read from the JSON array, in column-major order (Table 35),
+            /// converted to the Unity convention with the same X negation as the node transforms of the loader;
+            /// identity when absent or malformed.
+            /// </summary>
+            public Matrix4x4 TransformationMatrixValue
+            {
+                get
+                {
+                    if (transformationMatrix == null || transformationMatrix.Length != 16) return Matrix4x4.identity;
+                    var m = new Matrix4x4();
+                    for (int c = 0; c < 4; c++)
+                        for (int r = 0; r < 4; r++)
+                            m[r, c] = transformationMatrix[c * 4 + r] * ((r == 0) != (c == 0) ? -1f : 1f);
+                    return m;
+                }
+            }
+
+            private static Vector3 ToVector3(float[] a)
+            {
+                if (a == null) return Vector3.zero;
+                return new Vector3(a.Length > 0 ? -a[0] : 0f, a.Length > 1 ? a[1] : 0f, a.Length > 2 ? a[2] : 0f);
+            }
         }
 
         /// <summary>
@@ -446,7 +530,8 @@ namespace GLTFast.Schema
         /// <summary>
         /// Index of the node consider for the proximity evaluation
         /// </summary>
-        public int? referenceNode;
+        // JsonUtility does not read nullable fields: -1 means absent (Table 34: the active camera is used).
+        public int referenceNode = -1;
 
         /// <summary>
         /// Threshold min in meters for the node proximity calculation
@@ -578,7 +663,8 @@ namespace GLTFast.Schema
         /// xyz coordinates of the axis used for rotation and sliding. 
         /// Relative to the local space created by the USER_INPUT trigger activation
         /// </summary>
-        public Vector3 axis;
+        // JSON array [x, y, z] (JsonUtility cannot read an array into a Vector3); absent means Up (Table 37).
+        public float[] axis;
 
         /// <summary>
         /// Index of the material in the materials array to apply to the nodes
@@ -655,7 +741,8 @@ namespace GLTFast.Schema
         /// Index of the action in the actions array to be executed if the behavior
         /// is still on-going and is no more defined in a newly received scene update
         /// </summary>
-        public int? interruptAction;
+        // JsonUtility does not read nullable fields: -1 means absent.
+        public int interruptAction = -1;
 
         internal void GltfSerialize(JsonWriter writer)
         {

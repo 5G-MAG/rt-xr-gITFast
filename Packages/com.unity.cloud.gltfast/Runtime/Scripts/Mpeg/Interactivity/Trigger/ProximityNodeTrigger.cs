@@ -39,11 +39,11 @@ namespace GLTFast
             m_AllowOcclusion = trigger.allowOcclusion;
             m_UpperDistanceWeight = trigger.upperDistanceWeight;
             m_LowerDistanceWeight = trigger.lowerDistanceWeight;
-            m_Primitives = new GameObject[trigger.primitives.Length];
+            m_Primitives = new GameObject[trigger.primitives != null ? trigger.primitives.Length : 0];
 
-            // Lower and upper distance are multiplied by the weight
-            m_UpperDistance *= m_UpperDistanceWeight;
-            m_LowerDistance *= m_LowerDistanceWeight;
+            // The weights apply to the limits defined at scene level
+            m_UpperDistance = m_DistanceUpperLimit * m_UpperDistanceWeight;
+            m_LowerDistance = m_DistanceLowerLimit * m_LowerDistanceWeight;
         }
 
         public void InitSceneLevelExtension(Trigger _proximityTrigger)
@@ -60,7 +60,8 @@ namespace GLTFast
             float _distance = Vector3.Distance(_reference.transform.position,
                 transform.position);
 
-            if(_distance < m_LowerDistance || _distance > m_UpperDistance)
+            // Table 33: the distance shall be "above the distanceLowerLimit and below the distanceUpperLimit"
+            if(!(_distance > m_LowerDistance && _distance < m_UpperDistance))
             {
                 return false;
             }

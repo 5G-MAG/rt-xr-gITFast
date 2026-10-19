@@ -37,11 +37,12 @@ namespace GLTFast.Schema
     public class Media
     {
         public string name;
-        public float startTime;
+        // startTime, endTimeOffset and autoplayGroup are optional without a default: a negative value means not present
+        public float startTime = -1f;
         public float startTimeOffset;
-        public float endTimeOffset;
+        public float endTimeOffset = -1f;
         public bool autoplay;
-        public uint autoplayGroup;
+        public int autoplayGroup = -1;
         public bool loop;
         public bool controls;
         public MediaAlternative[] alternatives;

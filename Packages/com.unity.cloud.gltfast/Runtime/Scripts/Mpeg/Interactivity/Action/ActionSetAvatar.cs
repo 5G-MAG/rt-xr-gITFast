@@ -16,7 +16,7 @@ namespace GLTFast
 {
     public class ActionSetAvatar : MonoBehaviour, IMpegInteractivityAction
     {
-        public float Delay => throw new NotImplementedException();
+        public float Delay => 0f;
 
         public void Dispose()
         {
@@ -25,7 +25,7 @@ namespace GLTFast
 
         public void Init(Schema.Action action)
         {
-            throw new NotImplementedException();
+            Debug.LogWarning("ACTION_SET_AVATAR is not supported by this player and is ignored.");
         }
 
         public void Invoke()
@@ -42,7 +42,6 @@ namespace GLTFast
 
         private void Execute()
         {
-            throw new NotImplementedException();
         }
     }
 }
