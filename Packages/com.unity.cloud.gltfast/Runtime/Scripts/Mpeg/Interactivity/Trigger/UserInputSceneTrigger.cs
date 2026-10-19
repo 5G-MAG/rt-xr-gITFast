@@ -64,222 +64,146 @@ namespace GLTFast
 
         public void Init(Trigger trigger)
         {
-            string binding = GetBindingFromUserInputDescription(trigger.userInputDescription);
-
-            m_InputAction = new InputAction(trigger.userInputDescription, binding: binding);
-            m_InputAction.performed += OnInputPerformed;
-            m_InputAction.canceled += OnInputCanceled;
-            m_InputAction.Enable();
+            // A path that cannot be bound leaves the trigger never met; it must not abort the scene load.
+            try
+            {
+                string binding = GetBindingFromUserInputDescription(trigger.userInputDescription);
+                m_InputAction = new InputAction(trigger.userInputDescription, binding: binding);
+                m_InputAction.performed += OnInputPerformed;
+                m_InputAction.canceled += OnInputCanceled;
+                m_InputAction.Enable();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("TRIGGER_USER_INPUT: input '" + trigger.userInputDescription + "' is not usable (" + e.Message + "); the trigger is never met.");
+                m_InputAction = null;
+            }
             if(trigger.nodes != null)
             {
                 m_Targets = VirtualSceneGraph.GetGameObjectsFromIndexes(trigger.nodes);
                 for(int i = 0; i < trigger.nodes.Length; i++)
                 {
                     Node _node = VirtualSceneGraph.GetNodeFromNodeIndex(trigger.nodes[i]);
-                    if(_node.extensions?.MPEG_node_interactivity != null)
+                    var _nodeTriggerDef = NodeInteractivityLookup.Find(_node, TriggerType.TRIGGER_USER_INPUT);
+                    if(_nodeTriggerDef != null)
                     {
-                        if(_node.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_USER_INPUT)
-                        {
-                            UserInputNodeTrigger _nodeTrigger 
-                                = m_Targets[i].AddComponent<UserInputNodeTrigger>();
+                        UserInputNodeTrigger _nodeTrigger 
+                            = m_Targets[i].AddComponent<UserInputNodeTrigger>();
 
-                            _nodeTrigger.Init(_node.extensions.MPEG_node_interactivity.triggers[i].userInputParameters);
-                        }
+                        _nodeTrigger.Init(_nodeTriggerDef.userInputParameters ?? new string[0]);
                     }
                 }
             }
         }
 
-
-        private static string GetDefaultUnityDeviceLayout(string xrpath)
-        {
-            // TODO: support hand interaction profile may require user configuration.
-            string KHR_SIMPLE_PROFILE = "<SimpleProfile>";
-            string GENERIC = "<XRController>";
-            switch (xrpath){
-                case "/input/select/click":	
-                    return KHR_SIMPLE_PROFILE;
-                case "/input/menu/click":
-                    return KHR_SIMPLE_PROFILE;
-                case "/input/grip/pose":
-                    return KHR_SIMPLE_PROFILE;
-                case "/input/aim/pose":
-                    return KHR_SIMPLE_PROFILE;
-                case "/output/haptic":
-                    return KHR_SIMPLE_PROFILE;
-                default:
-                    return GENERIC;
-            }
-        }
-
-        private static string OpenXRPathToUnityControlName(string xrpath)
-        {
-            switch (xrpath){
-                // <XRController> - Unity's baseline XR controler
-                // https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/input.html
-                case "/input/system/click":
-                    return "system"; //	Boolean
-                case "/input/system/touch":
-                    return "systemTouched"; // Boolean
-                case "/input/select/click":
-                    return "select"; //	Boolean
-                case "/input/menu/click":
-                    return "menu"; // Boolean
-                case "/input/squeeze/value":
-                    return "grip"; // Float
-                case "/input/squeeze/click":
-                    return "gripPressed"; // Boolean
-                case "/input/squeeze/force":
-                    return "gripForce"; // Boolean
-                case "/input/trigger/value":
-                    return "trigger"; // Float
-                case "/input/trigger/squeeze":
-                    return "triggerPressed"; // Boolean
-                case "/input/trigger/touch":
-                    return "triggerTouched"; // Boolean
-                case "/input/thumbstick":
-                    return "joystick"; // Vector2
-                case "/input/thumbstick/touch":
-                    return "joystickTouched"; // Vector2
-                case "/input/thumbstick/clicked":
-                    return "joystickClicked"; // Vector2
-                case "/input/trackpad":
-                    return "touchpad"; // Vector2
-                case "/input/trackpad/touch":
-                    return "touchpadTouched"; // Boolean
-                case "/input/trackpad/clicked":
-                    return "touchpadClicked"; // Boolean
-                case "/input/a/click":
-                    return "primaryButton"; // Boolean
-                case "/input/a/touch":
-                    return "primaryTouched"; //	Boolean
-                case "/input/b/click":
-                    return "secondaryButton"; // Boolean
-                case "/input/b/touch":
-                    return "secondaryTouched"; // Boolean
-                case "/input/x/click":
-                    return "primaryButton"; // Boolean
-                case "/input/x/touch":
-                    return "primaryTouched"; //	Boolean
-                case "/input/y/click":
-                    return "secondaryButton"; // Boolean
-                case "/input/y/touch":
-                    return "secondaryTouched"; // Boolean
-
-                // <SimpleController> - KHR Simple controller profile
-                // https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/features/khrsimplecontrollerprofile.html
-                // case "/input/select/click":	
-                //     return "select"; //	Boolean
-                // case "/input/menu/click":
-                //     return "menu"; // Boolean
-                case "/input/grip/pose":
-                    return "devicePose"; // Pose
-                case "/input/aim/pose":
-                    return "pointer"; // Pose
-                case "/output/haptic":
-                    return "haptic"; // Vibrate
-
-                // Hand interaction profile - https://registry.khronos.org/OpenXR/specs/1.1/html/xrspec.html#ext_hand_interaction-profile
-                // <HandInteraction> - https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/features/handinteractionprofile.html
-                // case "/input/grip/pose":
-                //     return "devicePose"; // Pose
-                // case "/input/aim/pose":
-                //     return "pointer"; // Pose
-                case "/input/pinch_ext/pose":
-                    return "pinchPose"; // Pose
-                case "/input/poke_ext/pose":
-                    return "pokePose"; // Pose
-                case "/input/pinch_ext/value":
-                    return "pinchValue"; // Float
-                case "/input/pinch_ext/ready_ext":
-                    return "pinchReady"; // Boolean
-                case "/input/aim_activate_ext/value":
-                    return "pointerActivateValue"; // Float
-                case "/input/aim_activate_ext/ready_ext":
-                    return "pointerActivateReady"; // Boolean
-                case "/input/grasp_ext/value":
-                    return "graspValue"; // Float
-                case "/input/grasp_ext/ready_ext":
-                    return "graspReady"; // Boolean
-                // <HandInteractionPoses> - https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/features/handcommonposesinteraction.html
-                // case "/input/grip/pose":
-                // 	return "devicePose"; // Pose
-                // case "/input/aim/pose":
-                // 	return "pointer"; // Pose
-                // case "/input/pinch_ext/pose":
-                // 	return "pinchPose"; // Pose
-                // case "/input/poke_ext/pose":
-                // 	return "pokePose"; // Pose
-                // <PalmPose> - https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.14/manual/features/palmposeinteraction.html
-                case "/input/palm_ext/pose":
-                    return "palmPose";
-            }
-            return xrpath;
-        }
-
+        /// <summary>
+        /// Maps a userInputDescription (Table 33: an OpenXR input path, "/user/hand/left/grip" is the example)
+        /// to an Input System binding. Also read: "/mouse/...", "/keyboard/...", "/touchscreen/...".
+        /// For "/user/hand/{left|right}/[input/]identifier[/component]" the identifier and component are mapped
+        /// to the XRController usages of the Input System as follows: select, trigger and trigger/click
+        /// to the trigger button; trigger/value to the trigger axis; squeeze, grip, grip/click to the grip button;
+        /// grip/value to the grip axis; grip/pose and aim/pose to the device position; menu; thumbstick,
+        /// thumbstick/click, thumbstick/touch; trackpad, trackpad/click, trackpad/touch; a and x to the
+        /// primary button; b and y to the secondary button.
+        /// Throws ArgumentException when the path has no mapping; callers catch it.
+        /// </summary>
         public static string GetBindingFromUserInputDescription(string description)
         {
             if(string.IsNullOrEmpty(description)) 
             {
-                throw new Exception("Trying to get binding from description, but it's null");
+                throw new ArgumentException("Trying to get binding from description, but it's null");
             }
 
-            StringBuilder builder = new StringBuilder();
-            // ISO/IEC 23090-14 Table 32 specifies that an XRPath shall be used
-            string uhr = "/user/hand/right";
-            string uhl = "/user/hand/left";
-            // TODO: support hand interraction profile
-            if (description.StartsWith(uhr)){
-                string subPath = description.Substring(uhr.Length);
-                builder.Append(GetDefaultUnityDeviceLayout(subPath));
-                builder.Append("{RightHand}/");
-                builder.Append(OpenXRPathToUnityControlName(subPath));
-            } else if (description.StartsWith(uhl)){
-                string subPath = description.Substring(uhr.Length);
-                builder.Append(GetDefaultUnityDeviceLayout(subPath));
-                builder.Append("{LeftHand}/");
-                builder.Append(OpenXRPathToUnityControlName(subPath));
-            } else {
-                // mouse/keyboard/touchscreen are not standard. 
-                string[] userInputDesc = description.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                if (userInputDesc.Length == 0){
-                    Debug.LogWarning("XRPath used in interactivity trigger definition is not valid: " + description);
-                    return description;
-                }
-                switch (userInputDesc[0].ToLowerInvariant())
+            string[] parts = description.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) throw new ArgumentException("Empty user input path '" + description + "'");
+
+            string first = parts[0].ToLowerInvariant();
+            string rest = string.Join("/", parts, 1, parts.Length - 1);
+            switch (first)
+            {
+                case "mouse":
+                    return "<Mouse>/" + (rest.Length > 0 ? rest : "leftButton");
+
+                case "keyboard":
+                    return "<Keyboard>/" + (rest.Length > 0 ? rest : "anyKey");
+
+                case "touchscreen":
+                    return rest.ToLowerInvariant().Contains("position")
+                        ? "<Touchscreen>/primaryTouch/position"
+                        : "<Touchscreen>/primaryTouch/press";
+
+                case "user":
+                    return GetXrBinding(description, parts, false);
+            }
+            throw new ArgumentException("No input binding for '" + description + "'");
+        }
+
+        /// <summary>
+        /// The binding of the device rotation for a pose path ("/user/hand/left/aim/pose"), or null when the
+        /// path is not a pose. Used by the manipulate action.
+        /// </summary>
+        public static string GetRotationBindingFromUserInputDescription(string description)
+        {
+            if (string.IsNullOrEmpty(description)) return null;
+            string[] parts = description.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 4 || parts[0].ToLowerInvariant() != "user") return null;
+            try { return GetXrBinding(description, parts, true); }
+            catch (ArgumentException) { return null; }
+        }
+
+        private static string GetXrBinding(string description, string[] parts, bool rotation)
+        {
+            // /user/hand/<left|right>/[input/]<identifier>[/<component>]
+            if (parts.Length < 4 || parts[1].ToLowerInvariant() != "hand")
+            {
+                throw new ArgumentException("Only /user/hand/... input paths are mapped: '" + description + "'");
+            }
+            string hand = parts[2].ToLowerInvariant() == "left" ? "{LeftHand}"
+                : parts[2].ToLowerInvariant() == "right" ? "{RightHand}" : null;
+            if (hand == null) throw new ArgumentException("Unknown hand in '" + description + "'");
+
+            int at = 3;
+            if (parts[at].ToLowerInvariant() == "input") at++;
+            if (at >= parts.Length) throw new ArgumentException("No input identifier in '" + description + "'");
+            string id = parts[at].ToLowerInvariant();
+            string component = at + 1 < parts.Length ? parts[at + 1].ToLowerInvariant() : null;
+
+            string control = null;
+            bool isPose = component == "pose" || (component == null && id == "aim");
+            if (isPose)
+            {
+                if (id != "grip" && id != "aim") throw new ArgumentException("'" + id + "' has no pose in '" + description + "'");
+                control = rotation ? "deviceRotation" : "devicePosition";
+            }
+            else if (rotation)
+            {
+                throw new ArgumentException("Not a pose: '" + description + "'");
+            }
+            else
+            {
+                switch (id)
                 {
-                    case "mouse":
-                        builder.Append("<Mouse>");
-                        builder.Append("/");
-                        break;
-                    case "keyboard":
-                        builder.Append("<Keyboard>");
-                        builder.Append("/");
-                        break;
-                    case "touchscreen":
-                        builder.Append("<Touchscreen>");
-                        builder.Append("/");
-                        builder.Append("Press");
-                        break;
-                    default :
-                        Debug.LogWarning("XRPath used in interactivity trigger definition is not supported: " + description);
-                        return description;
-                }
-                builder.Append(userInputDesc[1]);
-                string input = userInputDesc[1].ToLowerInvariant();
-                switch (input)
-                {
-                    case "leftbutton":
-                        {
-                            break;
-                        }
-                    case "position":
-                        {
-                            break;
-                        }
+                    case "select": control = "triggerPressed"; break;
+                    case "trigger":
+                        control = component == "value" ? "trigger" : component == "touch" ? "triggerTouched" : "triggerPressed"; break;
+                    case "squeeze":
+                    case "grip":
+                        control = component == "value" ? "grip" : "gripPressed"; break;
+                    case "menu": control = "menu"; break;
+                    case "thumbstick":
+                        control = component == "click" ? "thumbstickClicked" : component == "touch" ? "thumbstickTouched"
+                            : component == "x" ? "thumbstick/x" : component == "y" ? "thumbstick/y" : "thumbstick"; break;
+                    case "trackpad":
+                        control = component == "click" ? "trackpadClicked" : component == "touch" ? "trackpadTouched"
+                            : component == "x" ? "trackpad/x" : component == "y" ? "trackpad/y" : "trackpad"; break;
+                    case "a":
+                    case "x": control = "primaryButton"; break;
+                    case "b":
+                    case "y": control = "secondaryButton"; break;
                 }
             }
-            return builder.ToString();
+            if (control == null) throw new ArgumentException("No input binding for '" + description + "'");
+            return "<XRController>" + hand + "/" + control;
         }
     }
 }

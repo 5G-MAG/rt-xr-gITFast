@@ -974,6 +974,20 @@ namespace GLTFast
             return m_MeshAssignments.GetLength(meshIndex);
         }
 
+        //// MPEG
+        /// <summary>
+        /// Returns the imported Unity meshes of one glTF mesh
+        /// </summary>
+        /// <param name="meshIndex">glTF mesh index</param>
+        /// <returns>The meshes, or null if the index is invalid</returns>
+        public UnityEngine.Mesh[] GetMeshPrimitiveMeshes(int meshIndex)
+        {
+            if (m_MeshAssignments == null || Root?.Meshes == null || meshIndex < 0 || meshIndex >= Root.Meshes.Count) return null;
+            var result = new List<UnityEngine.Mesh>();
+            foreach (var assignment in m_MeshAssignments.Values(meshIndex)) result.Add(assignment.mesh);
+            return result.ToArray();
+        }
+
         /// <summary>
         /// Iterates all imported Unity meshes of a glTF mesh.
         /// </summary>
@@ -1281,6 +1295,9 @@ namespace GLTFast
                 return false;
             }
 
+            //// MPEG
+            MpegLoadState.BeginLoad(json);
+
             if (!CheckExtensionSupport())
             {
                 return false;
@@ -1446,7 +1463,7 @@ namespace GLTFast
                         )
                         {
                             var imageIndex = Root.Textures[txtInfo.index].GetImageIndex();
-                            m_ImageGamma[imageIndex] = true;
+                            if (imageIndex >= 0) m_ImageGamma[imageIndex] = true;   // a video texture may have no image
                         }
                     }
 
@@ -2152,7 +2169,7 @@ namespace GLTFast
                 await WaitForImageCreateContexts();
             }
 
-            if (m_Images != null && Root.Textures != null)
+            if (Root.Textures != null && (m_Images != null || HasVideoTextureWithoutSource()))
             {
                 PopulateTexturesAndImageVariants();
             }
@@ -2219,9 +2236,19 @@ namespace GLTFast
             m_AnimationClips = new AnimationClip[Root.Animations.Count];
             for (var i = 0; i < Root.Animations.Count; i++) {
                 var animation = Root.Animations[i];
+                // the legacy Animation component finds a clip by its name: a repeated name gets the animation index
+                var clipName = animation.name ?? $"Clip_{i}";
+                for (var other = 0; other < i; other++)
+                {
+                    if (m_AnimationClips[other].name == clipName)
+                    {
+                        clipName = $"{clipName}_{i}";
+                        break;
+                    }
+                }
                 m_AnimationClips[i] = new AnimationClip
                 {
-                    name = animation.name ?? $"Clip_{i}",
+                    name = clipName,
 
                     // Legacy Animation requirement
                     legacy = m_Settings.AnimationMethod == AnimationMethod.Legacy,
@@ -2248,6 +2275,7 @@ namespace GLTFast
                     var path = AnimationUtils.CreateAnimationPath(channel.Target.node,m_NodeNames,parentIndex);
 
                     var times = (NativeArray<float>) m_AccessorData[sampler.input];
+                    MpegAnimationKeyframes.Record(i, times);
 
                     var outputData = m_AccessorData[sampler.output];
                     Assert.IsNotNull(outputData);
@@ -2420,11 +2448,20 @@ namespace GLTFast
             }
         }
 
+        bool HasVideoTextureWithoutSource()
+        {
+            foreach (var txt in Root.Textures)
+            {
+                if (txt.GetImageIndex() < 0 && txt.Extensions?.MPEG_texture_video != null) return true;
+            }
+            return false;
+        }
+
         void PopulateTexturesAndImageVariants()
         {
             var defaultKey = new SamplerKey(new Sampler());
             m_Textures = new Texture2D[Root.Textures.Count];
-            var imageVariants = new Dictionary<SamplerKey, Texture2D>[m_Images.Length];
+            var imageVariants = new Dictionary<SamplerKey, Texture2D>[m_Images != null ? m_Images.Length : 0];
             for (var textureIndex = 0; textureIndex < Root.Textures.Count; textureIndex++)
             {
                 var txt = Root.Textures[textureIndex];
@@ -2441,6 +2478,16 @@ namespace GLTFast
                 }
 
                 var imageIndex = txt.GetImageIndex();
+                //// MPEG
+                if (imageIndex < 0 && txt.Extensions?.MPEG_texture_video != null)
+                {
+                    // The fallback image of a video texture is optional: the video frames fill a texture of the declared size.
+                    var videoTexture = new Texture2D(txt.Extensions.MPEG_texture_video.width, txt.Extensions.MPEG_texture_video.height, DefaultFormat.LDR, TextureCreationFlags.None);
+                    m_Resources.Add(videoTexture);
+                    sampler?.Apply(videoTexture, m_Settings.DefaultMinFilterMode, m_Settings.DefaultMagFilterMode);
+                    m_Textures[textureIndex] = videoTexture;
+                    continue;
+                }
                 if (imageIndex < 0 || imageIndex >= Root.Images.Count) continue;
                 var img = m_Images[imageIndex];
                 //// MPEG

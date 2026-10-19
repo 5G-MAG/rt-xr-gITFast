@@ -65,8 +65,10 @@ namespace GLTFast.Schema
         public int id = -1;
         public MpegSpatialAudioReverbProperties[]? properties; // required
 
-        public bool? bypass; // = true;
-        public float? predelay;
+        // Table 20: default true. A nullable is not read by JsonUtility, so the default is the initializer.
+        public bool bypass = true;
+        // Table 16: default 0.0 (a nullable is not read by JsonUtility)
+        public float predelay = 0f;
 
         internal void GltfSerialize(JsonWriter writer)
         {

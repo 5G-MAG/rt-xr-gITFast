@@ -49,6 +49,22 @@ namespace GLTFast.Schema
             public bool usePhysics;
 
             /// <summary>
+            /// If true, the physics engine should handle the collision detection more
+            /// accurately by increasing the detection rate for this node.
+            /// </summary>
+            public bool needPreciseCollisionDetection;
+
+            /// <summary>
+            /// Linear drag coefficient in 1/s, default 0.
+            /// </summary>
+            public float linearDamping;
+
+            /// <summary>
+            /// Angular drag coefficient in 1/s, default 0.
+            /// </summary>
+            public float angularDamping;
+
+            /// <summary>
             /// Indicates if the gravity affects the object
             /// </summary>
             public bool useGravity;
@@ -95,13 +111,13 @@ namespace GLTFast.Schema
             /// The weight applied
             /// to the distanceUpperLimit parameter defined at scene level
             /// </summary>
-            public float upperDistanceWeight;
+            public float upperDistanceWeight = 1f;   // default 1 in ISO/IEC 23090-14:2024
 
             /// <summary>
             /// The weight applied
             /// to the distanceLowerLimit parameter defined at scene level
             /// </summary>
-            public float lowerDistanceWeight;
+            public float lowerDistanceWeight = 1f;   // default 1 in ISO/IEC 23090-14:2024
 
             /// <summary>
             /// Provides additional information related to the user 
@@ -131,7 +147,7 @@ namespace GLTFast.Schema
             /// Index of the mesh in the scene meshes array that will
             /// be used to compute visibility.
             /// </summary>
-            public int mesh;
+            public int mesh = -1;   // -1: absent, the node own mesh is used
 
             internal void GltfSerialize(JsonWriter _writer)
             {

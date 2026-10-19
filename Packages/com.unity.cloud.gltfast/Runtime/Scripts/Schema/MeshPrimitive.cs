@@ -350,6 +350,7 @@ namespace GLTFast.Schema
     [Serializable]
     public class MeshPrimitiveExtensions
     {
+        public MpegPrimitiveV3C MPEG_primitive_V3C;
 #if DRACO_UNITY
         // ReSharper disable once InconsistentNaming
         public MeshPrimitiveDracoExtension KHR_draco_mesh_compression;

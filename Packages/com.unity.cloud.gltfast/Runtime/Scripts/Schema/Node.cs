@@ -213,6 +213,7 @@ namespace GLTFast.Schema
         /// <inheritdoc cref="MPEG_node_interactivity"/>
         public MpegNodeInteractivity MPEG_node_interactivity;
         public MpegAnchorObject MPEG_anchor;
+        public MpegNodeAvatar MPEG_node_avatar;
         
         public MpegAudioSpatial MPEG_audio_spatial;
 

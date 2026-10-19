@@ -106,49 +106,163 @@ namespace GLTFast
             };
         }
 
+        // Number of components of the pixels the media pipeline stores for a format.
+        // The planar YCbCr formats are converted to RGB by the pipeline.
+        public static int ComponentCount(string format)
+        {
+            return format switch
+            {
+                RED => 1,
+                GREEN => 1,
+                BLUE => 1,
+                DEPTH_COMPONENT => 1,
+                RG => 2,
+                RGBA => 4,
+                BGRA => 4,
+                _ => 3,
+            };
+        }
+
+        public static GLTFast.Schema.GltfAccessorAttributeType AccessorType(int components)
+        {
+            switch (components)
+            {
+                case 1: return GLTFast.Schema.GltfAccessorAttributeType.SCALAR;
+                case 2: return GLTFast.Schema.GltfAccessorAttributeType.VEC2;
+                case 4: return GLTFast.Schema.GltfAccessorAttributeType.VEC4;
+                default: return GLTFast.Schema.GltfAccessorAttributeType.VEC3;
+            }
+        }
+
+        // Formats other than RGB that the media pipeline produces directly.
+        public static bool TryGetAttributeType(string format, out maf.AttributeType type)
+        {
+            switch (format)
+            {
+                case RED: type = maf.AttributeType.TEXTURE_RED; return true;
+                case GREEN: type = maf.AttributeType.TEXTURE_GREEN; return true;
+                case BLUE: type = maf.AttributeType.TEXTURE_BLUE; return true;
+                case RG: type = maf.AttributeType.TEXTURE_RG; return true;
+                case RGBA: type = maf.AttributeType.TEXTURE_RGBA; return true;
+                case BGR: type = maf.AttributeType.TEXTURE_BGR; return true;
+                case BGRA: type = maf.AttributeType.TEXTURE_BGRA; return true;
+                case DEPTH_COMPONENT: type = maf.AttributeType.TEXTURE_DEPTH_COMPONENT; return true;
+                default: type = maf.AttributeType.TEXTURE_RGB; return false;
+            }
+        }
+
     }
 
     public class VideoTexture
     {
 
+        // brightness factor applied to the picture (application setting, 1 leaves the picture as it is)
+        public static float Gain = 1f;
+
         public UnityEngine.Texture texture;
         public int bufferId;
         public string bufferFormat;
         public bool vflip = false;
-        
+
         private ComputeShader shader;
         private Texture2D texSrc;
         private RenderTexture texOut;
+        private Texture2D target;
 
         private int kernel;
 
-        public VideoTexture(Texture2D tex, int buffer, int width, int height, string fmt, bool flip = false)
+        // size of the picture currently held by texSrc and texOut
+        private int pictureWidth;
+        private int pictureHeight;
+        // layout of the pixels the media pipeline stores for the format
+        private readonly TextureFormat sourceFormat;
+        private readonly int bytesPerPixel;
+        private readonly int shaderMode;
+        // timed accessor information header at the start of each buffer frame
+        private readonly bool timedHeader;
+        private readonly bool immutable;
+        private readonly int dataOffset;
+        private bool sizeWarningLogged = false;
+
+        public VideoTexture(Texture2D tex, int buffer, int width, int height, string fmt, bool flip = false, bool hasTimedHeader = false, bool headerImmutable = true, int staticDataOffset = 0)
         {
-            // the pre-existing texture, is expected to  
+            // the pre-existing texture, is expected to
             texture = tex;
-            
+            target = tex;
+            bufferFormat = fmt;
+
             // the media pipeline buffer from which we read texture
             bufferId = buffer;
 
-            // check that we can perform compute shader 
+            timedHeader = hasTimedHeader;
+            immutable = headerImmutable;
+            dataOffset = staticDataOffset;
+
+            // pixel layout of the buffer data, and how the shader turns it into an RGBA texture
+            switch (fmt)
+            {
+                case VideoBufferFormat.RED:
+                    sourceFormat = TextureFormat.R8; bytesPerPixel = 1; shaderMode = 2;
+                    break;
+                case VideoBufferFormat.GREEN:
+                    sourceFormat = TextureFormat.R8; bytesPerPixel = 1; shaderMode = 3;
+                    break;
+                case VideoBufferFormat.BLUE:
+                    sourceFormat = TextureFormat.R8; bytesPerPixel = 1; shaderMode = 4;
+                    break;
+                case VideoBufferFormat.RG:
+                    sourceFormat = TextureFormat.RG16; bytesPerPixel = 2; shaderMode = 5;
+                    break;
+                case VideoBufferFormat.DEPTH_COMPONENT:
+                    sourceFormat = TextureFormat.R8; bytesPerPixel = 1; shaderMode = 6;
+                    break;
+                case VideoBufferFormat.RGBA:
+                    sourceFormat = TextureFormat.RGBA32; bytesPerPixel = 4; shaderMode = 0;
+                    break;
+                case VideoBufferFormat.BGRA:
+                    sourceFormat = TextureFormat.RGBA32; bytesPerPixel = 4; shaderMode = 1;
+                    break;
+                case VideoBufferFormat.BGR:
+                    sourceFormat = TextureFormat.RGB24; bytesPerPixel = 3; shaderMode = 1;
+                    break;
+                default:
+                    sourceFormat = TextureFormat.RGB24; bytesPerPixel = 3; shaderMode = 0;
+                    break;
+            }
+
+            // check that we can perform compute shader
             Assert.IsTrue((SystemInfo.copyTextureSupport & CopyTextureSupport.RTToTexture) == CopyTextureSupport.RTToTexture);
 
+            // use a compute shader to flip texture and/or perform color space conversion
+            shader = (ComputeShader)Resources.Load("FlipTexture");
+            kernel = shader.FindKernel("CSMain");
+
+            AllocatePicture(width, height);
+        }
+
+        // (Re)creates the textures holding a picture of the given size.
+        private void AllocatePicture(int width, int height)
+        {
+            if (texSrc != null)
+            {
+                UnityEngine.Object.Destroy(texSrc);
+            }
+            if (texOut != null)
+            {
+                texOut.Release();
+                UnityEngine.Object.Destroy(texOut);
+            }
+
             // loads raw maf buffer to a texture prior to further processing
-            texSrc = new Texture2D(width, height, TextureFormat.RGB24, false, true);
+            texSrc = new Texture2D(width, height, sourceFormat, false, true);
 
             // texOut = new RenderTexture(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
             texOut = new RenderTexture(width, height, 0, DefaultFormat.LDR);
             texOut.enableRandomWrite = true;
             Assert.IsTrue(texOut.Create());
 
-            // use a compute shader to flip texture and/or perform color space conversion
-            shader = (ComputeShader)Resources.Load("FlipTexture");
-            kernel = shader.FindKernel("CSMain");
-
-            shader.SetInt("width", width);
-            shader.SetInt("height", height);
-            shader.SetTexture(kernel, "texSrc", texSrc);
-            shader.SetTexture(kernel, "texOut", texOut);
+            pictureWidth = width;
+            pictureHeight = height;
         }
 
         public RenderTexture GetRenderTexture()
@@ -156,16 +270,96 @@ namespace GLTFast
             return texOut;
         }
 
+        // Uploads a picture of the declared size, stored at the start of data.
         public void UpdateData(NativeArray<byte> data)
         {
+            UploadPicture(data, pictureWidth, pictureHeight);
+        }
+
+        // Uploads the picture of a buffer frame. The picture is stored at the size output by the decoder: the frame header gives
+        // that size (Table 25 dimensions flag), otherwise the declared size is used; the texture takes the size of the picture
+        // (clause 5.3.1.3). When the accessor has a timed accessor information header, the header gives where the pixels are.
+        public void UpdateFrame(maf.Frame frame, NativeArray<byte> frameData)
+        {
+            int width = pictureWidth;
+            int height = pictureHeight;
+            if ((frame.extraFrameInfoFlags & 0x01) != 0 && frame.width > 0 && frame.height > 0)
+            {
+                width = (int)frame.width;
+                height = (int)frame.height;
+            }
+
+            int offset = dataOffset;
+            int stride = 0;
+            if (timedHeader)
+            {
+                var header = new maf.BufferInfoHeader();
+                header.immutable = immutable;
+                header.componentType = maf.ComponentType.UNSIGNED_BYTE;
+                header.type = (maf.SampleType)(VideoBufferFormat.ComponentCount(bufferFormat) - 1);
+                header.ReadAccessorHeader(frame.data);
+                // the dynamic accessor and bufferView information take precedence over the scene description (5.2.2.3)
+                offset = (int)(header.bufferViewByteOffset + header.byteOffset);
+                stride = (int)header.bufferViewByteStride;
+                header.Dispose();
+            }
+
+            int rowBytes = width * bytesPerPixel;
+            // 5.2.2.3: the stride of the data may change from frame to frame; 0 means tightly packed
+            int size = stride > rowBytes ? stride * (height - 1) + rowBytes : rowBytes * height;
+            if (offset < 0 || offset + size > frameData.Length)
+            {
+                if (!sizeWarningLogged)
+                {
+                    Debug.LogWarning("video frame holds " + frameData.Length + " bytes, a " + width + " x " + height + " picture at offset " + offset + " needs " + size);
+                    sizeWarningLogged = true;
+                }
+                return;
+            }
+            if (stride > rowBytes)
+            {
+                // rows are stored with padding: repack them
+                var packed = new NativeArray<byte>(rowBytes * height, Allocator.Temp);
+                for (int y = 0; y < height; y++)
+                {
+                    NativeArray<byte>.Copy(frameData, offset + y * stride, packed, y * rowBytes, rowBytes);
+                }
+                UploadPicture(packed, width, height);
+                packed.Dispose();
+                return;
+            }
+            UploadPicture(frameData.GetSubArray(offset, size), width, height);
+        }
+
+        private void UploadPicture(NativeArray<byte> data, int width, int height)
+        {
+            if (width != pictureWidth || height != pictureHeight)
+            {
+                AllocatePicture(width, height);
+            }
+            if (target.width != width || target.height != height)
+            {
+                // the texture takes the size of the picture
+                // without a mip chain: the picture is copied into level 0 only, and the static image of the scene may be of another size
+                target.Reinitialize(width, height, target.format, false);
+                target.Apply(false, false);
+            }
+
             // TODO: as it turns out calling unity's API must be done from its main thread ! so GPU upload will indeed be an issue,
             // investigate alternative implementation based on: https://docs.unity3d.com/ScriptReference/Rendering.CommandBuffer.IssuePluginCustomTextureUpdateV2.html
             texSrc.LoadRawTextureData(data); // pass CPU buffer to unity
             texSrc.Apply(); // process and upload to GPU, slow ...
-            
-            // FIXME; texture format and yuv to rgb conversion
-            shader.Dispatch(kernel, texture.width / 8, texture.height / 8, 1);
-            Graphics.CopyTexture(texOut, texture); 
+
+            // the compute shader is shared by all video textures: set its inputs for this one
+            shader.SetInt("width", width);
+            shader.SetInt("height", height);
+            shader.SetInt("mode", shaderMode);
+            shader.SetFloat("gain", Gain);
+            shader.SetTexture(kernel, "texSrc", texSrc);
+            shader.SetTexture(kernel, "texOut", texOut);
+            // FIXME; yuv to rgb conversion
+            shader.Dispatch(kernel, (width + 7) / 8, (height + 7) / 8, 1);
+            Graphics.CopyTexture(texOut, 0, 0, target, 0, 0);
         }
 
     }

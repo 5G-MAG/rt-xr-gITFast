@@ -11,6 +11,9 @@ namespace GLTFast
     {
         GltfImport m_GltfImport;
 
+        /// <summary>The importer of the loaded document (null before loading).</summary>
+        public GltfImport Import => m_GltfImport;
+
         public MpegGltfImport (){
             ImportAddonRegistry.RegisterImportAddon(new MpegAddon());
         }
@@ -125,6 +128,18 @@ namespace GLTFast
                     case GLTFast.ExtensionName.AccessorTimed:
                     case GLTFast.ExtensionName.TextureVideo:
                     case GLTFast.ExtensionName.SpatialAudio:
+                    case GLTFast.ExtensionName.Haptic:
+                    case GLTFast.ExtensionName.HapticMaterial:
+                    // scene level extensions, lighting and avatar
+                    case "MPEG_animation_timing":
+                    case "MPEG_scene_dynamic":
+                    case "MPEG_viewport_recommended":
+                    case "MPEG_mesh_linking":
+                    case "MPEG_lights_punctual":
+                    case "MPEG_lights_texture_based":
+                    case "MPEG_node_avatar":
+                    // G.1.1: a player without V3C reconstruction requests the raw data of the primitive attributes
+                    case "MPEG_primitive_V3C":
                         return true;
                     
                     default:
@@ -158,11 +173,17 @@ namespace GLTFast
                 UpdateVirtualSceneGraph();
                 var scene = m_GltfImport.GetSourceScene(m_GltfImport.DefaultSceneIndex ?? 0);
                 if (scene != null){
+                    ConfigurePhysics(scene);
                     ProcessMpegSceneInteractivityExtension(scene);
+                    // 8.2.1: node-level collision triggers not referenced by a scene trigger are for the physics engine only
+                    PhysicsOnlyNodes.Apply(m_GltfImport.GetSourceRoot(), scene);
+                    // Annex G.3.4: haptic media with autoplay or startTime is rendered without an action
+                    HapticMediaStarter.Apply(m_GltfImport.GetSourceRoot());
                     ProcessMpegAnchorExtension(scene);
 #if MAF_MEDIA_PIPELINES
                     ProcessMpegMediaExtensions(scene);
 #endif
+                    MpegSceneExtensionsRuntime.OnSceneInstantiated(m_GltfImport, m_GltfImport.GetSourceRoot(), m_GltfImport.DefaultSceneIndex ?? 0);
                 }
             }
             catch (Exception e)
@@ -172,6 +193,27 @@ namespace GLTFast
             m_Instantiator.NodeCreated -= OnNodeCreated;
             m_Instantiator.MeshAdded -= OnMeshAdded;
 
+        }
+
+        /// <summary>Solver iterations when the scene recommends high precision physics (Table 32 states no value).</summary>
+        public static int HighPrecisionSolverIterations = 16, HighPrecisionSolverVelocityIterations = 4;
+
+        // Table 32: bounce threshold, high precision physics, gravity and the recommended physics frame rate of the scene
+        // (defaults when the extension is absent)
+        void ConfigurePhysics(Schema.Scene scene)
+        {
+            // Collider and visibility meshes may be meshes that no node uses
+            VirtualSceneGraph.MeshPrimitiveMeshesProvider = m_GltfImport.GetMeshPrimitiveMeshes;
+            var sceneInteractivity = scene.extensions?.MPEG_scene_interactivity;
+            Physics.bounceThreshold = sceneInteractivity != null ? sceneInteractivity.bounceThreshold : 1f;
+            bool highPrecision = sceneInteractivity != null && sceneInteractivity.recommendedPhysicsHighPrecision;
+            // Table 32 gives no number for "a more deterministic and precise physic simulation": the solver iterations used are an
+            // implementation setting, overridable here (Unity's own defaults are 6 and 1)
+            Physics.defaultSolverIterations = highPrecision ? HighPrecisionSolverIterations : 6;
+            Physics.defaultSolverVelocityIterations = highPrecision ? HighPrecisionSolverVelocityIterations : 1;
+            Physics.gravity = new Vector3(0f, sceneInteractivity != null ? sceneInteractivity.gravity : -9.81f, 0f);
+            Time.fixedDeltaTime = sceneInteractivity != null && sceneInteractivity.recommendedPhysicsFrameRate > 0f
+                ? 1f / sceneInteractivity.recommendedPhysicsFrameRate : 0.02f;
         }
 
         void OnNodeCreated(
@@ -413,39 +455,48 @@ namespace GLTFast
             if (tex == null)
                 throw new Exception("invalid texture index");
                 
-            var texExt = tex.extensions.MPEG_texture_video;
+            var texExt = tex.Extensions.MPEG_texture_video;
             Schema.Accessor acc = root.accessors[texExt.accessor];
-            Schema.MpegAccessorTimed extAccessor = acc.extensions.MPEG_accessor_timed;
-            if (!extAccessor.immutable)
+            Schema.MpegAccessorTimed extAccessor = acc.extensions?.MPEG_accessor_timed;
+            if (extAccessor == null)
             {
-                Debug.LogWarning("VideoTexture: unsupported MPEG_accessor_timed.immutable != 1");
-            }
-            if (extAccessor.bufferView >= 0)
-            {
-                Debug.LogWarning("VideoTexture: unsupported MPEG_accessor_timed.bufferView != null");
+                throw new Exception("MPEG_texture_video.accessor must refer to an accessor with the MPEG_accessor_timed extension");
             }
 
             Schema.BufferView bv = root.bufferViews[acc.bufferView];
             Schema.Buffer buff = root.buffers[bv.buffer];
             /* 
-            * Current implementation is limited to one texture per buffer frame,
-            * with the buffer frame as whole being used by the texture.
-            */
-            if ((bv.byteOffset + acc.byteOffset) > 0)
+             * Current implementation is limited to one texture per buffer frame,
+             * the picture is stored without padding between its pixels.
+             */
+            int components = VideoBufferFormat.ComponentCount(texExt.format);
+            if (VideoBufferFormat.IsMultiPlanarFormat(texExt.format))
             {
-                throw new NotImplementedException("VideoTexture: byteOffset != 0");
+                Debug.LogWarning("VideoTexture: format " + texExt.format + " is converted to RGB by the media pipeline, MPEG_sampler_YCbCr is not applied");
             }
-            if (bv.byteStride > 0)
+            else
             {
-                throw new NotImplementedException("VideoTexture: byteStride != 0");
+                if (acc.componentType != Schema.GltfComponentType.UnsignedByte)
+                {
+                    throw new NotImplementedException("VideoTexture: only accessors with UNSIGNED_BYTE components are supported");
+                }
+                if (acc.GetAttributeType() != VideoBufferFormat.AccessorType(components))
+                {
+                    throw new Exception("MPEG_texture_video format " + texExt.format + " has " + components + " component(s), the accessor type is " + acc.GetAttributeType());
+                }
             }
-            if (bv.byteLength != buff.byteLength)
+            if (bv.byteStride > 0 && bv.byteStride != components)
             {
-                throw new NotImplementedException("VideoTexture: bufferView.byteLength != buffer.byteLength");
+                throw new NotImplementedException("VideoTexture: byteStride != size of a pixel");
             }
-            // We should get the format from the gltf document, and pass it to MAF
+            if ((long)bv.byteOffset + bv.byteLength > buff.byteLength)
+            {
+                throw new Exception("VideoTexture: bufferView exceeds the buffer");
+            }
+
             int mediaIdx = GetBufferSourceMediaIndex(root, bv.buffer);
-            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format);
+            // the media pipeline gets the format through the attribute type of the accessor
+            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format, false, extAccessor.bufferView >= 0, extAccessor.immutable, bv.byteOffset + acc.byteOffset);
             return (mediaIdx, vt);
         }
 
@@ -570,6 +621,7 @@ namespace GLTFast
                 throw new NotImplementedException($"Couldn't create action, type not recognized: {action.type} : {index}");
             }
             actionIf.Init(action);
+            ActionAffectedNodes.Register(actionIf, action);
             VirtualSceneGraph.AssignActionToIndex(actionIf, index);
             m_Instantiator.SceneInstance.AddInteractivityAction(actionIf);
         }

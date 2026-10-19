@@ -37,10 +37,10 @@ namespace GLTFast
         public void Init(Trigger trigger)
         {
             m_Targets = new List<ProximityNodeTrigger>();
-            if(trigger.referenceNode.HasValue)
+            if(trigger.referenceNode >= 0)
             {
                 m_HasReferenceNode = true;
-                m_ReferenceObject = VirtualSceneGraph.GetGameObjectFromIndex(trigger.referenceNode.Value);
+                m_ReferenceObject = VirtualSceneGraph.GetGameObjectFromIndex(trigger.referenceNode);
             }
             else
             {
@@ -53,8 +53,8 @@ namespace GLTFast
             m_DistanceLowerLimit = trigger.distanceLowerLimit;
             m_DistanceUpperLimit = trigger.distanceUpperLimit;
 
-            GetFirstActivatedCamera();
-
+            // Without referenceNode the active camera is the reference (Table 34)
+            if (!m_HasReferenceNode) GetFirstActivatedCamera();
 
             if (trigger.primitives == null)
             {
@@ -73,7 +73,7 @@ namespace GLTFast
             {
                 // We assume that the primitives array is of the same length as node array
                 // Add primitives as targets
-                for (int i = 0; i < trigger.nodes.Length; i++)
+                for (int i = 0; i < trigger.nodes.Length && i < trigger.primitives.Length; i++)
                 {
                     Vector3 _nodePos = VirtualSceneGraph.GetGameObjectFromIndex(trigger.nodes[i]).transform.position;
 
@@ -84,28 +84,31 @@ namespace GLTFast
                             _primitive = PrimitivesHelper.PrimitivesCreateCuboidGameObject(trigger.primitives[i].width,
                                 trigger.primitives[i].height,
                                 trigger.primitives[i].length,
-                                trigger.primitives[i].centroid);
+                                trigger.primitives[i].CentroidVector);
                             break;
                         case Schema.PrimitiveType.BV_PLANE_REGION:
                             _primitive = PrimitivesHelper.PrimitivesCreatePlaneGameObject(trigger.primitives[i].width,
                                 trigger.primitives[i].height,
-                                trigger.primitives[i].centroid);
+                                trigger.primitives[i].CentroidVector);
                             break;
                         case Schema.PrimitiveType.BV_CYLINDER_REGION:
                             _primitive = PrimitivesHelper.PrimitivesCreateCylinderGameObject(trigger.primitives[i].radius,
                                 trigger.primitives[i].length,
-                                trigger.primitives[i].centroid);
+                                trigger.primitives[i].CentroidVector);
                             break;
                         case Schema.PrimitiveType.BV_CAPSULE_REGION:
                             _primitive = PrimitivesHelper.PrimitivesCreateCapsuleGameObject(trigger.primitives[i].radius,
-                                trigger.primitives[i].baseCentroid,
-                                trigger.primitives[i].topCentroid);
+                                trigger.primitives[i].BaseCentroidVector,
+                                trigger.primitives[i].TopCentroidVector);
                             break;
                         case Schema.PrimitiveType.BV_SPHEROID:
                             _primitive = PrimitivesHelper.PrimitivesCreateSpheroidGameObject(trigger.primitives[i].radius,
-                                trigger.primitives[i].centroid);
+                                trigger.primitives[i].CentroidVector);
                             break;
                     }
+
+                    // the primitive is a trigger region, it is not drawn
+                    if (_primitive != null) foreach (var pr in _primitive.GetComponentsInChildren<Renderer>(true)) pr.enabled = false;
 
                     if (_primitive == null)
                     {
@@ -118,10 +121,11 @@ namespace GLTFast
                     // is then always identity
 
                     // Move the primitive according to the transformation matrix
-                    Matrix4x4 m = trigger.primitives[i].transformationMatrix;
+                    Matrix4x4 m = trigger.primitives[i].TransformationMatrixValue;
                     Vector3 _pos = m.GetPosition();
                     Quaternion _rot = m.rotation;
-                    Vector3 _scale = Vector3.one;
+                    // Table 35: the matrix defines the orientation, translation and scale of the primitive
+                    Vector3 _scale = m.lossyScale;
 
                     _primitive.transform.position = _nodePos;
                     _primitive.transform.localPosition = _pos;
@@ -143,19 +147,11 @@ namespace GLTFast
             ProximityNodeTrigger _proximity = _obj.AddComponent<ProximityNodeTrigger>();
             Node _nd = VirtualSceneGraph.GetNodeFromGameObject(_obj);
 
-            // Find if there is any proximity trigger
-            // node extenxtion level to be found
-            if (_nd.extensions?.MPEG_node_interactivity != null)
+            // The node-level proximity trigger, when the node extension has one
+            var _nodeTrigger = NodeInteractivityLookup.Find(_nd, TriggerType.TRIGGER_PROXIMITY);
+            if (_nodeTrigger != null)
             {
-                for(int i = 0; i < _nd.extensions.MPEG_node_interactivity.triggers.Length; i++)
-                {
-                    if (_nd.extensions.MPEG_node_interactivity.triggers[i].type == TriggerType.TRIGGER_PROXIMITY)
-                    {
-                        _proximity.InitSceneAndNodeLevelExtension(
-                            _nd.extensions.MPEG_node_interactivity.triggers[i],
-                            _proximityTrigger);
-                    }
-                }
+                _proximity.InitSceneAndNodeLevelExtension(_nodeTrigger, _proximityTrigger);
             }
             else
             {
@@ -164,17 +160,17 @@ namespace GLTFast
             return _proximity;
         }
 
+        // 8.2.1 Table 33: "In the absence of the referenceNode attribute, the active camera managed by the application shall be used."
+        // The application's active camera is the one that renders the view: the camera tagged MainCamera, else the first enabled camera.
         private void GetFirstActivatedCamera()
         {
-            UnityEngine.Camera[] _cameras = UnityEngine.Camera.allCameras;
-
-            // By default, the reference node is the active camera
-            for (int i = 0; i < _cameras.Length; i++)
+            UnityEngine.Camera _cam = UnityEngine.Camera.main;
+            if (_cam == null || !_cam.isActiveAndEnabled)
             {
-                // Get the first activated camera by default
-                UnityEngine.Camera _cam = _cameras[i];
-                m_ReferenceObject = _cam.gameObject;
+                UnityEngine.Camera[] _cameras = UnityEngine.Camera.allCameras;
+                _cam = _cameras.Length > 0 ? _cameras[0] : null;
             }
+            if (_cam != null) m_ReferenceObject = _cam.gameObject;
         }
 
         private void Update()
@@ -190,6 +186,7 @@ namespace GLTFast
         public bool MeetConditions()
         {
             bool result = true;
+            if (m_ReferenceObject == null) return false;
             for (int i = 0; i < m_Targets.Count; i++)
             {
                 // TODO: Should take in account the node level extension for each object

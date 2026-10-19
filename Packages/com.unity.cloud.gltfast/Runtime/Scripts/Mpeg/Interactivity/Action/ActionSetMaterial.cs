@@ -34,7 +34,15 @@ namespace GLTFast
         public void Init(Schema.Action action)
         {
             m_Objects = VirtualSceneGraph.GetGameObjectsFromIndexes(action.nodes);
-            m_TargetMaterial = VirtualSceneGraph.GetMaterialFromIndex(action.material);
+            try
+            {
+                m_TargetMaterial = VirtualSceneGraph.GetMaterialFromIndex(action.material);
+            }
+            catch (System.Exception)
+            {
+                Debug.LogWarning("ACTION_SET_MATERIAL: material " + action.material + " does not exist, the action is ignored.");
+                m_TargetMaterial = null;
+            }
             m_Delay = action.delay;
         }
 
@@ -52,10 +60,32 @@ namespace GLTFast
 
         private void Execute()
         {
+            if (m_TargetMaterial == null) return;
             for(int i = 0; i < m_Objects.Length; i++)
             {
-                m_Objects[i].GetComponent<Renderer>().material = m_TargetMaterial;
+                if (m_Objects[i] == null) continue;
+                Apply(m_Objects[i].GetComponent<Renderer>());
+                // Further primitives of the node mesh are children that are not glTF nodes.
+                Transform t = m_Objects[i].transform;
+                for (int c = 0; c < t.childCount; c++)
+                {
+                    GameObject child = t.GetChild(c).gameObject;
+                    if (!VirtualSceneGraph.IsNodeGameObject(child)) Apply(child.GetComponent<Renderer>());
+                }
             }
+        }
+
+        private void Apply(Renderer target)
+        {
+            if (target == null) return;
+            Material[] current = target.sharedMaterials;
+            if (current == null || current.Length <= 1)
+            {
+                target.sharedMaterial = m_TargetMaterial;
+                return;
+            }
+            for (int i = 0; i < current.Length; i++) current[i] = m_TargetMaterial;
+            target.sharedMaterials = current;
         }
 
         private IEnumerator StartWithDelay(float _time)

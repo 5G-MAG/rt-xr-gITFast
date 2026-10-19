@@ -21,7 +21,7 @@ namespace GLTFast
     /// <summary>
     /// Handle the Animation state of an object
     /// </summary>
-    public class ActionAnimation : MonoBehaviour, IMpegInteractivityAction
+    public class ActionAnimation : MonoBehaviour, IMpegInteractivityAction, IMpegInteractivityStoppable
     {
         public float Delay => m_Delay;
         private float m_Delay;
@@ -44,6 +44,15 @@ namespace GLTFast
             m_TargetAnimation = VirtualSceneGraph.GetAnimationFromClipIndex(action.animation);
         }
 
+        /// <summary>Stops an animation started by this action when its behavior is interrupted.</summary>
+        public void Stop()
+        {
+            if (m_AnimationControl == AnimationControl.ANIMATION_PLAY && m_TargetAnimation != null)
+            {
+                m_TargetAnimation.Stop();
+            }
+        }
+
         public void Invoke()
         {
             if (Delay > 0.0f)
@@ -62,14 +71,18 @@ namespace GLTFast
             {
                 case AnimationControl.ANIMATION_PLAY:
                     m_TargetAnimation.clip = m_Clip;
+                    m_TargetAnimation.Stop();
                     m_TargetAnimation.Play();
+                    if (m_TargetAnimation[m_Clip.name] != null) m_TargetAnimation[m_Clip.name].speed = 1f;
                     break;
 
                 case AnimationControl.ANIMATION_PAUSE:
-                    throw new System.NotImplementedException("ANIMATION_PAUSE not implemented");
+                    if (m_TargetAnimation[m_Clip.name] != null) m_TargetAnimation[m_Clip.name].speed = 0f;
+                    break;
 
                 case AnimationControl.ANIMATION_RESUME:
-                    m_TargetAnimation.Play();
+                    if (m_TargetAnimation[m_Clip.name] != null) m_TargetAnimation[m_Clip.name].speed = 1f;
+                    if (!m_TargetAnimation.isPlaying) m_TargetAnimation.Play();
                     break;
 
                 case AnimationControl.ANIMATION_STOP:

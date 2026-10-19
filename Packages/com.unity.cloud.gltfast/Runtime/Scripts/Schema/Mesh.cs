@@ -30,6 +30,9 @@ namespace GLTFast.Schema
         /// <inheritdoc />
         public override IReadOnlyList<MeshPrimitiveBase> Primitives => primitives;
 
+        /// <inheritdoc cref="MeshExtensions"/>
+        public MeshExtensions extensions;
+
         /// <summary>
         /// Clones the Mesh object
         /// </summary>
