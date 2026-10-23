@@ -28,4 +28,4 @@ The fork is updated by merging upstream into `rt-xr/development`. To keep these 
 
 ## Licence
 
-Upstream's code is under the Apache License 2.0 (see [LICENSE.md](LICENSE.md)). Third-party components keep their own licences, listed in [Third Party Notices](<Third Party Notices.md>).
+Upstream's code and the additions of this fork are under the Apache License 2.0 (see [LICENSE.md](LICENSE.md)). Third-party components keep their own licences, listed in [Third Party Notices](<Third Party Notices.md>).
