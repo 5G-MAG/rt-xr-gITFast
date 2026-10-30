@@ -131,15 +131,15 @@ namespace GLTFast
                     case GLTFast.ExtensionName.Haptic:
                     case GLTFast.ExtensionName.HapticMaterial:
                     // scene level extensions, lighting and avatar
-                    case "MPEG_animation_timing":
-                    case "MPEG_scene_dynamic":
-                    case "MPEG_viewport_recommended":
-                    case "MPEG_mesh_linking":
-                    case "MPEG_lights_punctual":
-                    case "MPEG_lights_texture_based":
-                    case "MPEG_node_avatar":
+                    case GLTFast.ExtensionName.AnimationTiming:
+                    case GLTFast.ExtensionName.SceneDynamic:
+                    case GLTFast.ExtensionName.ViewportRecommended:
+                    case GLTFast.ExtensionName.MeshLinking:
+                    case GLTFast.ExtensionName.MpegLightsPunctual:
+                    case GLTFast.ExtensionName.MpegLightsTextureBased:
+                    case GLTFast.ExtensionName.NodeAvatar:
                     // G.1.1: a player without V3C reconstruction requests the raw data of the primitive attributes
-                    case "MPEG_primitive_V3C":
+                    case GLTFast.ExtensionName.PrimitiveV3C:
                         return true;
                     
                     default:
