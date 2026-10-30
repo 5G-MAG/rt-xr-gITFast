@@ -50,6 +50,9 @@ namespace GLTFast
         private float m_UserScale = 1f;
         private bool m_PlacedOnWall = false;
         private AnchorHolder m_Holder;
+        // TryAddAnchorAsync answers later: a newer request or a reset makes an answer still in flight obsolete
+        private int m_AnchorRequest = 0;
+        private bool m_AnchorPending = false;
         private Transform HolderTransform { get { return m_Holder != null ? m_Holder.transform : m_Anchor.transform; } }
         private float m_UserYaw = 0f;
         private Dictionary<GameObject, Vector3> m_OriginalPositions = new Dictionary<GameObject, Vector3>();
@@ -240,16 +243,46 @@ namespace GLTFast
             if (m_PlacementPose.HasValue && !AnchorPlacement.AnchorToPlane)
             {
                 // the user chose the spot: a free-standing anchor there stays put while planes are refined or merged
-                m_Anchor = m_AnchorManager.AddAnchor(m_PlacementPose.Value);
+                AddPlacementAnchor(m_PlacementPose.Value);
+                return true;
             }
-            if (m_Anchor == null)
-            {
-                if (m_Plane != null) m_Anchor = m_AnchorManager.AttachAnchor(m_Plane, m_PlacementPose ?? new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
-            }
+            if (m_Plane != null) m_Anchor = m_AnchorManager.AttachAnchor(m_Plane, m_PlacementPose ?? new Pose(m_Plane.transform.position, m_Plane.transform.rotation));
             if (m_Anchor == null)
             {
                 return false;
             }
+            BindAnchor();
+            return true;
+        }
+
+        // The anchor exists a few frames later: the scene is attached then, or to the tapped plane when ARCore refused the anchor.
+        private async void AddPlacementAnchor(Pose pose)
+        {
+            int request = ++m_AnchorRequest;
+            m_AnchorPending = true;
+            var result = await m_AnchorManager.TryAddAnchorAsync(pose);
+            var anchor = result.status.IsSuccess() ? result.value : null;
+            if (this == null || request != m_AnchorRequest)
+            {
+                // the placement was reset or moved while the anchor was being created
+                if (anchor != null) Destroy(anchor.gameObject);
+                return;
+            }
+            m_AnchorPending = false;
+            if (anchor == null && m_Plane != null) anchor = m_AnchorManager.AttachAnchor(m_Plane, pose);
+            if (anchor == null)
+            {
+                m_Plane = null;
+                m_Id = TrackableId.invalidId;
+                m_PlacementPose = null;
+                return;
+            }
+            m_Anchor = anchor;
+            BindAnchor();
+        }
+
+        private void BindAnchor()
+        {
             if (m_Holder == null)
             {
                 m_Holder = new GameObject("MpegAnchoredScene").AddComponent<AnchorHolder>();
@@ -282,7 +315,6 @@ namespace GLTFast
                 // Instantiate(Resources.Load<GameObject>("Debug/axes"), m_Anchor.gameObject.transform, false);
                 m_Attached = true;
             }
-            return true; 
         }
 
         public void RemoveAnchor()
@@ -410,7 +442,7 @@ namespace GLTFast
             Debug.Log("TrackableFloor::bounds scale" + m_ScaleFactor);
         }
 
-        public bool AwaitingPlacement { get { return m_Anchor == null; } }
+        public bool AwaitingPlacement { get { return m_Anchor == null && !m_AnchorPending; } }
 
         public bool PlaceAt(ARPlane plane, Pose pose)
         {
@@ -418,7 +450,7 @@ namespace GLTFast
             {
                 return false;
             }
-            if (m_Anchor != null)
+            if (m_Anchor != null || m_AnchorPending)
             {
                 ResetPlacement();
             }
@@ -444,7 +476,7 @@ namespace GLTFast
             {
                 return false;
             }
-            if (m_Anchor != null)
+            if (m_Anchor != null || m_AnchorPending)
             {
                 ResetPlacement();
             }
@@ -463,20 +495,29 @@ namespace GLTFast
         }
 
         // ARCore dropped the anchor: the scene stays where it was and a new anchor takes over there.
-        private bool OnAnchorLost()
+        private async void OnAnchorLost()
         {
-            if (m_AnchorManager == null || m_Holder == null)
+            if (m_AnchorManager == null || m_Holder == null || m_AnchorPending)
             {
-                return false;
+                return;
             }
-            var anchor = m_AnchorManager.AddAnchor(new Pose(m_Holder.transform.position, m_Holder.transform.rotation));
+            int request = ++m_AnchorRequest;
+            m_AnchorPending = true;
+            var result = await m_AnchorManager.TryAddAnchorAsync(new Pose(m_Holder.transform.position, m_Holder.transform.rotation));
+            var anchor = result.status.IsSuccess() ? result.value : null;
+            if (this == null || request != m_AnchorRequest || m_Holder == null)
+            {
+                if (anchor != null) Destroy(anchor.gameObject);
+                return;
+            }
+            m_AnchorPending = false;
             if (anchor == null)
             {
-                return false;
+                // the holder asks again
+                return;
             }
             m_Anchor = anchor;
             m_Holder.Bind(anchor, OnAnchorLost);
-            return true;
         }
 
         public void SetUserTransform(float scale, float yawDegrees)
@@ -558,6 +599,8 @@ namespace GLTFast
                 m_Holder = null;
             }
             m_Anchor = null;
+            m_AnchorRequest++;
+            m_AnchorPending = false;
             m_Attached = false;
             m_IsGoActivated = false;
             m_Plane = null;

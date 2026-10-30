@@ -17,11 +17,11 @@ namespace GLTFast
     public class AnchorHolder : MonoBehaviour
     {
         private ARAnchor m_Anchor;
-        private System.Func<bool> m_OnLost;
+        private System.Action m_OnLost;
         private float m_RetryAt;
 
-        /// <summary>Follows <paramref name="anchor"/>; <paramref name="onLost"/> creates a new anchor and returns true when it succeeded.</summary>
-        public void Bind(ARAnchor anchor, System.Func<bool> onLost)
+        /// <summary>Follows <paramref name="anchor"/>; <paramref name="onLost"/> requests a new anchor and binds it once it exists, and is called again every second until then.</summary>
+        public void Bind(ARAnchor anchor, System.Action onLost)
         {
             m_Anchor = anchor;
             m_OnLost = onLost;

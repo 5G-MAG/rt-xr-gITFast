@@ -437,6 +437,7 @@ namespace GLTFast
         // While the image is out of view the content is held by a world anchor, which ARCore keeps aligned as its map
         // improves; a plain transform would drift against the room.
         private ARAnchor m_WorldAnchor;
+        private bool m_WorldAnchorPending;
 
         void LateUpdate()
         {
@@ -449,7 +450,8 @@ namespace GLTFast
             }
             if (m_WorldAnchor == null)
             {
-                var mgr = FindObjectOfType<ARAnchorManager>(true);
+                if (m_WorldAnchorPending) return;
+                var mgr = FindFirstObjectByType<ARAnchorManager>(FindObjectsInactive.Include);
                 if (mgr == null)
                 {
                     GameObject origin = null;
@@ -457,11 +459,26 @@ namespace GLTFast
                     if (origin == null) return;
                     mgr = origin.AddComponent<ARAnchorManager>();
                 }
-                m_WorldAnchor = mgr.AddAnchor(new Pose(m_Anchor.transform.position, m_Anchor.transform.rotation));
+                AddWorldAnchor(mgr, new Pose(m_Anchor.transform.position, m_Anchor.transform.rotation));
                 return;
             }
             if (m_WorldAnchor.trackingState != TrackingState.None)
                 m_Anchor.transform.SetPositionAndRotation(m_WorldAnchor.transform.position, m_WorldAnchor.transform.rotation);
+        }
+
+        private async void AddWorldAnchor(ARAnchorManager mgr, Pose pose)
+        {
+            m_WorldAnchorPending = true;
+            var result = await mgr.TryAddAnchorAsync(pose);
+            m_WorldAnchorPending = false;
+            if (!result.status.IsSuccess()) return;
+            // the image came back into view, or this trackable went away, while the anchor was being created
+            if (this == null || m_Anchor == null || imgTrack == null || imgTrack.trackingState == TrackingState.Tracking)
+            {
+                Destroy(result.value.gameObject);
+                return;
+            }
+            m_WorldAnchor = result.value;
         }
         private int m_LastLog = -1;
         void Update()
