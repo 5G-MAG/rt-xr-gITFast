@@ -132,15 +132,15 @@ namespace GLTFast
         public const string Anchor = "MPEG_anchor";
         public const string Haptic = "MPEG_haptic";
         public const string HapticMaterial = "MPEG_haptic_material";
-        public const string AnimationTiming = "MPEG_animation_timing";
-        public const string SceneDynamic = "MPEG_scene_dynamic";
-        public const string ViewportRecommended = "MPEG_viewport_recommended";
-        public const string MeshLinking = "MPEG_mesh_linking";
-        // prefixed, because LightsPunctual is the name of KHR_lights_punctual
+        public const string MpegAnimationTiming = "MPEG_animation_timing";
+        public const string MpegSceneDynamic = "MPEG_scene_dynamic";
+        public const string MpegViewportRecommended = "MPEG_viewport_recommended";
+        public const string MpegMeshLinking = "MPEG_mesh_linking";
+        // the MPEG extensions added here are prefixed with Mpeg, which also keeps MpegLightsPunctual apart from KHR_lights_punctual
         public const string MpegLightsPunctual = "MPEG_lights_punctual";
         public const string MpegLightsTextureBased = "MPEG_lights_texture_based";
-        public const string NodeAvatar = "MPEG_node_avatar";
-        public const string PrimitiveV3C = "MPEG_primitive_V3C";
+        public const string MpegNodeAvatar = "MPEG_node_avatar";
+        public const string MpegPrimitiveV3C = "MPEG_primitive_V3C";
 
         /// <summary>
         /// Returns the official name of the glTF extension
