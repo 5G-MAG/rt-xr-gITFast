@@ -22,6 +22,61 @@ namespace GLTFast
 
     using maf;
 
+    // MPEG_audio_spatial playbackSpeed (ISO/IEC 23090-14, Table 14, between 0.5 and 2.0), applied by the presentation engine:
+    // the output frames are taken from the input at `speed` input frames per output frame, by linear interpolation, so the
+    // signal plays faster or slower and its pitch follows. Samples are interleaved.
+    public class PlaybackSpeedResampler
+    {
+        private readonly int channels;
+        private readonly double speed;
+        private float[] pending = new float[0];   // input frames not consumed yet
+        private int pendingFrames = 0;
+        private double position = 0.0;            // position of the next output frame in pending, in input frames
+
+        public PlaybackSpeedResampler(int channelCount, float playbackSpeed)
+        {
+            channels = channelCount;
+            speed = playbackSpeed;
+        }
+
+        // The input frames to push before outFrames output frames can be produced.
+        public int FramesNeeded(int outFrames)
+        {
+            int need = (int)System.Math.Ceiling(position + (outFrames - 1) * speed) + 2;
+            return System.Math.Max(0, need - pendingFrames);
+        }
+
+        public void Push(float[] data, int frames)
+        {
+            int samples = frames * channels;
+            if (pending.Length < (pendingFrames * channels) + samples)
+            {
+                System.Array.Resize(ref pending, (pendingFrames * channels) + samples);
+            }
+            System.Array.Copy(data, 0, pending, pendingFrames * channels, samples);
+            pendingFrames += frames;
+        }
+
+        public void Resample(float[] dst, int outFrames)
+        {
+            for (int k = 0; k < outFrames; k++)
+            {
+                double p = position + k * speed;
+                int i = (int)System.Math.Floor(p);
+                float f = (float)(p - i);
+                for (int c = 0; c < channels; c++)
+                {
+                    dst[k * channels + c] = pending[i * channels + c] * (1f - f) + pending[(i + 1) * channels + c] * f;
+                }
+            }
+            position += outFrames * speed;
+            int consumed = (int)System.Math.Floor(position);
+            System.Array.Copy(pending, consumed * channels, pending, 0, (pendingFrames - consumed) * channels);
+            pendingFrames -= consumed;
+            position -= consumed;
+        }
+    }
+
     public class MafAudioReader
     {
         /*
@@ -44,6 +99,9 @@ namespace GLTFast
         // the pipeline writes a timed accessor information header (immutable layout) when the buffer layout has one
         private readonly bool useAccessorHeaders;
         private BufferInfoHeaderArray bufferHeaders = null;
+        // playbackSpeed other than 1.0: the resampler and the buffer it reads the media samples into
+        private PlaybackSpeedResampler resampler = null;
+        private float[] speedInput = null;
 
         public readonly int ChannelCount;
         public readonly int SampleRate;
@@ -77,6 +135,10 @@ namespace GLTFast
         public virtual void AddAudioSource(SpatialAudioSource aSrc)
         {
             AudioSources.Add(aSrc);
+            if (aSrc.PlaybackSpeed != 1.0f && resampler == null)
+            {
+                resampler = new PlaybackSpeedResampler(ChannelCount, aSrc.PlaybackSpeed);
+            }
         }
 
         public void Play()
@@ -99,6 +161,29 @@ namespace GLTFast
 
         public void AudioReaderCallback(float[] dst)
         {
+            if (resampler == null || ChannelCount == 0)
+            {
+                FillSamples(dst, dst.Length);
+                return;
+            }
+            // playbackSpeed other than 1.0: read the samples of the media at that many times the rate they are played at
+            int outFrames = dst.Length / ChannelCount;
+            int needed = resampler.FramesNeeded(outFrames);
+            if (needed > 0)
+            {
+                if (speedInput == null || speedInput.Length < needed * ChannelCount)
+                {
+                    speedInput = new float[needed * ChannelCount];
+                }
+                System.Array.Clear(speedInput, 0, needed * ChannelCount);
+                FillSamples(speedInput, needed * ChannelCount);
+                resampler.Push(speedInput, needed);
+            }
+            resampler.Resample(dst, outFrames);
+        }
+
+        private void FillSamples(float[] dst, int length)
+        {
             // reads the latest frame from BufferHandler, and write the content to audio buffer dst.
             if (!Active)
             {
@@ -110,11 +195,11 @@ namespace GLTFast
             }
 
             int dstOffset = 0;
-            while (dstOffset < dst.Length)
+            while (dstOffset < length)
             {
                 if (frame == null)
                 {
-                    double maxDelay = (double)dst.Length / (double)SampleRate;
+                    double maxDelay = (double)length / (double)SampleRate;
                     sw = Stopwatch.StartNew();
                     do
                     {
@@ -161,7 +246,7 @@ namespace GLTFast
                     return;
                 }
 
-                int chunkSize = Mathf.Min(src.Length - srcOffset, dst.Length - dstOffset);
+                int chunkSize = Mathf.Min(src.Length - srcOffset, length - dstOffset);
                 NativeArray<float>.Copy(src, srcOffset, dst, dstOffset, chunkSize);
                 dstOffset += chunkSize;
                 srcOffset += chunkSize;
@@ -173,7 +258,7 @@ namespace GLTFast
             
             }
 
-            SampleCount += dst.Length;
+            SampleCount += length;
         }
 
     } // MafAudioReader
