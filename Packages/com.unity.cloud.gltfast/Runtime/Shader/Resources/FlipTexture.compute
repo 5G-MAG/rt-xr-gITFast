@@ -1,0 +1,48 @@
+#pragma kernel CSMain
+
+Texture2D<float4> texSrc;
+RWTexture2D<float4> texOut;
+
+int height;
+int width;
+// 0 pass through, 1 swap red and blue, 2 red only, 3 green only, 4 blue only, 5 red and green, 6 one component as grey
+int mode;
+// brightness factor of the picture (an app setting, not part of the specification)
+float gain;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)width || id.y >= (uint)height)
+    {
+        return;
+    }
+    int2 coords = int2(id.x, height - 1 - id.y);
+    float4 c = texSrc[coords];
+    if (mode == 1)
+    {
+        c = float4(c.b, c.g, c.r, c.a);
+    }
+    else if (mode == 2)
+    {
+        c = float4(c.r, 0, 0, 1);
+    }
+    else if (mode == 3)
+    {
+        c = float4(0, c.r, 0, 1);
+    }
+    else if (mode == 4)
+    {
+        c = float4(0, 0, c.r, 1);
+    }
+    else if (mode == 5)
+    {
+        c = float4(c.r, c.g, 0, 1);
+    }
+    else if (mode == 6)
+    {
+        c = float4(c.r, c.r, c.r, 1);
+    }
+    c.rgb = saturate(c.rgb * gain);
+    texOut[id.xy] = c;
+}
