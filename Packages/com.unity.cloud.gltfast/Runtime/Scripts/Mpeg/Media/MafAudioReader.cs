@@ -41,7 +41,7 @@ namespace GLTFast
         // MAF buffer
         public readonly MediaBufferHandler BufferHandler;
         public readonly BufferInfoArray BufferInfo;
-        // the pipeline writes a timed accessor information header exactly when the scene signals one (BufferInfo.timedHeader)
+        // the pipeline writes a timed accessor information header (immutable layout) when the buffer layout has one
         private readonly bool useAccessorHeaders;
         private BufferInfoHeaderArray bufferHeaders = null;
 
@@ -64,11 +64,11 @@ namespace GLTFast
             BufferInfo = bufferInfo;
             ChannelCount = BufferInfo.Count; 
             SampleRate = sampleRate;
-            useAccessorHeaders = BufferInfo.Count > 0 && BufferInfo[0].timedHeader;
+            useAccessorHeaders = BufferInfo.Count > 0 && MediaBufferHandler.HasTimedAccessorHeader(BufferInfo);
 
             if (useAccessorHeaders)
             {
-                bufferHeaders = BufferInfoHeader.CreateAccessorsHeaders(handler.BufferInfo, handler.BufferInfo[0].immutable);
+                bufferHeaders = BufferInfoHeader.CreateAccessorsHeaders(handler.BufferInfo, true);
             }
 
             AudioSources = new List<SpatialAudioSource>();

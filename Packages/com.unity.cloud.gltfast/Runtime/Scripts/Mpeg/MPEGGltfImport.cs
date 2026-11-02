@@ -495,8 +495,8 @@ namespace GLTFast
             }
 
             int mediaIdx = GetBufferSourceMediaIndex(root, bv.buffer);
-            // the media pipeline gets the format through the attribute type of the accessor
-            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format, false, extAccessor.bufferView >= 0, extAccessor.immutable, bv.byteOffset + acc.byteOffset);
+            // the media pipeline gets the format through BufferInfo.outputMedia; it writes the immutable header layout
+            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format, false, extAccessor.bufferView >= 0, true, bv.byteOffset + acc.byteOffset);
             return (mediaIdx, vt);
         }
 
