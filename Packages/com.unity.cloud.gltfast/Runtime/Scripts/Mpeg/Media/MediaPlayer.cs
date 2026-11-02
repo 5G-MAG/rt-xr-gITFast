@@ -114,7 +114,7 @@ namespace GLTFast {
                 bi.attributeType = attributeType;
             else if (Array.IndexOf(MpegTimedAccessors.GetWanted(), accessorIdx) >= 0)
                 // an accessor that a scene extension reads as timed metadata (animation timing, mesh linking, viewport)
-                bi.attributeType = AttributeType.METADATA_ACCESSOR;
+                bi.attributeType = AttributeType.ATTRIB_METADATA;
 
             // MPEG_accessor_timed: a bufferView holds the timed accessor information header, written before the data of each frame
             Schema.MpegAccessorTimed timedAccessor = ac.extensions != null ? ac.extensions.MPEG_accessor_timed : null;
@@ -125,24 +125,24 @@ namespace GLTFast {
             }
             bi.normalized = ac.normalized;
 
-            // maximum picture size of a video texture
+            // outputMedia (ISO/IEC 23090-14, clause 6.2): the maximum picture size and the pixel format of a video texture
             Vector2Int textureSize;
             if (cfg.textureMaxSize.TryGetValue(accessorIdx, out textureSize))
             {
-                bi.maxWidth = (uint)Mathf.Max(0, textureSize.x);
-                bi.maxHeight = (uint)Mathf.Max(0, textureSize.y);
+                bi.outputMedia.width = (uint)Mathf.Max(0, textureSize.x);
+                bi.outputMedia.height = (uint)Mathf.Max(0, textureSize.y);
+            }
+            string textureFormat;
+            if (cfg.textureFormat.TryGetValue(accessorIdx, out textureFormat))
+            {
+                bi.outputMedia.format = VideoBufferFormat.ToColorFormat(textureFormat);
             }
 
-            // sample rate the media pipeline resamples audio to
+            // outputMedia.sampleRate: the sample rate the media pipeline resamples audio to
             int sampleRate;
             if (cfg.targetSampleRate.TryGetValue(accessorIdx, out sampleRate))
             {
-                bi.targetSampleRate = sampleRate;
-            }
-            float speed;
-            if (cfg.playbackSpeed.TryGetValue(accessorIdx, out speed))
-            {
-                bi.playbackSpeed = speed;
+                bi.outputMedia.sampleRate = (uint)sampleRate;
             }
 
             return bi;
@@ -315,7 +315,11 @@ namespace GLTFast {
         private void ConfigureTiming(Media media)
         {
             mediaStartTimeOffset = Math.Max(0.0, media.startTimeOffset);
-            mediaEndTimeOffset = media.endTimeOffset;
+            if (media.endTimeOffset >= 0f)
+            {
+                // TimeInfo (ISO/IEC 23090-14, clause 6.2) has no end offset: the media pipeline generates the media up to the end of the source
+                Debug.LogWarning("MPEG_media endTimeOffset is not supported: the media plays up to the end of the source.");
+            }
             mediaLoop = media.loop;
             if (media.autoplay)
             {
@@ -412,7 +416,6 @@ namespace GLTFast {
         // MPEG_media timing: startTime is a scene time in seconds, negative when the media does not start by itself at a time
         private double mediaStartTime = -1;
         private double mediaStartTimeOffset = 0;
-        private double mediaEndTimeOffset = -1;
         private bool mediaLoop = false;
         private int mediaAutoplayGroup = -1;
         private bool startScheduled = false;
@@ -535,7 +538,7 @@ namespace GLTFast {
         // Media that no MPEG_buffer_circular references, such as the scene update media of MPEG_scene_dynamic
         // (ISO/IEC 23090-14:2024, 5.2.1.3: the media is processed directly by the Presentation Engine). The pipeline hands over
         // the samples of its metadata track in one buffer without accessor; every frame holds one byte of flags (bit 0: sync
-        // sample), one byte update_mode (0xFF: not available) and the sample bytes (MAF.AttributeType.METADATA_SCENE_UPDATE).
+        // sample), one byte update_mode (0xFF: not available) and the sample bytes (attribute type ATTRIB_METADATA).
         // The number of frames and their size are implementation defaults, not values of the specification.
         public const int SceneUpdateBufferId = 0x7FFF0000;
         public static int SceneUpdateFrameCount = 4;
@@ -560,7 +563,7 @@ namespace GLTFast {
             info.offset = 0;
             info.stride = 0;
             info.timedHeader = false;
-            info.attributeType = AttributeType.METADATA_SCENE_UPDATE;
+            info.attributeType = AttributeType.ATTRIB_METADATA;
 
             var layout = new BufferInfoArray();
             layout.Add(info);
@@ -706,10 +709,9 @@ namespace GLTFast {
             {
                 timeInfo = new TimeInfo();
             }
-            // the media pipeline generates the media from startTimeOffset to endTimeOffset, and starts over when it loops
+            // the media pipeline generates the media from startTimeOffset, and starts over when it loops
             timeInfo.startTime = Math.Max(0.0, mediaStartTime);
             timeInfo.timeOffset = mediaStartTimeOffset;
-            timeInfo.endTimeOffset = mediaEndTimeOffset;
             timeInfo.loop = mediaLoop;
             if (viewInfo == null)
             {

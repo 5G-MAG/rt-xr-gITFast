@@ -176,7 +176,8 @@ namespace GLTFast {
                 }
             }
 
-            // texture formats, shouldn't be signaled as "Attribute"
+            // the pixel format of a texture is not an attribute (BufferInfo.outputMedia.format); only the YCbCr format, which
+            // ColorFormat cannot express, is still signalled through the attribute type
             Schema.Texture[] textures = root.textures;
             if (textures != null)
             {
@@ -185,12 +186,7 @@ namespace GLTFast {
                     Schema.MpegTextureVideo tex = textures[t].Extensions?.MPEG_texture_video;
                     if (tex != null)
                     {
-                        if (tex.format == VideoBufferFormat.RGB)
-                        {
-                            // accessor should supply vec3 unsigned bytes
-                            map[tex.accessor] = maf.AttributeType.TEXTURE_RGB;
-                        }
-                        else if (tex.format == VideoBufferFormat.G8_B8_R8_3PLANE_420_UNORM)
+                        if (tex.format == VideoBufferFormat.G8_B8_R8_3PLANE_420_UNORM)
                         {
                             // accessor should supply scalar unsigned bytes
                             map[tex.accessor] = maf.AttributeType.TEXTURE_GBR_3PLANE_420_UNORM;
@@ -286,6 +282,7 @@ namespace GLTFast {
                     if (tv != null && m.accessors.ContainsKey(tv.accessor))
                     {
                         m.textureMaxSize[tv.accessor] = new Vector2Int(tv.width, tv.height);
+                        m.textureFormat[tv.accessor] = tv.format;
                     }
                 }
             }
@@ -310,7 +307,7 @@ namespace GLTFast {
                             if (m.accessors.ContainsKey(audioAccessor))
                             {
                                 m.targetSampleRate[audioAccessor] = audioSource.targetSampleRate;
-                                m.playbackSpeed[audioAccessor] = audioSource.playbackSpeed;
+                                m.accessorAttributeType[audioAccessor] = maf.AttributeType.ATTRIB_PCM;
                             }
                         }
                     }
@@ -349,10 +346,10 @@ namespace GLTFast {
         public Dictionary<int, maf.AttributeType> accessorAttributeType { get; } = new Dictionary<int, maf.AttributeType>();
         // MPEG_texture_video: maximum picture size of the video texture using the accessor
         public Dictionary<int, Vector2Int> textureMaxSize { get; } = new Dictionary<int, Vector2Int>();
+        // MPEG_texture_video format of the video texture using the accessor
+        public Dictionary<int, string> textureFormat { get; } = new Dictionary<int, string>();
         // MPEG_audio_spatial targetSampleRate of the audio source using the accessor
         public Dictionary<int, int> targetSampleRate { get; } = new Dictionary<int, int>();
-        // MPEG_audio_spatial playbackSpeed of the audio source using the accessor
-        public Dictionary<int, float> playbackSpeed { get; } = new Dictionary<int, float>();
         
         public float GetSuggestedUpdateRate(int bufferId)
         {
