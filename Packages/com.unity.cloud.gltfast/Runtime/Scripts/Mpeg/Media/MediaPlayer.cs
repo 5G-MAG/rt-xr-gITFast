@@ -116,14 +116,13 @@ namespace GLTFast {
                 // an accessor that a scene extension reads as timed metadata (animation timing, mesh linking, viewport)
                 bi.attributeType = AttributeType.ATTRIB_METADATA;
 
-            // MPEG_accessor_timed: a bufferView holds the timed accessor information header, written before the data of each frame
+            // MPEG_accessor_timed: the MAF writes the timed accessor information header with the immutable layout (Table 8),
+            // so immutable = false, where the header carries componentType, type and normalized, is not supported
             Schema.MpegAccessorTimed timedAccessor = ac.extensions != null ? ac.extensions.MPEG_accessor_timed : null;
-            if (timedAccessor != null)
+            if (timedAccessor != null && !timedAccessor.immutable)
             {
-                bi.timedHeader = timedAccessor.bufferView >= 0;
-                bi.immutable = timedAccessor.immutable;
+                Debug.LogError("accessor " + accessorIdx + ": MPEG_accessor_timed immutable = false is not supported, the accessor is read as immutable.");
             }
-            bi.normalized = ac.normalized;
 
             // outputMedia (ISO/IEC 23090-14, clause 6.2): the maximum picture size and the pixel format of a video texture
             Vector2Int textureSize;
@@ -151,9 +150,17 @@ namespace GLTFast {
         static BufferInfoArray GetMafBufferInfoArray(MediaPipelineConfig cfg)
         {
             var res = new BufferInfoArray();
+            bool gltfHeader = false;
             foreach (int a in cfg.accessors.Keys)
             {
                 res.Add(GetBufferInfo(cfg, a));
+                Schema.MpegAccessorTimed timed = cfg.accessors[a].extensions?.MPEG_accessor_timed;
+                gltfHeader |= timed != null && timed.bufferView >= 0;
+            }
+            if (gltfHeader != MediaBufferHandler.HasTimedAccessorHeader(res))
+            {
+                // the MAF and this player both decide from the offset of the first accessor (see MediaBufferHandler)
+                Debug.LogError("the scene " + (gltfHeader ? "signals" : "does not signal") + " a timed accessor information header, but the data of the first accessor " + (gltfHeader ? "does not start after it" : "starts after room for it") + ": the header is not read and written consistently.");
             }
             return res;
         }
@@ -562,7 +569,6 @@ namespace GLTFast {
             info.type = SampleType.SCALAR;
             info.offset = 0;
             info.stride = 0;
-            info.timedHeader = false;
             info.attributeType = AttributeType.ATTRIB_METADATA;
 
             var layout = new BufferInfoArray();

@@ -66,6 +66,27 @@ namespace GLTFast
             }
         }
 
+        // Whether the buffer has a timed accessor information header (Table 8) before the data of each frame. The MAF API
+        // has no field for it: like the MAF (HasTimedAccessorHeader in avpipeline) the header is taken to be present when
+        // the data of the first accessor starts at least after the headers of the accessors, which are immutable.
+        public static bool HasTimedAccessorHeader(BufferInfoArray bufferInfo)
+        {
+            if (bufferInfo.Count == 0)
+            {
+                return false;
+            }
+            int total = 0;
+            foreach (var bi in bufferInfo)
+            {
+                var h = new BufferInfoHeader();
+                h.immutable = true;
+                h.componentType = bi.componentType;
+                h.type = bi.type;
+                total += h.GetHeaderSize();
+            }
+            return total > 0 && bufferInfo[0].offset >= total;
+        }
+
         private static int ComputeMaxImmutableHeaderLength(BufferInfoArray bufferInfo)
         {
             // immutable should be set per set per accessor header, based on the gltf scene description.
