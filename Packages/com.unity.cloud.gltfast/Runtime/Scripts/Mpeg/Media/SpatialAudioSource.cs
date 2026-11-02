@@ -175,10 +175,15 @@ namespace GLTFast
             {
                 throw new Exception("Invalid targetSampleRate on MpegAudioSpatialSource");
             }
-            // Table 14: "The value shall be between 0.5 and 2.0." The media pipeline applies the speed.
+            // Table 14: "The value shall be between 0.5 and 2.0."
             if (!(srcDef.playbackSpeed >= 0.5f && srcDef.playbackSpeed <= 2.0f))
             {
                 throw new Exception("Invalid playbackSpeed " + srcDef.playbackSpeed + " on MpegAudioSpatialSource: the value shall be between 0.5 and 2.0");
+            }
+            if (srcDef.playbackSpeed != 1.0f)
+            {
+                // the media pipeline does not apply the speed (it is not part of BufferInfo) and this player does not either yet
+                Debug.LogWarning("MPEG_audio_spatial playbackSpeed " + srcDef.playbackSpeed + " is not applied: the source plays at normal speed.");
             }
             SampleRate = srcDef.targetSampleRate;
             if (srcDef.type != null && String.Equals(srcDef.type, "HOA", StringComparison.OrdinalIgnoreCase))

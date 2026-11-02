@@ -134,20 +134,21 @@ namespace GLTFast
             }
         }
 
-        // Formats other than RGB that the media pipeline produces directly.
-        public static bool TryGetAttributeType(string format, out maf.AttributeType type)
+        // The pixel format the media pipeline outputs (BufferInfo.outputMedia.format, ISO/IEC 23090-14, clause 6.2). The
+        // YCbCr formats are not in ColorFormat: they are signalled through the attribute type, and RGB is the default here.
+        public static maf.ColorFormat ToColorFormat(string format)
         {
             switch (format)
             {
-                case RED: type = maf.AttributeType.TEXTURE_RED; return true;
-                case GREEN: type = maf.AttributeType.TEXTURE_GREEN; return true;
-                case BLUE: type = maf.AttributeType.TEXTURE_BLUE; return true;
-                case RG: type = maf.AttributeType.TEXTURE_RG; return true;
-                case RGBA: type = maf.AttributeType.TEXTURE_RGBA; return true;
-                case BGR: type = maf.AttributeType.TEXTURE_BGR; return true;
-                case BGRA: type = maf.AttributeType.TEXTURE_BGRA; return true;
-                case DEPTH_COMPONENT: type = maf.AttributeType.TEXTURE_DEPTH_COMPONENT; return true;
-                default: type = maf.AttributeType.TEXTURE_RGB; return false;
+                case RED: return maf.ColorFormat.RED;
+                case GREEN: return maf.ColorFormat.GREEN;
+                case BLUE: return maf.ColorFormat.BLUE;
+                case RG: return maf.ColorFormat.RG;
+                case RGBA: return maf.ColorFormat.RGBA;
+                case BGR: return maf.ColorFormat.BGR;
+                case BGRA: return maf.ColorFormat.BGRA;
+                case DEPTH_COMPONENT: return maf.ColorFormat.DEPTH_COMPONENT;
+                default: return maf.ColorFormat.RGB;
             }
         }
 
