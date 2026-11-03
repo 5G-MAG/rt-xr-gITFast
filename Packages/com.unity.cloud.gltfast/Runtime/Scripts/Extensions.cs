@@ -125,6 +125,7 @@ namespace GLTFast
         public const string AccessorTimed = "MPEG_accessor_timed";
         public const string Media = "MPEG_media";
         public const string TextureVideo = "MPEG_texture_video";
+        public const string SamplerYCbCr = "MPEG_sampler_YCbCr";
         public const string SpatialAudio = "MPEG_audio_spatial";
         //// IDCC
         public const string SceneInteractivity = "MPEG_scene_interactivity";

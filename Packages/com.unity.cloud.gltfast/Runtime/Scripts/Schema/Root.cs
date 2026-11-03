@@ -643,6 +643,14 @@ namespace GLTFast.Schema
                     texture.JsonUtilityCleanup();
                 }
             }
+
+            if (Samplers != null)
+            {
+                foreach (var sampler in Samplers)
+                {
+                    sampler.JsonUtilityCleanup();
+                }
+            }
         }
 
         /// <summary>

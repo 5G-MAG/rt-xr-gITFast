@@ -85,6 +85,24 @@ namespace GLTFast.Schema
         /// </summary>
         public WrapMode wrapT = WrapMode.Repeat;
 
+        /// <inheritdoc cref="TextureSamplerExtension"/>
+        public TextureSamplerExtension? extensions;
+
+        /// <summary>
+        /// Cleans up invalid parsing artifacts created by <see cref="GltfJsonUtilityParser"/>.
+        /// </summary>
+        internal void JsonUtilityCleanup()
+        {
+            if (extensions?.MPEG_sampler_YCbCr != null && !extensions.MPEG_sampler_YCbCr.JsonUtilityCleanup())
+            {
+                extensions.MPEG_sampler_YCbCr = null;
+            }
+            if (extensions?.MPEG_sampler_YCbCr == null)
+            {
+                extensions = null;
+            }
+        }
+
         /// <summary>
         /// Unity filter mode, derived from glTF's
         /// <see cref="minFilter"/> and <see cref="magFilter"/>.
