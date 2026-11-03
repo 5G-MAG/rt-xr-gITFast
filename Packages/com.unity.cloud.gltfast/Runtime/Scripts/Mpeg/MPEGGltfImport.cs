@@ -127,6 +127,7 @@ namespace GLTFast
                     case GLTFast.ExtensionName.BufferCircular:
                     case GLTFast.ExtensionName.AccessorTimed:
                     case GLTFast.ExtensionName.TextureVideo:
+                    case GLTFast.ExtensionName.SamplerYCbCr:
                     case GLTFast.ExtensionName.SpatialAudio:
                     case GLTFast.ExtensionName.Haptic:
                     case GLTFast.ExtensionName.HapticMaterial:
@@ -470,19 +471,30 @@ namespace GLTFast
              * the picture is stored without padding between its pixels.
              */
             int components = VideoBufferFormat.ComponentCount(texExt.format);
+            if (acc.componentType != Schema.GltfComponentType.UnsignedByte)
+            {
+                throw new NotImplementedException("VideoTexture: only accessors with UNSIGNED_BYTE components are supported");
+            }
+            if (acc.GetAttributeType() != VideoBufferFormat.AccessorType(components))
+            {
+                throw new Exception("MPEG_texture_video format " + texExt.format + " has " + components + " component(s), the accessor type is " + acc.GetAttributeType());
+            }
+
+            // the conversion of the YCbCr samples to RGB is given by the sampler of the texture
+            Schema.MpegSamplerYCbCr ycbcr = null;
             if (VideoBufferFormat.IsMultiPlanarFormat(texExt.format))
             {
-                Debug.LogWarning("VideoTexture: format " + texExt.format + " is converted to RGB by the media pipeline, MPEG_sampler_YCbCr is not applied");
-            }
-            else
-            {
-                if (acc.componentType != Schema.GltfComponentType.UnsignedByte)
+                if (tex.sampler >= 0 && root.samplers != null && tex.sampler < root.samplers.Length)
                 {
-                    throw new NotImplementedException("VideoTexture: only accessors with UNSIGNED_BYTE components are supported");
+                    ycbcr = root.samplers[tex.sampler].extensions?.MPEG_sampler_YCbCr;
                 }
-                if (acc.GetAttributeType() != VideoBufferFormat.AccessorType(components))
+                if (ycbcr == null)
                 {
-                    throw new Exception("MPEG_texture_video format " + texExt.format + " has " + components + " component(s), the accessor type is " + acc.GetAttributeType());
+                    Debug.LogWarning("VideoTexture: texture " + i + " has the format " + texExt.format + " without MPEG_sampler_YCbCr on its sampler, BT.709 narrow range is assumed");
+                }
+                else if (!ycbcr.HasDefaultSampling())
+                {
+                    Debug.LogWarning("VideoTexture: texture " + i + ": the components swizzle, chromaFilter and chroma offsets of MPEG_sampler_YCbCr are not applied, the nearest chroma sample is used");
                 }
             }
             if (bv.byteStride > 0 && bv.byteStride != components)
@@ -496,7 +508,7 @@ namespace GLTFast
 
             int mediaIdx = GetBufferSourceMediaIndex(root, bv.buffer);
             // the media pipeline gets the format through BufferInfo.outputMedia; it writes the immutable header layout
-            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format, false, extAccessor.bufferView >= 0, true, bv.byteOffset + acc.byteOffset);
+            var vt = new VideoTexture(tex2D, bv.buffer, texExt.width, texExt.height, texExt.format, false, extAccessor.bufferView >= 0, true, bv.byteOffset + acc.byteOffset, ycbcr);
             return (mediaIdx, vt);
         }
 

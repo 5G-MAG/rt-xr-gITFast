@@ -176,31 +176,7 @@ namespace GLTFast {
                 }
             }
 
-            // the pixel format of a texture is not an attribute (BufferInfo.outputMedia.format); only the YCbCr format, which
-            // ColorFormat cannot express, is still signalled through the attribute type
-            Schema.Texture[] textures = root.textures;
-            if (textures != null)
-            {
-                for (int t = 0; t < textures.Length; t++)
-                {
-                    Schema.MpegTextureVideo tex = textures[t].Extensions?.MPEG_texture_video;
-                    if (tex != null)
-                    {
-                        if (tex.format == VideoBufferFormat.G8_B8_R8_3PLANE_420_UNORM)
-                        {
-                            // accessor should supply scalar unsigned bytes
-                            map[tex.accessor] = maf.AttributeType.TEXTURE_GBR_3PLANE_420_UNORM;
-                        }
-                        /*
-                         * else
-                        {
-                            // the pipeline is expected to decode to the proper format without any hint
-                            map[tex.accessor] = maf.AttributeType.UNDEFINED;
-                        }
-                        */
-                    }
-                }
-            }
+            // the pixel format of a texture is not an attribute: it is BufferInfo.outputMedia.format (see MediaPlayer.GetBufferInfo)
 
             return map;
         }

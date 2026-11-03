@@ -74,13 +74,44 @@ namespace GLTFast.Schema {
             MIDPOINT = 1
         }
 
-        // ISO/IEC 23090-14:2024 Table 70: ycbcrModel defaults to 1
-        public YCbCrModel ycbcrModel = (YCbCrModel)1;
-        public YCbCrRange ycbcrRange = YCbCrRange.FULL;
+        // JsonUtility constructs this extension for every sampler: the model and range start unset, so that an extension
+        // read from the scene can be told from one that is not there (an empty extension object is taken as absent)
+        const YCbCrModel k_ModelUnset = (YCbCrModel)(-1);
+        const YCbCrRange k_RangeUnset = (YCbCrRange)(-1);
+
+        public YCbCrModel ycbcrModel = k_ModelUnset;
+        public YCbCrRange ycbcrRange = k_RangeUnset;
         public ChromaFilter chromaFilter = ChromaFilter.NEAREST;
         public ComponentSwizzle[] components = { ComponentSwizzle.IDENTITY, ComponentSwizzle.IDENTITY, ComponentSwizzle.IDENTITY, ComponentSwizzle.IDENTITY };
         public ChromaLocation xChromaOffset = ChromaLocation.COSITED_EVEN;
         public ChromaLocation yChromaOffset = ChromaLocation.COSITED_EVEN;
+
+        // ISO/IEC 23090-14:2024 Table 70: ycbcrModel defaults to 1, ycbcrRange to FULL
+        public YCbCrModel Model => ycbcrModel == k_ModelUnset ? YCbCrModel.YCBCR_IDENTITY : ycbcrModel;
+        public YCbCrRange Range => ycbcrRange == k_RangeUnset ? YCbCrRange.FULL : ycbcrRange;
+
+        // Whether the swizzle, chroma filter and chroma locations are the defaults, the only values the player applies
+        public bool HasDefaultSampling()
+        {
+            if (chromaFilter != ChromaFilter.NEAREST || xChromaOffset != ChromaLocation.COSITED_EVEN || yChromaOffset != ChromaLocation.COSITED_EVEN)
+            {
+                return false;
+            }
+            if (components != null)
+            {
+                foreach (var c in components)
+                {
+                    if (c != ComponentSwizzle.IDENTITY) return false;
+                }
+            }
+            return true;
+        }
+
+        // False when the extension was constructed by JsonUtility without being in the JSON
+        internal bool JsonUtilityCleanup()
+        {
+            return ycbcrModel != k_ModelUnset || ycbcrRange != k_RangeUnset || !HasDefaultSampling();
+        }
 
     }
 

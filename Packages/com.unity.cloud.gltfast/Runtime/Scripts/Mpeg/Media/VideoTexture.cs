@@ -106,8 +106,8 @@ namespace GLTFast
             };
         }
 
-        // Number of components of the pixels the media pipeline stores for a format.
-        // The planar YCbCr formats are converted to RGB by the pipeline.
+        // Number of components of the accessor elements the media pipeline stores for a format.
+        // The planar YCbCr formats are stored as bytes (SCALAR), see PlanarSize.
         public static int ComponentCount(string format)
         {
             return format switch
@@ -116,6 +116,8 @@ namespace GLTFast
                 GREEN => 1,
                 BLUE => 1,
                 DEPTH_COMPONENT => 1,
+                G8_B8_R8_3PLANE_420_UNORM => 1,
+                G8_B8R8_2PLANE_420_UNORM_KHR => 1,
                 RG => 2,
                 RGBA => 4,
                 BGRA => 4,
@@ -134,8 +136,14 @@ namespace GLTFast
             }
         }
 
-        // The pixel format the media pipeline outputs (BufferInfo.outputMedia.format, ISO/IEC 23090-14, clause 6.2). The
-        // YCbCr formats are not in ColorFormat: they are signalled through the attribute type, and RGB is the default here.
+        // Bytes of a picture in a planar YCbCr 4:2:0 format: a luma plane, then the chroma planes at half the width and
+        // height (rounded up), as the media pipeline stores them
+        public static int PlanarSize(int width, int height)
+        {
+            return width * height + 2 * ((width + 1) / 2) * ((height + 1) / 2);
+        }
+
+        // The pixel format the media pipeline outputs (BufferInfo.outputMedia.format, ISO/IEC 23090-14, clause 6.2)
         public static maf.ColorFormat ToColorFormat(string format)
         {
             switch (format)
@@ -148,6 +156,8 @@ namespace GLTFast
                 case BGR: return maf.ColorFormat.BGR;
                 case BGRA: return maf.ColorFormat.BGRA;
                 case DEPTH_COMPONENT: return maf.ColorFormat.DEPTH_COMPONENT;
+                case G8_B8_R8_3PLANE_420_UNORM: return maf.ColorFormat.G8_B8_R8_3PLANE_420_UNORM;
+                case G8_B8R8_2PLANE_420_UNORM_KHR: return maf.ColorFormat.G8_B8R8_2PLANE_420_UNORM;
                 default: return maf.ColorFormat.RGB;
             }
         }
@@ -166,7 +176,11 @@ namespace GLTFast
         public bool vflip = false;
 
         private ComputeShader shader;
+        // the picture, or the luma plane of a planar YCbCr format
         private Texture2D texSrc;
+        // the chroma planes of a planar YCbCr format: Cb and Cr, or both interleaved in texCb
+        private Texture2D texCb;
+        private Texture2D texCr;
         private RenderTexture texOut;
         private Texture2D target;
 
@@ -179,13 +193,21 @@ namespace GLTFast
         private readonly TextureFormat sourceFormat;
         private readonly int bytesPerPixel;
         private readonly int shaderMode;
+        private readonly bool planar;
+        private readonly bool twoPlanes;
+        // conversion of the YCbCr samples to RGB (MPEG_sampler_YCbCr)
+        private readonly int ycbcrModel;
+        private readonly bool ycbcrNarrow;
+        private readonly float kr;
+        private readonly float kb;
         // timed accessor information header at the start of each buffer frame
         private readonly bool timedHeader;
         private readonly bool immutable;
         private readonly int dataOffset;
         private bool sizeWarningLogged = false;
 
-        public VideoTexture(Texture2D tex, int buffer, int width, int height, string fmt, bool flip = false, bool hasTimedHeader = false, bool headerImmutable = true, int staticDataOffset = 0)
+        // ycbcr: the YCbCr conversion of a planar format, BT.709 narrow range when null
+        public VideoTexture(Texture2D tex, int buffer, int width, int height, string fmt, bool flip = false, bool hasTimedHeader = false, bool headerImmutable = true, int staticDataOffset = 0, Schema.MpegSamplerYCbCr ycbcr = null)
         {
             // the pre-existing texture, is expected to
             texture = tex;
@@ -226,9 +248,36 @@ namespace GLTFast
                 case VideoBufferFormat.BGR:
                     sourceFormat = TextureFormat.RGB24; bytesPerPixel = 3; shaderMode = 1;
                     break;
+                case VideoBufferFormat.G8_B8_R8_3PLANE_420_UNORM:
+                    sourceFormat = TextureFormat.R8; bytesPerPixel = 1; shaderMode = 7; planar = true;
+                    break;
+                case VideoBufferFormat.G8_B8R8_2PLANE_420_UNORM_KHR:
+                    sourceFormat = TextureFormat.R8; bytesPerPixel = 1; shaderMode = 8; planar = true; twoPlanes = true;
+                    break;
                 default:
                     sourceFormat = TextureFormat.RGB24; bytesPerPixel = 3; shaderMode = 0;
                     break;
+            }
+
+            if (planar)
+            {
+                var model = ycbcr != null ? ycbcr.Model : Schema.MpegSamplerYCbCr.YCbCrModel.YCBCR_709;
+                var range = ycbcr != null ? ycbcr.Range : Schema.MpegSamplerYCbCr.YCbCrRange.NARROW;
+                ycbcrModel = (int)model;
+                ycbcrNarrow = range == Schema.MpegSamplerYCbCr.YCbCrRange.NARROW;
+                // luma coefficients of the colour models (ITU-R BT.601, BT.709, BT.2020)
+                switch (model)
+                {
+                    case Schema.MpegSamplerYCbCr.YCbCrModel.YCBCR_601:
+                        kr = 0.299f; kb = 0.114f;
+                        break;
+                    case Schema.MpegSamplerYCbCr.YCbCrModel.YCBCR_2020:
+                        kr = 0.2627f; kb = 0.0593f;
+                        break;
+                    default:
+                        kr = 0.2126f; kb = 0.0722f;
+                        break;
+                }
             }
 
             // check that we can perform compute shader
@@ -248,6 +297,16 @@ namespace GLTFast
             {
                 UnityEngine.Object.Destroy(texSrc);
             }
+            if (texCb != null)
+            {
+                UnityEngine.Object.Destroy(texCb);
+                texCb = null;
+            }
+            if (texCr != null)
+            {
+                UnityEngine.Object.Destroy(texCr);
+                texCr = null;
+            }
             if (texOut != null)
             {
                 texOut.Release();
@@ -256,6 +315,20 @@ namespace GLTFast
 
             // loads raw maf buffer to a texture prior to further processing
             texSrc = new Texture2D(width, height, sourceFormat, false, true);
+            if (planar)
+            {
+                int chromaWidth = (width + 1) / 2;
+                int chromaHeight = (height + 1) / 2;
+                if (twoPlanes)
+                {
+                    texCb = new Texture2D(chromaWidth, chromaHeight, TextureFormat.RG16, false, true);
+                }
+                else
+                {
+                    texCb = new Texture2D(chromaWidth, chromaHeight, TextureFormat.R8, false, true);
+                    texCr = new Texture2D(chromaWidth, chromaHeight, TextureFormat.R8, false, true);
+                }
+            }
 
             // texOut = new RenderTexture(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
             texOut = new RenderTexture(width, height, 0, DefaultFormat.LDR);
@@ -306,13 +379,28 @@ namespace GLTFast
             }
 
             int rowBytes = width * bytesPerPixel;
-            // 5.2.2.3: the stride of the data may change from frame to frame; 0 means tightly packed
-            int size = stride > rowBytes ? stride * (height - 1) + rowBytes : rowBytes * height;
-            if (offset < 0 || offset + size > frameData.Length)
+            // 5.2.2.3: the stride of the data may change from frame to frame; 0 means tightly packed. The planes of a planar
+            // format are always tightly packed.
+            if (planar)
+            {
+                stride = 0;
+            }
+            int size = planar ? VideoBufferFormat.PlanarSize(width, height) : (stride > rowBytes ? stride * (height - 1) + rowBytes : rowBytes * height);
+            // a frame holds the picture in the requested format, and nothing more: the last row may keep its padding
+            int maxLength = offset + (stride > rowBytes ? stride * height : size);
+            if (offset < 0 || offset + size > frameData.Length || frameData.Length > maxLength)
             {
                 if (!sizeWarningLogged)
                 {
-                    Debug.LogWarning("video frame holds " + frameData.Length + " bytes, a " + width + " x " + height + " picture at offset " + offset + " needs " + size);
+                    if (offset >= 0 && frameData.Length > maxLength)
+                    {
+                        // e.g. a pipeline that does not know the format falls back to RGB
+                        Debug.LogWarning("video buffer " + bufferId + ": the media pipeline wrote " + (frameData.Length - offset) + " bytes for a " + width + " x " + height + " picture, the format " + bufferFormat + " needs " + size + ": the media pipeline does not output the requested format (BufferInfo.outputMedia.format), the video frames are not shown");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("video buffer " + bufferId + ": the frame holds " + frameData.Length + " bytes, a " + width + " x " + height + " picture in the format " + bufferFormat + " at offset " + offset + " needs " + size + ", the video frames are not shown");
+                    }
                     sizeWarningLogged = true;
                 }
                 return;
@@ -348,89 +436,47 @@ namespace GLTFast
 
             // TODO: as it turns out calling unity's API must be done from its main thread ! so GPU upload will indeed be an issue,
             // investigate alternative implementation based on: https://docs.unity3d.com/ScriptReference/Rendering.CommandBuffer.IssuePluginCustomTextureUpdateV2.html
-            texSrc.LoadRawTextureData(data); // pass CPU buffer to unity
-            texSrc.Apply(); // process and upload to GPU, slow ...
+            if (planar)
+            {
+                int lumaSize = width * height;
+                int chromaSize = ((width + 1) / 2) * ((height + 1) / 2);
+                texSrc.LoadRawTextureData(data.GetSubArray(0, lumaSize));
+                texSrc.Apply();
+                if (twoPlanes)
+                {
+                    texCb.LoadRawTextureData(data.GetSubArray(lumaSize, 2 * chromaSize));
+                    texCb.Apply();
+                }
+                else
+                {
+                    texCb.LoadRawTextureData(data.GetSubArray(lumaSize, chromaSize));
+                    texCb.Apply();
+                    texCr.LoadRawTextureData(data.GetSubArray(lumaSize + chromaSize, chromaSize));
+                    texCr.Apply();
+                }
+            }
+            else
+            {
+                texSrc.LoadRawTextureData(data); // pass CPU buffer to unity
+                texSrc.Apply(); // process and upload to GPU, slow ...
+            }
 
             // the compute shader is shared by all video textures: set its inputs for this one
             shader.SetInt("width", width);
             shader.SetInt("height", height);
             shader.SetInt("mode", shaderMode);
             shader.SetFloat("gain", Gain);
+            shader.SetInt("ycbcrModel", ycbcrModel);
+            shader.SetInt("ycbcrNarrow", ycbcrNarrow ? 1 : 0);
+            shader.SetFloat("kr", kr);
+            shader.SetFloat("kb", kb);
             shader.SetTexture(kernel, "texSrc", texSrc);
+            // every texture of the kernel must be set, the chroma planes are only read in the YCbCr modes
+            shader.SetTexture(kernel, "texCb", texCb != null ? texCb : texSrc);
+            shader.SetTexture(kernel, "texCr", texCr != null ? texCr : texSrc);
             shader.SetTexture(kernel, "texOut", texOut);
-            // FIXME; yuv to rgb conversion
             shader.Dispatch(kernel, (width + 7) / 8, (height + 7) / 8, 1);
             Graphics.CopyTexture(texOut, 0, 0, target, 0, 0);
-        }
-
-    }
-
-
-
-    public class VideoTextureYUV
-    {
-        public Texture2D texture;
-        public int bufferId;
-
-        private ComputeShader shader;
-        private Texture2D yPlane;
-        private Texture2D uPlane;
-        private Texture2D vPlane;
-        private RenderTexture rgbTex;
-
-        private int kernel;
-
-        public VideoTextureYUV(Texture2D tex2D, int buffer, string videoBufferFormat)
-        {
-            texture = tex2D;
-            bufferId = buffer;
-            
-            bool supported = SystemInfo.copyTextureSupport == CopyTextureSupport.RTToTexture;
-
-            // 420 planar 8 bit
-            TextureFormat planeFmt = TextureFormat.R8; // BAD, we get unsigned bytes not signed int
-            yPlane = new Texture2D(texture.width, texture.height, planeFmt, false);
-            
-            int uvWidth = texture.width / 4;
-            int uvHeight = texture.height / 4;
-            uPlane = new Texture2D(uvWidth, uvHeight, planeFmt, false);
-            vPlane = new Texture2D(uvWidth, uvHeight, planeFmt, false);
-
-            rgbTex = new RenderTexture(texture.width, texture.height, 0);
-            rgbTex.graphicsFormat = texture.graphicsFormat;
-            rgbTex.enableRandomWrite = true;
-            bool ok = rgbTex.Create();
-
-            // compute shader
-            shader = (ComputeShader)Resources.Load("YuvToRGB");
-            kernel = shader.FindKernel("CSMain");
-
-            shader.SetInt("width", texture.width);
-            shader.SetInt("height", texture.height);
-            shader.SetTexture(kernel, "yPlane", yPlane);
-            shader.SetTexture(kernel, "uPlane", uPlane);
-            shader.SetTexture(kernel, "vPlane", vPlane);
-            shader.SetTexture(kernel, "result", rgbTex);
-
-        }
-
-        public void UpdateData(NativeArray<byte> data)
-        {
-            // contiguous planes
-            int ySize = yPlane.width + yPlane.height;
-            yPlane.LoadRawTextureData(data.GetSubArray(0, ySize));
-            yPlane.Apply();
-            int uSize = uPlane.width * uPlane.height;
-            uPlane.LoadRawTextureData(data.GetSubArray(ySize, uSize));
-            uPlane.Apply();
-            int vSize = vPlane.width * vPlane.height;
-            vPlane.LoadRawTextureData(data.GetSubArray(ySize+uSize, vSize));
-            vPlane.Apply();
-
-            // shader.GetKernelThreadGroupSizes(kernel, out x, out y, out z);
-            shader.Dispatch(kernel, 8, 8, 1);
-            Graphics.CopyTexture(rgbTex, texture);
-            
         }
 
     }
