@@ -150,17 +150,29 @@ namespace GLTFast {
         static BufferInfoArray GetMafBufferInfoArray(MediaPipelineConfig cfg)
         {
             var res = new BufferInfoArray();
-            bool gltfHeader = false;
+            // the header is decided per circular buffer, from the accessors of that buffer in their order (as the MAF groups them by bufferId)
+            var buffers = new Dictionary<int, (bool gltfHeader, BufferInfoArray infos)>();
             foreach (int a in cfg.accessors.Keys)
             {
-                res.Add(GetBufferInfo(cfg, a));
+                BufferInfo bi = GetBufferInfo(cfg, a);
+                res.Add(bi);
                 Schema.MpegAccessorTimed timed = cfg.accessors[a].extensions?.MPEG_accessor_timed;
-                gltfHeader |= timed != null && timed.bufferView >= 0;
+                if (!buffers.TryGetValue(bi.bufferId, out var buffer))
+                {
+                    buffer = (false, new BufferInfoArray());
+                }
+                buffer.gltfHeader |= timed != null && timed.bufferView >= 0;
+                buffer.infos.Add(bi);
+                buffers[bi.bufferId] = buffer;
             }
-            if (gltfHeader != MediaBufferHandler.HasTimedAccessorHeader(res))
+            foreach (var buffer in buffers)
             {
-                // the MAF and this player both decide from the offset of the first accessor (see MediaBufferHandler)
-                Debug.LogError("the scene " + (gltfHeader ? "signals" : "does not signal") + " a timed accessor information header, but the data of the first accessor " + (gltfHeader ? "does not start after it" : "starts after room for it") + ": the header is not read and written consistently.");
+                bool gltfHeader = buffer.Value.gltfHeader;
+                if (gltfHeader != MediaBufferHandler.HasTimedAccessorHeader(buffer.Value.infos))
+                {
+                    // the MAF and this player both decide from the offset of the first accessor of the buffer (see MediaBufferHandler)
+                    Debug.LogError("buffer " + buffer.Key + ": the scene " + (gltfHeader ? "signals" : "does not signal") + " a timed accessor information header, but the data of the first accessor " + (gltfHeader ? "does not start after it" : "starts after room for it") + ": the header is not read and written consistently.");
+                }
             }
             return res;
         }
