@@ -57,7 +57,7 @@ namespace GLTFast {
             m_Tracks = new Track[clips.Length];
             for (int i = 0; i < m_Tracks.Length; i++) m_Tracks[i] = new Track();
             MpegTimedAccessors.Want(accessor);
-            Debug.Log("XRTEST animation timing controller ready: accessor " + accessor + ", " + clips.Length + " clip(s)");
+            if (MpegDiagnostics.Enabled) Debug.Log("XRTEST animation timing controller ready: accessor " + accessor + ", " + clips.Length + " clip(s)");
         }
 
         void Update() {
@@ -142,7 +142,7 @@ namespace GLTFast {
             if (clip == null) return;
             var st = m_Animation[clip.name];
             if (st == null) return;
-            Debug.Log("XRTEST animation timing apply at=" + Time.timeSinceLevelLoad.ToString("0.00") + " enabled=" + st.enabled + " playing=" + m_Animation.isPlaying + " animEnabled=" + m_Animation.enabled + " go=" + m_Animation.gameObject.name + " index=" + animationIndex + " state=" + e.state + " speed=" + e.speed + " time=" + st.time.ToString("0.00") + " clip=" + clip.name);
+            if (MpegDiagnostics.Enabled) Debug.Log("XRTEST animation timing apply at=" + Time.timeSinceLevelLoad.ToString("0.00") + " enabled=" + st.enabled + " playing=" + m_Animation.isPlaying + " animEnabled=" + m_Animation.enabled + " go=" + m_Animation.gameObject.name + " index=" + animationIndex + " state=" + e.state + " speed=" + e.speed + " time=" + st.time.ToString("0.00") + " clip=" + clip.name);
             var t = m_Tracks[animationIndex];
 
             st.layer = e.order;
@@ -350,7 +350,8 @@ namespace GLTFast {
 
         // The animation system has evaluated the clips before LateUpdate: add the accumulated loop offsets.
         void LateUpdate() {
-            if (Time.unscaledTime > m_DiagAt) {
+            // test diagnostics only (MpegDiagnostics), the state of the animated objects once a second
+            if (MpegDiagnostics.Enabled && Time.unscaledTime > m_DiagAt) {
                 m_DiagAt = Time.unscaledTime + 1f;
                 foreach (var c in m_Clips) {
                     if (c == null) continue;

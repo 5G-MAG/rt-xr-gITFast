@@ -635,7 +635,7 @@ namespace GLTFast {
                     }
                 }
                 if (!defined) {
-                    Debug.Log("XRTEST behavior " + i + " is on-going and no more defined by the update: it is stopped, its interrupt action is processed");
+                    if (MpegDiagnostics.Enabled) Debug.Log("XRTEST behavior " + i + " is on-going and no more defined by the update: it is stopped, its interrupt action is processed");
                     behavior.Interrupt();
                 }
             }
