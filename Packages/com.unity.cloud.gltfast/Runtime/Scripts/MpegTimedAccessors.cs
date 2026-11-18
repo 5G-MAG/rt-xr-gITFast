@@ -133,6 +133,15 @@ namespace GLTFast {
     }
 
     /// <summary>
+    /// Switch of the test diagnostics: the "XRTEST" log lines a test harness reads, and the work done only to produce them.
+    /// Off by default; the application turns it on for the runs a test harness starts. Code that logs a diagnostic tests
+    /// Enabled before it builds the message.
+    /// </summary>
+    public static class MpegDiagnostics {
+        public static bool Enabled;
+    }
+
+    /// <summary>
     /// Logs a message once per key and scene.
     /// </summary>
     public static class MpegWarn {
