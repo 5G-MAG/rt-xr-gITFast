@@ -14,11 +14,23 @@ using UnityEngine.XR.ARSubsystems;
 namespace GLTFast
 {
 #if UNITY_ANDROID
+    /// <summary>
+    /// The kind of surface a trackable asks for: TRACKABLE_FLOOR is the floor, TRACKABLE_PLANE a horizontal or vertical plane
+    /// as its geometricConstraint says.
+    /// </summary>
+    public enum PlacementSurface { Floor, Horizontal, Vertical }
+
     /// <summary>A trackable that can be anchored where the user chooses on a detected plane.</summary>
     public interface IPlaceableTrackable
     {
         /// <summary>True while no anchor exists yet.</summary>
         bool AwaitingPlacement { get; }
+
+        /// <summary>The surface the trackable asks for.</summary>
+        PlacementSurface Surface { get; }
+
+        /// <summary>True when <paramref name="plane"/> is a surface of the kind the trackable asks for.</summary>
+        bool Accepts(ARPlane plane);
 
         /// <summary>Anchors the content on <paramref name="plane"/> at <paramref name="pose"/>. False when the plane does not fit the trackable.</summary>
         bool PlaceAt(ARPlane plane, Pose pose);
@@ -117,6 +129,7 @@ namespace GLTFast
         public static void Clear()
         {
             s_Trackables.Clear();
+            s_DetectionRequested = false;
             UserScale = 1f; UserYaw = 0f; Locked = false;
         }
 
@@ -133,6 +146,56 @@ namespace GLTFast
                 return false;
             }
         }
+
+        /// <summary>
+        /// The surface the next placement is for: that of the first trackable still waiting, or of the first trackable when all are placed
+        /// (placing again moves the scene). Null when the scene has no placeable trackable.
+        /// </summary>
+        public static PlacementSurface? NextSurface
+        {
+            get
+            {
+                for (int i = 0; i < s_Trackables.Count; i++)
+                    if (s_Trackables[i].AwaitingPlacement) return s_Trackables[i].Surface;
+                return s_Trackables.Count > 0 ? s_Trackables[0].Surface : (PlacementSurface?)null;
+            }
+        }
+
+        public static bool SurfaceIsWall(PlacementSurface? s) { return s == PlacementSurface.Vertical; }
+
+        /// <summary>
+        /// True when the user may place on <paramref name="plane"/>: any floor, table or wall with <see cref="PlaceOnAnySurface"/>, else a
+        /// surface that a waiting trackable (any trackable when all are placed) asks for.
+        /// </summary>
+        public static bool Accepts(ARPlane plane)
+        {
+            if (plane == null) return false;
+            if (PlaceOnAnySurface) return IsUserSurface(plane);
+            bool awaiting = AnyAwaiting;
+            for (int i = 0; i < s_Trackables.Count; i++)
+            {
+                var t = s_Trackables[i];
+                if ((!awaiting || t.AwaitingPlacement) && t.Accepts(plane)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Adds the plane orientations a trackable needs to those the plane manager detects. Several trackables share one manager,
+        /// so a mode is added, not set. With <see cref="PlaceOnAnySurface"/> both orientations are detected.
+        /// </summary>
+        public static void RequestDetection(ARPlaneManager manager, PlaneDetectionMode mode)
+        {
+            if (manager == null) return;
+            if (PlaceOnAnySurface) mode = PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical;
+            var current = manager.requestedDetectionMode;
+            // the first trackable of a scene replaces whatever the session started with; the next ones add to it
+            var next = s_DetectionRequested ? (current | mode) : mode;
+            s_DetectionRequested = true;
+            if (next != current) manager.requestedDetectionMode = next;
+            Debug.Log("AnchorPlacement: plane detection " + next);
+        }
+        private static bool s_DetectionRequested = false;
 
         /// <summary>Places every trackable that is waiting (or all of them when <paramref name="moveExisting"/>).</summary>
         public static bool TryPlace(ARPlane plane, Pose pose, bool moveExisting)
