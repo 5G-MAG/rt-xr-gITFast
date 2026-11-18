@@ -114,14 +114,9 @@ namespace GLTFast
             // set detection mode
             // Note, it is possible to combine both mode by combining the flags: 
             //  m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal | PlaneDetectionMode.Vertical
-            if (m_Geoconstraint == Trackable.GeometricConstraint.HORIZONTAL_PLANE)
-            {
-                m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
-            }
-            else
-            {
-                m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Vertical;
-            }
+            // the orientation geometricConstraint asks for, added to what other trackables of the scene need
+            AnchorPlacement.RequestDetection(m_ArPlaneManager, m_Geoconstraint == Trackable.GeometricConstraint.HORIZONTAL_PLANE
+                ? PlaneDetectionMode.Horizontal : PlaneDetectionMode.Vertical);
 
             m_ArPlaneManager.planesChanged += PlanesChanged;
             AnchorPlacement.Register(this);
@@ -199,6 +194,13 @@ namespace GLTFast
 
         public bool AwaitingPlacement { get { return m_Anchor == null && !m_AnchorPending; } }
 
+        public PlacementSurface Surface
+        {
+            get { return m_Geoconstraint == Trackable.GeometricConstraint.HORIZONTAL_PLANE ? PlacementSurface.Horizontal : PlacementSurface.Vertical; }
+        }
+
+        public bool Accepts(ARPlane plane) { return plane != null && IsCandidate(plane); }
+
         public bool PlaceAt(ARPlane plane, Pose pose)
         {
             if (plane == null || !(AnchorPlacement.PlaceOnAnySurface ? AnchorPlacement.IsUserSurface(plane) : IsCandidate(plane)))
@@ -227,7 +229,9 @@ namespace GLTFast
 
         public bool PlaceAtPose(Pose pose, bool onWall)
         {
-            if (m_AnchorManager == null)
+            // geometricConstraint: a horizontal plane trackable does not go on a wall, nor a vertical one on the floor,
+            // unless the user is allowed any surface
+            if (m_AnchorManager == null || (onWall != (Surface == PlacementSurface.Vertical) && !AnchorPlacement.PlaceOnAnySurface))
             {
                 return false;
             }

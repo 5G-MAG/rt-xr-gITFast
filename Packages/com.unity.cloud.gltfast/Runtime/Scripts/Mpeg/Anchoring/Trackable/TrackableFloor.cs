@@ -108,8 +108,8 @@ namespace GLTFast
                 m_SupportClassification = m_ArPlaneManager.descriptor.supportsClassification;
             }
                 
-            //force horizontal detection
-            // m_ArPlaneManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
+            // the floor is horizontal (other trackables of the scene may add vertical detection)
+            AnchorPlacement.RequestDetection(m_ArPlaneManager, PlaneDetectionMode.Horizontal);
             m_ArPlaneManager.planesChanged += PlanesChanged;  
             AnchorPlacement.Register(this);
         }
@@ -444,6 +444,10 @@ namespace GLTFast
 
         public bool AwaitingPlacement { get { return m_Anchor == null && !m_AnchorPending; } }
 
+        public PlacementSurface Surface { get { return PlacementSurface.Floor; } }
+
+        public bool Accepts(ARPlane plane) { return plane != null && IsFloorCandidate(plane); }
+
         public bool PlaceAt(ARPlane plane, Pose pose)
         {
             if (plane == null || !(AnchorPlacement.PlaceOnAnySurface ? AnchorPlacement.IsUserSurface(plane) : IsFloorCandidate(plane)))
@@ -472,7 +476,8 @@ namespace GLTFast
 
         public bool PlaceAtPose(Pose pose, bool onWall)
         {
-            if (m_AnchorManager == null)
+            // TRACKABLE_FLOOR: a wall is not the floor, unless the user is allowed any surface
+            if (m_AnchorManager == null || (onWall && !AnchorPlacement.PlaceOnAnySurface))
             {
                 return false;
             }
