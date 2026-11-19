@@ -22,9 +22,10 @@ namespace GLTFast
 
     using maf;
 
-    // MPEG_audio_spatial playbackSpeed (ISO/IEC 23090-14, Table 14, between 0.5 and 2.0), applied by the presentation engine:
-    // the output frames are taken from the input at `speed` input frames per output frame, by linear interpolation, so the
-    // signal plays faster or slower and its pitch follows. Samples are interleaved.
+    // Applied by the presentation engine: the output frames are taken from the input at `speed` input frames per output
+    // frame, by linear interpolation, so the signal plays faster or slower and its pitch follows. Samples are interleaved.
+    // `speed` is the MPEG_audio_spatial playbackSpeed (ISO/IEC 23090-14, Table 14, between 0.5 and 2.0), times the ratio of
+    // the sample rate of the signal to the rate the audio is played at. There is no low-pass filter before a decimation.
     public class PlaybackSpeedResampler
     {
         private readonly int channels;
@@ -33,16 +34,17 @@ namespace GLTFast
         private int pendingFrames = 0;
         private double position = 0.0;            // position of the next output frame in pending, in input frames
 
-        public PlaybackSpeedResampler(int channelCount, float playbackSpeed)
+        public PlaybackSpeedResampler(int channelCount, double inputFramesPerOutputFrame)
         {
             channels = channelCount;
-            speed = playbackSpeed;
+            speed = inputFramesPerOutputFrame;
         }
 
-        // The input frames to push before outFrames output frames can be produced.
+        // The input frames to push before outFrames output frames can be produced: the frames that the interpolation reads, and
+        // the whole frames that the output consumes, which exceed the first for a speed above 2.
         public int FramesNeeded(int outFrames)
         {
-            int need = (int)System.Math.Ceiling(position + (outFrames - 1) * speed) + 2;
+            int need = (int)System.Math.Ceiling(position + outFrames * speed) + 1;
             return System.Math.Max(0, need - pendingFrames);
         }
 
@@ -132,12 +134,19 @@ namespace GLTFast
             AudioSources = new List<SpatialAudioSource>();
         }
 
+        // The rate at which the audio callback is asked for samples. The media pipeline supplies the signal at SampleRate, the
+        // target sample rate of the source (Table 14). Unity converts the frequency of an AudioClip to the output rate by itself;
+        // OnAudioFilterRead is called at the output rate of the audio engine.
+        protected virtual int CallbackSampleRate { get { return SampleRate; } }
+
         public virtual void AddAudioSource(SpatialAudioSource aSrc)
         {
             AudioSources.Add(aSrc);
-            if (aSrc.PlaybackSpeed != 1.0f && resampler == null)
+            // input frames taken per output frame: the playback speed, and the rate conversion when the callback rate differs
+            double step = aSrc.PlaybackSpeed * (double)SampleRate / CallbackSampleRate;
+            if (step != 1.0 && resampler == null)
             {
-                resampler = new PlaybackSpeedResampler(ChannelCount, aSrc.PlaybackSpeed);
+                resampler = new PlaybackSpeedResampler(ChannelCount, step);
             }
         }
 
@@ -267,6 +276,15 @@ namespace GLTFast
     {
         public AudioFilterReader(MediaBufferHandler handler, BufferInfoArray bufferInfo, int sampleRate)
             : base(handler, bufferInfo, sampleRate) { }
+
+        protected override int CallbackSampleRate
+        {
+            get
+            {
+                int outputRate = UnityEngine.AudioSettings.outputSampleRate;
+                return outputRate > 0 ? outputRate : SampleRate;
+            }
+        }
 
         override public void AddAudioSource(SpatialAudioSource aSrc)
         {
