@@ -121,15 +121,12 @@ namespace GLTFast
             distanceGain = float.IsNaN(g) || float.IsInfinity(g) ? 1f : g;
         }
 
-        public static bool UseSpatializerPlugin = false;
-
         void Start()
         {
             aSrc = GetComponent<UnityEngine.AudioSource>();
-            // The project names a spatializer plugin (Steam Audio) that is not part of this build: asking for it makes every source
-            // log "failed to initialize audio spatializer". Unity's own 3D panning and rolloff apply without it. Set to true when the plugin is installed.
-            aSrc.spatialize = UseSpatializerPlugin;
-            aSrc.spatializePostEffects = UseSpatializerPlugin; // required if audio buffer read through Monoibehavior.OnAudioFilterRead instead of AudioClip.OnPCMReaderdCallback
+            // The sources are rendered by the spatializer plugin of the project (Project Settings > Audio > Spatializer Plugin), which is installed with the project.
+            aSrc.spatialize = true;
+            aSrc.spatializePostEffects = true; // required if audio buffer read through Monoibehavior.OnAudioFilterRead instead of AudioClip.OnPCMReaderdCallback
             aSrc.loop = true; // required for AudioClip.OnPCMReaderdCallback to run indefinitly
             
             aSrc.dopplerLevel = 0; // doppler results in annoying audio artifacts if improperly configured, 0 disables it.
