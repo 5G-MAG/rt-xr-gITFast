@@ -127,8 +127,13 @@ namespace GLTFast
                 m_Rb.useGravity = node_info.useGravity;
                 m_Rb.mass = node_info.mass;
                 // Table 52 damping: V(t+dt) = V(t)*(1-damping*dt), the Unity drag formula.
+#if UNITY_6000_0_OR_NEWER
+                m_Rb.linearDamping = Mathf.Max(0f, node_info.linearDamping);
+                m_Rb.angularDamping = Mathf.Max(0f, node_info.angularDamping);
+#else
                 m_Rb.drag = Mathf.Max(0f, node_info.linearDamping);
                 m_Rb.angularDrag = Mathf.Max(0f, node_info.angularDamping);
+#endif
                 if (node_info.needPreciseCollisionDetection && !node_info.isStatic)
                 {
                     m_Rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
