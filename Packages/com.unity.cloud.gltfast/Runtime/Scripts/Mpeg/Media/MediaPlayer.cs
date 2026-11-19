@@ -49,7 +49,35 @@ namespace GLTFast {
         public static bool AwaitContentShown = false;
         public static bool ContentShown = false;
 
-        static BufferInfo GetBufferInfo(MediaPipelineConfig cfg, int accessorIdx)
+        /// <summary>
+        /// How MPEG_audio_spatial sources get their samples, and who converts the sample rate to Unity's output rate.
+        /// ISO/IEC 23090-14:2025, MPEG_audio_spatial source, targetSampleRate: "the media pipeline shall perform resampling to match
+        /// the target sample rate". FilterResampled and Clip follow it; Filter does not when targetSampleRate differs from the output rate.
+        /// </summary>
+        public enum AudioReaderMode
+        {
+            /// <summary>OnAudioFilterRead; the media pipeline resamples to targetSampleRate, the reader resamples to the output rate (linear interpolation).</summary>
+            FilterResampled,
+            /// <summary>Streaming AudioClip; the media pipeline resamples to targetSampleRate, Unity resamples the clip to its output rate.</summary>
+            Clip,
+            /// <summary>Not part of the specification. OnAudioFilterRead; the media pipeline resamples straight to AudioSettings.outputSampleRate, targetSampleRate is not used.</summary>
+            Filter,
+        }
+
+        /// <summary>Read when a media player is created: changing it applies to the scenes loaded afterwards.</summary>
+        public static AudioReaderMode AudioReader = AudioReaderMode.FilterResampled;
+
+        // the mode this player's pipeline was created with
+        private AudioReaderMode audioReaderMode;
+        private bool outputRateWarned;
+
+        // the sample rate the media pipeline is asked to deliver the audio at, 0 for targetSampleRate
+        static int PipelineSampleRate(AudioReaderMode mode)
+        {
+            return mode == AudioReaderMode.Filter ? AudioSettings.outputSampleRate : 0;
+        }
+
+        static BufferInfo GetBufferInfo(MediaPipelineConfig cfg, int accessorIdx, int audioSampleRate)
         {
             Schema.Accessor ac = cfg.accessors[accessorIdx];
             Schema.BufferView bv = cfg.bufferViews[ac.bufferView];
@@ -137,24 +165,25 @@ namespace GLTFast {
                 bi.outputMedia.format = VideoBufferFormat.ToColorFormat(textureFormat);
             }
 
-            // outputMedia.sampleRate: the sample rate the media pipeline resamples audio to
+            // outputMedia.sampleRate: the sample rate the media pipeline resamples audio to,
+            // targetSampleRate unless the audio reader asks for another rate (see AudioReaderMode)
             int sampleRate;
             if (cfg.targetSampleRate.TryGetValue(accessorIdx, out sampleRate))
             {
-                bi.outputMedia.sampleRate = (uint)sampleRate;
+                bi.outputMedia.sampleRate = (uint)(audioSampleRate > 0 ? audioSampleRate : sampleRate);
             }
 
             return bi;
         }
 
-        static BufferInfoArray GetMafBufferInfoArray(MediaPipelineConfig cfg)
+        static BufferInfoArray GetMafBufferInfoArray(MediaPipelineConfig cfg, int audioSampleRate = 0)
         {
             var res = new BufferInfoArray();
             // the header is decided per circular buffer, from the accessors of that buffer in their order (as the MAF groups them by bufferId)
             var buffers = new Dictionary<int, (bool gltfHeader, BufferInfoArray infos)>();
             foreach (int a in cfg.accessors.Keys)
             {
-                BufferInfo bi = GetBufferInfo(cfg, a);
+                BufferInfo bi = GetBufferInfo(cfg, a, audioSampleRate);
                 res.Add(bi);
                 Schema.MpegAccessorTimed timed = cfg.accessors[a].extensions?.MPEG_accessor_timed;
                 if (!buffers.TryGetValue(bi.bufferId, out var buffer))
@@ -630,7 +659,8 @@ namespace GLTFast {
                 return;
             }
 
-            BufferInfoArray bufferInfo = GetMafBufferInfoArray(cfg);
+            audioReaderMode = AudioReader;
+            BufferInfoArray bufferInfo = GetMafBufferInfoArray(cfg, PipelineSampleRate(audioReaderMode));
             mediaBuffers = CreateMediaBuffers(cfg, bufferInfo);
             mediaInfo = GetMafMediaInfo(media, cfg);
             pipeline = MediaPipelineFactory.getInstance().createMediaPipeline(mediaInfo, bufferInfo);
@@ -696,11 +726,20 @@ namespace GLTFast {
             {
                 // assume one buffer = one audio source
                 var handler = mediaBuffers[aSrc.BufferId];
-#if ENABLE_AUDIO_CLIP_READER
-                audioReaders[aSrc.BufferId] = new AudioClipReader(handler, handler.BufferInfo, aSrc.SampleRate);
-#else
-                audioReaders[aSrc.BufferId] = new AudioFilterReader(handler, handler.BufferInfo, aSrc.SampleRate);
-#endif
+                // the rate the pipeline delivers the samples at (outputMedia.sampleRate, see AudioReaderMode)
+                int bufferRate = handler.BufferInfo.Count > 0 ? (int)handler.BufferInfo[0].outputMedia.sampleRate : 0;
+                if (bufferRate <= 0)
+                {
+                    bufferRate = aSrc.SampleRate;
+                }
+                if (audioReaderMode == AudioReaderMode.Clip)
+                {
+                    audioReaders[aSrc.BufferId] = new AudioClipReader(handler, handler.BufferInfo, bufferRate);
+                }
+                else
+                {
+                    audioReaders[aSrc.BufferId] = new AudioFilterReader(handler, handler.BufferInfo, bufferRate);
+                }
             }
             
             audioReaders[aSrc.BufferId].AddAudioSource(aSrc);
@@ -870,6 +909,26 @@ namespace GLTFast {
             }
         }
 
+        // The OnAudioFilterRead readers are set up for the output rate of Unity's mixer when they are created.
+        // The rate can change afterwards (another audio device): the sound then plays at the wrong speed and pitch.
+        private void WarnOutputRateChange()
+        {
+            if (outputRateWarned || audioReaders == null || audioReaderMode == AudioReaderMode.Clip)
+            {
+                return;
+            }
+            int rate = AudioSettings.outputSampleRate;
+            foreach (var r in audioReaders.Values)
+            {
+                if (r.SetupCallbackSampleRate != 0 && r.SetupCallbackSampleRate != rate)
+                {
+                    outputRateWarned = true;
+                    Debug.LogWarning("Unity's audio output rate changed from " + r.SetupCallbackSampleRate + " to " + rate + " Hz after the media was set up: its sound plays at the wrong speed and pitch until the scene is loaded again.");
+                    return;
+                }
+            }
+        }
+
         public void Update()
         {
             if (pipeline == null)
@@ -877,6 +936,7 @@ namespace GLTFast {
                 return;
             }
             sceneTime += Time.deltaTime;
+            WarnOutputRateChange();
             if (startScheduled && !started && sceneTime >= mediaStartTime)
             {
                 // MPEG_media.startTime: the time at which the rendering of the media begins

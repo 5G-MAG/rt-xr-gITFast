@@ -92,6 +92,7 @@ namespace GLTFast
 
         // elapsed time
         public bool Active { get; set; }
+        // frames (one sample per channel) read from the buffer: media time, before playbackSpeed
         public long SampleCount { get; set; }
         public double CurrentTime { get { return SampleCount/(double)SampleRate; } }
 
@@ -106,6 +107,7 @@ namespace GLTFast
         private float[] speedInput = null;
 
         public readonly int ChannelCount;
+        // sample rate of the samples in the buffer (what the media pipeline was asked for in BufferInfo.outputMedia.sampleRate)
         public readonly int SampleRate;
 
         // rebuffering from MAF to Unity
@@ -139,11 +141,18 @@ namespace GLTFast
         // OnAudioFilterRead is called at the output rate of the audio engine.
         protected virtual int CallbackSampleRate { get { return SampleRate; } }
 
+        // the CallbackSampleRate the resampler was set up for, when the first audio source was added (0 before)
+        public int SetupCallbackSampleRate { get; private set; }
+
         public virtual void AddAudioSource(SpatialAudioSource aSrc)
         {
             AudioSources.Add(aSrc);
+            if (SetupCallbackSampleRate == 0)
+            {
+                SetupCallbackSampleRate = CallbackSampleRate;
+            }
             // input frames taken per output frame: the playback speed, and the rate conversion when the callback rate differs
-            double step = aSrc.PlaybackSpeed * (double)SampleRate / CallbackSampleRate;
+            double step = aSrc.PlaybackSpeed * (double)SampleRate / SetupCallbackSampleRate;
             if (step != 1.0 && resampler == null)
             {
                 resampler = new PlaybackSpeedResampler(ChannelCount, step);
@@ -208,7 +217,7 @@ namespace GLTFast
             {
                 if (frame == null)
                 {
-                    double maxDelay = (double)length / (double)SampleRate;
+                    double maxDelay = (double)length / (ChannelCount * (double)SampleRate);
                     sw = Stopwatch.StartNew();
                     do
                     {
@@ -267,7 +276,7 @@ namespace GLTFast
             
             }
 
-            SampleCount += length;
+            SampleCount += length / ChannelCount;
         }
 
     } // MafAudioReader
@@ -324,6 +333,7 @@ namespace GLTFast
         }
     }
 
+    // Streams the samples through an AudioClip at the sample rate of the buffer: Unity resamples the clip to its output rate.
     public class AudioClipReader : MafAudioReader
     {
 
@@ -342,7 +352,7 @@ namespace GLTFast
             internaCliplId++;
         }
 
-        new public void AddAudioSource(SpatialAudioSource aSrc)
+        override public void AddAudioSource(SpatialAudioSource aSrc)
         {
             if (AudioSources.Count > 0)
             {
