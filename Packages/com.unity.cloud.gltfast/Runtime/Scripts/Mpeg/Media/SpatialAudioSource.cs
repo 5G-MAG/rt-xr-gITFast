@@ -152,6 +152,9 @@ namespace GLTFast
         }
 
 
+        /// <summary>Playback position in the clip, in frames (0 without a clip). Main thread.</summary>
+        public int TimeSamples { get { return aSrc != null && aSrc.clip != null ? aSrc.timeSamples : 0; } }
+
         public void SetAudioClip(AudioClip clip)
         {
             clip_ = clip;
