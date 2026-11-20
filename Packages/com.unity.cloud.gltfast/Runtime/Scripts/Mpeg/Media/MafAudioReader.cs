@@ -79,14 +79,77 @@ namespace GLTFast
         }
     }
 
+    // Interleaved samples between the thread that drains the MAF buffer (the only writer) and the audio callback (the only
+    // reader). Whole frames only: a write keeps a multiple of the channel count.
+    public class AudioSampleFifo
+    {
+        private readonly float[] ring;
+        private readonly int channels;
+        private long written;   // samples written so far, advanced by the writer
+        private long read;      // samples read so far, advanced by the reader
+
+        public AudioSampleFifo(int capacitySamples, int channelCount)
+        {
+            channels = System.Math.Max(1, channelCount);
+            ring = new float[System.Math.Max(channels, capacitySamples - capacitySamples % channels)];
+        }
+
+        public int Capacity { get { return ring.Length; } }
+        public int Count { get { return (int)(System.Threading.Volatile.Read(ref written) - System.Threading.Volatile.Read(ref read)); } }
+
+        // writer: copies as many whole frames of src as fit, returns the samples copied
+        public int Write(float[] src, int offset, int count)
+        {
+            long w = written;
+            int n = System.Math.Min(count, ring.Length - (int)(w - System.Threading.Volatile.Read(ref read)));
+            n -= n % channels;
+            if (n <= 0) return 0;
+            int pos = (int)(w % ring.Length);
+            int first = System.Math.Min(n, ring.Length - pos);
+            System.Array.Copy(src, offset, ring, pos, first);
+            if (n > first) System.Array.Copy(src, offset + first, ring, 0, n - first);
+            System.Threading.Volatile.Write(ref written, w + n);
+            return n;
+        }
+
+        // reader: copies up to count samples to dst, returns the samples copied
+        public int Read(float[] dst, int offset, int count)
+        {
+            long r = read;
+            int n = System.Math.Min(count, (int)(System.Threading.Volatile.Read(ref written) - r));
+            if (n <= 0) return 0;
+            int pos = (int)(r % ring.Length);
+            int first = System.Math.Min(n, ring.Length - pos);
+            System.Array.Copy(ring, pos, dst, offset, first);
+            if (n > first) System.Array.Copy(ring, 0, dst, offset + first, n - first);
+            System.Threading.Volatile.Write(ref read, r + n);
+            return n;
+        }
+
+        // drops what is buffered; only while the writer is stopped
+        public void Clear()
+        {
+            System.Threading.Volatile.Write(ref read, System.Threading.Volatile.Read(ref written));
+        }
+    }
+
     public class MafAudioReader
     {
         /*
          * Class to bridge Unity's C# audio callbacks and MAF BufferHandler.
+         * A thread drains the MAF buffer into a FIFO as soon as the pipeline writes a frame, so the pipeline can decode
+         * ahead of playback even when the circular buffer holds few frames; the audio callback reads the FIFO only and
+         * never waits for the pipeline.
          * The current implementation allows a single SpatialAudioSource to read from the buffer.
          * If the AudioSource's channel count doesn't match, and the source audio buffers has a single channel, that channel is duplicated.
          */
-        
+
+        // FIFO sizes, implementation choices: the samples the drain thread may buffer ahead, what playback waits for at the start
+        // (prebuffer) and after the FIFO ran empty (rebuffer). Waiting plays silence and holds the media clock.
+        public static float FifoSeconds = 1.0f;
+        public static float PrebufferSeconds = 0.2f;
+        public static float RebufferSeconds = 0.1f;
+
         // Audio sources using this buffer
         public List<SpatialAudioSource> AudioSources { get; private set; }
 
@@ -94,7 +157,7 @@ namespace GLTFast
         public bool Active { get; set; }
         // frames (one sample per channel) read from the buffer: media time, before playbackSpeed
         public long SampleCount { get; set; }
-        public double CurrentTime { get { return SampleCount/(double)SampleRate; } }
+        public virtual double CurrentTime { get { return SampleCount/(double)SampleRate; } }
 
         // MAF buffer
         public readonly MediaBufferHandler BufferHandler;
@@ -105,26 +168,42 @@ namespace GLTFast
         // playbackSpeed other than 1.0: the resampler and the buffer it reads the media samples into
         private PlaybackSpeedResampler resampler = null;
         private float[] speedInput = null;
+        // buffer frames taken per frame handed to Unity (playbackSpeed and the rate conversion)
+        protected double Step { get; private set; } = 1.0;
 
         public readonly int ChannelCount;
         // sample rate of the samples in the buffer (what the media pipeline was asked for in BufferInfo.outputMedia.sampleRate)
         public readonly int SampleRate;
 
-        // rebuffering from MAF to Unity
-        private Frame frame = null;
-        private int srcOffset = 0;
-        private NativeArray<float> src;
+        // MAF buffer to FIFO (drain thread)
+        private readonly AudioSampleFifo fifo;
+        private System.Threading.Thread drainThread;
+        private volatile bool draining;
+        private float[] pending = new float[0];   // samples of the last frame read that are not in the FIFO yet
+        private int pendingCount;
+        private int pendingOffset;
+        const int UNITY_AUDIO_SAMPLE_SIZE = 4;
 
-        // reading/copying samples shouldn't take longer than the requested buffer duration
-        int UNITY_AUDIO_SAMPLE_SIZE = 4;
-        
-        Stopwatch sw;
+        // FIFO to Unity (audio callback)
+        private volatile bool rebuffering = true;
+        private readonly int prebufferSamples;
+        private readonly int rebufferSamples;
+        private bool started;
+
+        // diagnostics, written by the audio callback, read on the main thread
+        private int underruns;
+        private int callbacks;
+        private int minCallbackFrames = int.MaxValue;
+        private int maxCallbackFrames;
+        private int reportedUnderruns;
+        private float nextUnderrunReport;
+        private bool statsReported;
 
         public MafAudioReader(MediaBufferHandler handler, BufferInfoArray bufferInfo, int sampleRate)
         {
             BufferHandler = handler;
             BufferInfo = bufferInfo;
-            ChannelCount = BufferInfo.Count; 
+            ChannelCount = BufferInfo.Count;
             SampleRate = sampleRate;
             useAccessorHeaders = BufferInfo.Count > 0 && MediaBufferHandler.HasTimedAccessorHeader(BufferInfo);
 
@@ -132,6 +211,11 @@ namespace GLTFast
             {
                 bufferHeaders = BufferInfoHeader.CreateAccessorsHeaders(handler.BufferInfo, true);
             }
+
+            int samplesPerSecond = System.Math.Max(1, ChannelCount) * SampleRate;
+            fifo = new AudioSampleFifo((int)(FifoSeconds * samplesPerSecond), ChannelCount);
+            prebufferSamples = System.Math.Min(fifo.Capacity / 2, (int)(PrebufferSeconds * samplesPerSecond));
+            rebufferSamples = System.Math.Min(fifo.Capacity / 2, (int)(RebufferSeconds * samplesPerSecond));
 
             AudioSources = new List<SpatialAudioSource>();
         }
@@ -156,29 +240,177 @@ namespace GLTFast
             if (step != 1.0 && resampler == null)
             {
                 resampler = new PlaybackSpeedResampler(ChannelCount, step);
+                Step = step;
             }
+            UnityEngine.Debug.Log("MafAudioReader " + GetType().Name + ": buffer " + BufferHandler.bufferId + ", " + ChannelCount + " channel(s) at " + SampleRate
+                + " Hz, callback at " + SetupCallbackSampleRate + " Hz, step " + Step.ToString("0.####") + ", MAF frames " + BufferHandler.Capacity
+                + ", FIFO " + (fifo.Capacity / (double)(System.Math.Max(1, ChannelCount) * SampleRate)).ToString("0.00") + " s, DSP buffer " + AudioSettings.GetConfiguration().dspBufferSize);
         }
+
+        // samples in the FIFO that playback will still use (what is left below the rebuffer level when the FIFO ran empty is not)
+        public bool HasPendingAudio { get { return !rebuffering && fifo.Count > 0; } }
 
         public void Play()
         {
+            bool fresh = drainThread == null;
+            if (fresh)
+            {
+                fifo.Clear();
+                rebuffering = true;
+                started = false;
+                OnPlaybackReset();
+                StartDrain();
+            }
+            Active = true;
+            if (fresh)
+            {
+                OnPlaybackStart();
+            }
             foreach (var aSrc in AudioSources)
             {
                 aSrc.Play();
             }
-            Active = true;
         }
 
         public void Stop()
         {
             Active = false;
+            StopDrain();
             foreach (var aSrc in AudioSources)
             {
                 aSrc.Stop();
             }
         }
 
+        // stops the drain thread without touching the audio sources (they may be destroyed already)
+        public void Shutdown()
+        {
+            Active = false;
+            StopDrain();
+        }
+
+        protected virtual void OnPlaybackReset() { }
+
+        // reader active, the audio sources are about to play (main thread)
+        protected virtual void OnPlaybackStart() { }
+
+        // diagnostics: the values the media clock is computed from (main thread)
+        public virtual string ClockState
+        {
+            get { return "clock " + CurrentTime.ToString("0.000") + " s, media frames " + SampleCount + ", FIFO " + fifo.Count / System.Math.Max(1, ChannelCount) + " frames, underruns " + underruns; }
+        }
+
+        // main thread, once per frame (MediaPlayer.Update)
+        public virtual void Update()
+        {
+            if (!statsReported && callbacks >= 50)
+            {
+                statsReported = true;
+                UnityEngine.Debug.Log("MafAudioReader " + GetType().Name + ": buffer " + BufferHandler.bufferId + ", callbacks ask for "
+                    + minCallbackFrames + " to " + maxCallbackFrames + " frames");
+            }
+            int u = underruns;
+            if (u != reportedUnderruns && Time.unscaledTime >= nextUnderrunReport)
+            {
+                UnityEngine.Debug.LogWarning("MafAudioReader: buffer " + BufferHandler.bufferId + ", the audio FIFO ran empty " + (u - reportedUnderruns)
+                    + " time(s): the media pipeline does not keep up, playback waits for " + RebufferSeconds + " s of audio each time");
+                reportedUnderruns = u;
+                nextUnderrunReport = Time.unscaledTime + 2f;
+            }
+        }
+
+        void StartDrain()
+        {
+            pendingCount = 0;
+            pendingOffset = 0;
+            draining = true;
+            drainThread = new System.Threading.Thread(DrainLoop) { IsBackground = true, Name = "MafAudioReader" + BufferHandler.bufferId };
+            drainThread.Start();
+        }
+
+        void StopDrain()
+        {
+            draining = false;
+            if (drainThread != null)
+            {
+                drainThread.Join(500);
+                drainThread = null;
+            }
+        }
+
+        void DrainLoop()
+        {
+            try
+            {
+                while (draining)
+                {
+                    if (pendingOffset < pendingCount)
+                    {
+                        pendingOffset += fifo.Write(pending, pendingOffset, pendingCount - pendingOffset);
+                        if (pendingOffset < pendingCount)
+                        {
+                            System.Threading.Thread.Sleep(5);   // FIFO full
+                            continue;
+                        }
+                    }
+                    if (!ReadFrame())
+                    {
+                        System.Threading.Thread.Sleep(2);       // nothing written by the pipeline yet
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
+            }
+        }
+
+        // copies the next frame of the MAF buffer to `pending`; false when there is none
+        bool ReadFrame()
+        {
+            if (ChannelCount == 0)
+            {
+                return false;
+            }
+            Frame frame = BufferHandler.ReadFrame();
+            if (frame == null)
+            {
+                return false;
+            }
+            int n;
+            if (useAccessorHeaders)
+            {
+                BufferInfoHeader.ReadAccessorsHeaders(frame.data, bufferHeaders);
+                n = ChannelCount * (int)bufferHeaders[0].count;
+            }
+            else
+            {
+                n = (int)frame.length / UNITY_AUDIO_SAMPLE_SIZE;
+                n -= n % ChannelCount;
+            }
+            if (n <= 0)
+            {
+                return true;
+            }
+            var samples = BufferHandler.GetNativeArray(frame, bufferHeaders).Reinterpret<float>(sizeof(byte));
+            n = System.Math.Min(n, samples.Length);
+            if (pending.Length < n)
+            {
+                pending = new float[n];
+            }
+            NativeArray<float>.Copy(samples, 0, pending, 0, n);
+            pendingCount = n;
+            pendingOffset = 0;
+            return true;
+        }
+
         public void AudioReaderCallback(float[] dst)
         {
+            int frames = ChannelCount > 0 ? dst.Length / ChannelCount : dst.Length;
+            if (frames < minCallbackFrames) minCallbackFrames = frames;
+            if (frames > maxCallbackFrames) maxCallbackFrames = frames;
+            callbacks++;
+
             if (resampler == null || ChannelCount == 0)
             {
                 FillSamples(dst, dst.Length);
@@ -193,96 +425,46 @@ namespace GLTFast
                 {
                     speedInput = new float[needed * ChannelCount];
                 }
-                System.Array.Clear(speedInput, 0, needed * ChannelCount);
                 FillSamples(speedInput, needed * ChannelCount);
                 resampler.Push(speedInput, needed);
             }
             resampler.Resample(dst, outFrames);
         }
 
+        // writes `length` samples to dst: from the FIFO, silence for what it cannot supply
         private void FillSamples(float[] dst, int length)
         {
-            // reads the latest frame from BufferHandler, and write the content to audio buffer dst.
-            if (!Active)
+            int got = 0;
+            if (Active && ChannelCount > 0)
             {
-                return;
+                if (rebuffering && fifo.Count >= (started ? rebufferSamples : prebufferSamples))
+                {
+                    rebuffering = false;
+                    started = true;
+                }
+                if (!rebuffering)
+                {
+                    got = fifo.Read(dst, 0, length);
+                    if (got < length)
+                    {
+                        underruns++;
+                        rebuffering = true;
+                    }
+                    SampleCount += got / ChannelCount;
+                }
             }
-            if (BufferInfo.Count == 0)
+            if (got < length)
             {
-                return;
+                System.Array.Clear(dst, got, length - got);
             }
-
-            int dstOffset = 0;
-            while (dstOffset < length)
-            {
-                if (frame == null)
-                {
-                    double maxDelay = (double)length / (ChannelCount * (double)SampleRate);
-                    sw = Stopwatch.StartNew();
-                    do
-                    {
-                        frame = BufferHandler.ReadFrame();
-                        if (sw.Elapsed.TotalSeconds >= maxDelay)
-                        {
-                            // TODO: seek proper sample position in the source media to keep audio in sync
-                            UnityEngine.Debug.LogWarning("Unity audio DSP is starving");
-                            break;
-                        }
-                    } while (frame == null);
-                    
-                    sw.Stop();
-                    if(frame == null)
-                    {
-                        return;
-                    }
-
-                    int packedSampleCount;
-                    if (useAccessorHeaders)
-                    {
-                        BufferInfoHeader.ReadAccessorsHeaders(frame.data, bufferHeaders);
-                        packedSampleCount = ChannelCount * (int)bufferHeaders[0].count;
-                    }
-                    else
-                    {
-                        packedSampleCount = (int)frame.length / (ChannelCount * UNITY_AUDIO_SAMPLE_SIZE);
-                    }
-
-                    if (packedSampleCount == 0)
-                    {
-                        srcOffset = src.Length; // drop the current frame
-                        break;
-                    }
-
-                    var tmp = BufferHandler.GetNativeArray(frame, bufferHeaders);
-                    src = tmp.Reinterpret<float>(sizeof(byte)).GetSubArray(0, packedSampleCount);
-                }
-
-                if (src.Length == 0)
-                {
-                    frame = null;
-                    srcOffset = 0;
-                    return;
-                }
-
-                int chunkSize = Mathf.Min(src.Length - srcOffset, length - dstOffset);
-                NativeArray<float>.Copy(src, srcOffset, dst, dstOffset, chunkSize);
-                dstOffset += chunkSize;
-                srcOffset += chunkSize;
-                if (srcOffset == src.Length)
-                {
-                    frame = null;
-                    srcOffset = 0;
-                }
-            
-            }
-
-            SampleCount += length / ChannelCount;
         }
 
     } // MafAudioReader
 
     public class AudioFilterReader : MafAudioReader
     {
+        private float[] mono = new float[0];   // reused, the audio callback does not allocate
+
         public AudioFilterReader(MediaBufferHandler handler, BufferInfoArray bufferInfo, int sampleRate)
             : base(handler, bufferInfo, sampleRate) { }
 
@@ -313,15 +495,18 @@ namespace GLTFast
             }
             else if (ChannelCount == 1)
             {
-                int mono = data.Length / channels;
-                float[] tmp = new float[mono];
-                AudioReaderCallback(tmp);
+                int frames = data.Length / channels;
+                if (mono.Length != frames)
+                {
+                    mono = new float[frames];
+                }
+                AudioReaderCallback(mono);
                 int j = 0;
-                for (int i = 0; i < tmp.Length; i++)
+                for (int i = 0; i < frames; i++)
                 {
                     for (int c = 0; c < channels; c++)
                     {
-                        data[j] = tmp[i];
+                        data[j] = mono[i];
                         j++;
                     }
                 }
@@ -334,22 +519,47 @@ namespace GLTFast
     }
 
     // Streams the samples through an AudioClip at the sample rate of the buffer: Unity resamples the clip to its output rate.
+    // Unity reads a streamed clip ahead of what it plays, in chunks, so the media clock is taken from the playback position
+    // of the source: each chunk read records where it ends in clip frames and in media frames, and the clock is the media
+    // position of the chunk being played, interpolated in it.
     public class AudioClipReader : MafAudioReader
     {
 
         static public int internaCliplId = 0;
-        public readonly AudioClip Clip;
+        public AudioClip Clip { get; private set; }
+        // the clip loops every ClipLength frames: one second, so that a loop is not missed between two frames of the application
         public readonly int ClipLength;
-        
+
+        // chunks read by Unity: clip frames and media frames at the end of each (written by Unity's callback, read on the main thread)
+        const int ChunkHistory = 256;
+        private readonly long[] chunkEnd = new long[ChunkHistory];
+        private readonly long[] chunkMediaEnd = new long[ChunkHistory];
+        private int chunkCount;
+        private int chunkNext;
+        private long delivered;     // clip frames read by Unity since the clip was created, silence included
+        private readonly object chunkLock = new object();
+
+        private long played;        // clip frames played, from AudioSource.timeSamples unwrapped (main thread)
+        private int lastTimeSamples;
 
         public AudioClipReader(MediaBufferHandler handler, BufferInfoArray bufferInfo, int sampleRate)
             : base(handler, bufferInfo, sampleRate)
         {
-            // Unsure if/how ClipLength impacts memory alloc/performances.
-            // After reading 'ClipLength' samples, the clip will 'loop' and 'SetAudioSamplePosition' is called by unity to reset position at 0.
-            ClipLength = AudioSettings.GetConfiguration().dspBufferSize * 2;
-            Clip = AudioClip.Create($"mafAudioClip{internaCliplId}", ClipLength, ChannelCount, SampleRate, true, AudioReaderCallback); //, SetAudioSamplePosition);
-            internaCliplId++;
+            ClipLength = System.Math.Max(SampleRate, AudioSettings.GetConfiguration().dspBufferSize * 2);
+        }
+
+        void OnClipRead(float[] data)
+        {
+            AudioReaderCallback(data);
+            long media = SampleCount;
+            lock (chunkLock)
+            {
+                delivered += ChannelCount > 0 ? data.Length / ChannelCount : data.Length;
+                chunkEnd[chunkNext] = delivered;
+                chunkMediaEnd[chunkNext] = media;
+                chunkNext = (chunkNext + 1) % ChunkHistory;
+                if (chunkCount < ChunkHistory) chunkCount++;
+            }
         }
 
         override public void AddAudioSource(SpatialAudioSource aSrc)
@@ -359,12 +569,113 @@ namespace GLTFast
                 UnityEngine.Debug.LogWarning("Multiple audio sources are sharing the same AudioClip.");
             }
             base.AddAudioSource(aSrc);
-            aSrc.SetAudioClip(Clip);
+            if (Clip != null)
+            {
+                aSrc.SetAudioClip(Clip);
+            }
         }
 
-        void SetAudioSamplePosition(int newPosition)
+        protected override void OnPlaybackReset()
         {
-            SampleCount = newPosition;
+            lock (chunkLock)
+            {
+                delivered = 0;
+                chunkCount = 0;
+                chunkNext = 0;
+            }
+            played = 0;
+            lastTimeSamples = 0;
+        }
+
+        // A new clip for each start: AudioClip.Create already reads the first chunk, which must be counted from the start of playback.
+        protected override void OnPlaybackStart()
+        {
+            var old = Clip;
+            Clip = AudioClip.Create($"mafAudioClip{internaCliplId}", ClipLength, ChannelCount, SampleRate, true, OnClipRead);
+            internaCliplId++;
+            foreach (var aSrc in AudioSources)
+            {
+                aSrc.SetAudioClip(Clip);
+            }
+            if (old != null)
+            {
+                UnityEngine.Object.Destroy(old);
+            }
+        }
+
+        public override void Update()
+        {
+            base.Update();
+            if (AudioSources.Count == 0 || Clip == null)
+            {
+                return;
+            }
+            int ts = AudioSources[0].TimeSamples;
+            played += ts >= lastTimeSamples ? ts - lastTimeSamples : ClipLength - lastTimeSamples + ts;
+            lastTimeSamples = ts;
+            // loops missed while Update did not run (media paused, a long frame): Unity does not read a clip length ahead
+            long read;
+            lock (chunkLock) { read = delivered; }
+            while (read - played > ClipLength)
+            {
+                played += ClipLength;
+            }
+        }
+
+        // media frames at clip frame `position`, from the chunks read; false when the history does not reach it
+        bool MediaAt(long position, out double media)
+        {
+            lock (chunkLock)
+            {
+                media = 0;
+                if (chunkCount == 0)
+                {
+                    return false;
+                }
+                int oldest = (chunkNext - chunkCount + ChunkHistory) % ChunkHistory;
+                long startClip = 0, startMedia = 0;
+                for (int k = 0; k < chunkCount; k++)
+                {
+                    int i = (oldest + k) % ChunkHistory;
+                    if (position <= chunkEnd[i])
+                    {
+                        if (k == 0 && chunkCount == ChunkHistory)
+                        {
+                            // the oldest chunk kept: its start is unknown, take it as played whole
+                            media = chunkMediaEnd[i];
+                            return true;
+                        }
+                        long length = chunkEnd[i] - startClip;
+                        double f = length > 0 ? (position - startClip) / (double)length : 1.0;
+                        media = startMedia + f * (chunkMediaEnd[i] - startMedia);
+                        return true;
+                    }
+                    startClip = chunkEnd[i];
+                    startMedia = chunkMediaEnd[i];
+                }
+                // played past what was read: the last media frame read
+                media = startMedia;
+                return true;
+            }
+        }
+
+        public override string ClockState
+        {
+            get
+            {
+                long read;
+                lock (chunkLock) { read = delivered; }
+                return base.ClockState + ", delivered " + read + ", played " + played + ", timeSamples " + lastTimeSamples + ", ahead " + (read - played);
+            }
+        }
+
+        public override double CurrentTime
+        {
+            get
+            {
+                double media;
+                return MediaAt(played, out media) ? media / SampleRate : 0.0;
+            }
         }
     }
 

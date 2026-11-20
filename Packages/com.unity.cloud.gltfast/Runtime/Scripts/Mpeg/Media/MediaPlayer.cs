@@ -860,6 +860,19 @@ namespace GLTFast {
             }
         }
 
+        // a player destroyed without Dispose() (scene unloaded, play mode left): the drain threads of the audio readers
+        // must not read the MAF buffers once they are freed
+        void OnDestroy()
+        {
+            if (audioReaders != null)
+            {
+                foreach (var r in audioReaders.Values)
+                {
+                    r.Shutdown();
+                }
+            }
+        }
+
         // Dispose() stops media pipeline and properly dispose of the media pipeline.
         // After calling Dispose(), the MediaPlayer instance is not longer usable and should no longer be referenced.
         public void Dispose()
@@ -894,6 +907,18 @@ namespace GLTFast {
                     return;
                 }
             }
+            // the audio readers have drained the buffers into their FIFO: the media has finished once that is played too
+            if (audioReaders != null)
+            {
+                foreach (var r in audioReaders.Values)
+                {
+                    if (r.HasPendingAudio)
+                    {
+                        finishedWait = 0;
+                        return;
+                    }
+                }
+            }
             finishedWait += Time.unscaledDeltaTime;
             if (finishedWait < 0.5)
             {
@@ -907,6 +932,26 @@ namespace GLTFast {
                     r.Stop();
                 }
             }
+        }
+
+        /// <summary>Diagnostics: once per second, the audio clock the video follows and the video frames presented.</summary>
+        public static bool LogMediaClock = false;
+        private int presentedFrames;
+        private float nextClockLog;
+
+        private void LogClock()
+        {
+            nextClockLog = Time.unscaledTime + 1f;
+            string video = "";
+            foreach (var mb in mediaBuffers.Values)
+            {
+                if (!videoTextures.ContainsKey(mb.bufferId)) continue;
+                var shown = mb.PresentationFrame != null ? maf.getTime_s(mb.PresentationFrame.timestamp).ToString("0.000") : "-";
+                var last = mb.GetLastFrameTimestamp();
+                video += " video " + mb.bufferId + ": shown " + shown + " s, newest " + (last.HasValue ? maf.getTime_s(last.Value).ToString("0.000") : "-") + " s, " + mb.Count + " queued;";
+            }
+            Debug.Log("MediaPlayer clock (" + audioReaderMode + "): " + audioSync.ClockState + ";" + video + " " + presentedFrames + " frames presented in the last second");
+            presentedFrames = 0;
         }
 
         // The OnAudioFilterRead readers are set up for the output rate of Unity's mixer when they are created.
@@ -955,7 +1000,16 @@ namespace GLTFast {
                 {
                     CurrentTime += Time.deltaTime;
                 }
-                
+
+                // before the video reads the clock of audioSync
+                if (audioReaders != null)
+                {
+                    foreach (var r in audioReaders.Values)
+                    {
+                        r.Update();
+                    }
+                }
+
                 foreach (var mb in mediaBuffers.Values)
                 {
                     if ((videoTextures != null) && videoTextures.ContainsKey(mb.bufferId))
@@ -963,6 +1017,7 @@ namespace GLTFast {
                         double ts = audioSync != null ? audioSync.CurrentTime : CurrentTime;
                         if (mb.UpdatePresentationFrame(ts) != null)
                         {
+                            presentedFrames++;
                             FirstFramePresented = true;
                             var data = mb.GetNativeArray(mb.PresentationFrame);
                             foreach (var vt in videoTextures[mb.bufferId])
@@ -971,6 +1026,11 @@ namespace GLTFast {
                             }
                         }
                     }
+                }
+
+                if (LogMediaClock && audioSync != null && videoTextures != null && Time.unscaledTime >= nextClockLog)
+                {
+                    LogClock();
                 }
 
                 if (playedOut && !Finished)
